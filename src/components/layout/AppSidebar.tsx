@@ -21,12 +21,10 @@ const AppSidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-sidebar flex flex-col">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-        <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-          <Package className="h-5 w-5 text-primary-foreground" />
-        </div>
+        <img src={blennixLogo} alt="Blennix Logo" className="h-9 w-9 rounded-lg" />
         <div>
-          <h1 className="text-sm font-bold text-sidebar-foreground tracking-tight">RestoPOS</h1>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Inventory</p>
+          <h1 className="text-sm font-bold text-sidebar-foreground tracking-tight">Blennix</h1>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">POS System</p>
         </div>
       </div>
 
