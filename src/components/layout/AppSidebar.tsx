@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  Package,
   ChefHat,
   AlertTriangle,
   LayoutDashboard,
   Settings,
+  Package,
 } from "lucide-react";
+import blennixLogo from "/blennix-logo.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Overview" },
