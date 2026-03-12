@@ -39,6 +39,13 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        stock: {
+          good: "hsl(var(--stock-good))",
+          low: "hsl(var(--stock-low))",
+          out: "hsl(var(--stock-out))",
+          expiring: "hsl(var(--stock-expiring))",
+        },
+        elevated: "hsl(var(--surface-elevated))",
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
