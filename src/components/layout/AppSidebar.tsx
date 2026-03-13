@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Settings,
   Package,
+  CreditCard,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 
