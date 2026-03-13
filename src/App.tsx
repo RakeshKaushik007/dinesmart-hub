@@ -8,6 +8,7 @@ import InventoryOverview from "@/pages/InventoryOverview";
 import IngredientsPage from "@/pages/IngredientsPage";
 import RecipesPage from "@/pages/RecipesPage";
 import AlertsPage from "@/pages/AlertsPage";
+import BillingPage from "@/pages/BillingPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/ingredients" element={<IngredientsPage />} />
             <Route path="/recipes" element={<RecipesPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/billing" element={<BillingPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
