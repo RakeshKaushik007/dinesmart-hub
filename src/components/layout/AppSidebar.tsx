@@ -13,6 +13,7 @@ import blennixLogo from "/blennix-logo.png";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Overview" },
   { to: "/billing", icon: CreditCard, label: "Billing" },
+  { to: "/tables", icon: Armchair, label: "Tables" },
   { to: "/ingredients", icon: Package, label: "Ingredients" },
   { to: "/recipes", icon: ChefHat, label: "Recipes" },
   { to: "/alerts", icon: AlertTriangle, label: "Alerts" },
