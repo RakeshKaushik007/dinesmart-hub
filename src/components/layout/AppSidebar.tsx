@@ -6,6 +6,7 @@ import {
   Settings,
   Package,
   CreditCard,
+  Armchair,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 
