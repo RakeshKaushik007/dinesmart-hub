@@ -9,6 +9,7 @@ import IngredientsPage from "@/pages/IngredientsPage";
 import RecipesPage from "@/pages/RecipesPage";
 import AlertsPage from "@/pages/AlertsPage";
 import BillingPage from "@/pages/BillingPage";
+import TablesPage from "@/pages/TablesPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
