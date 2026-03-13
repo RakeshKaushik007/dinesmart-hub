@@ -6,22 +6,28 @@ import {
   Settings,
   Package,
   CreditCard,
+  Armchair,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Overview" },
   { to: "/billing", icon: CreditCard, label: "Billing" },
+  { to: "/tables", icon: Armchair, label: "Tables" },
   { to: "/ingredients", icon: Package, label: "Ingredients" },
   { to: "/recipes", icon: ChefHat, label: "Recipes" },
   { to: "/alerts", icon: AlertTriangle, label: "Alerts" },
 ];
 
-const AppSidebar = () => {
+interface AppSidebarProps {
+  onNavigate?: () => void;
+}
+
+const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-sidebar flex flex-col">
+    <aside className="h-screen w-64 border-r border-border bg-sidebar flex flex-col">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
         <img src={blennixLogo} alt="Blennix Logo" className="h-9 w-9 rounded-lg" />
         <div>
@@ -37,6 +43,7 @@ const AppSidebar = () => {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={onNavigate}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 isActive
                   ? "bg-sidebar-accent text-primary"
