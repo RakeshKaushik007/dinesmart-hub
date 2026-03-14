@@ -7,16 +7,68 @@ import {
   Package,
   CreditCard,
   Armchair,
+  Truck,
+  Trash2,
+  TrendingUp,
+  ShoppingBag,
+  ChefHat as KOTIcon,
+  Clock,
+  CalendarDays,
+  Target,
+  Trophy,
+  Bot,
+  Building2,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 
-const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Overview" },
-  { to: "/billing", icon: CreditCard, label: "Billing" },
-  { to: "/tables", icon: Armchair, label: "Tables" },
-  { to: "/ingredients", icon: Package, label: "Ingredients" },
-  { to: "/recipes", icon: ChefHat, label: "Recipes" },
-  { to: "/alerts", icon: AlertTriangle, label: "Alerts" },
+interface NavGroup {
+  label: string;
+  items: { to: string; icon: any; label: string }[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Main",
+    items: [
+      { to: "/", icon: LayoutDashboard, label: "Overview" },
+      { to: "/billing", icon: CreditCard, label: "Billing" },
+      { to: "/tables", icon: Armchair, label: "Tables" },
+    ],
+  },
+  {
+    label: "Inventory",
+    items: [
+      { to: "/ingredients", icon: Package, label: "Stock & Alerts" },
+      { to: "/purchase-orders", icon: Truck, label: "Purchase Orders" },
+      { to: "/wastage", icon: Trash2, label: "Wastage Logs" },
+      { to: "/dynamic-pricing", icon: TrendingUp, label: "Dynamic Pricing" },
+    ],
+  },
+  {
+    label: "Orders",
+    items: [
+      { to: "/active-orders", icon: ShoppingBag, label: "Active Orders" },
+      { to: "/kitchen-display", icon: ChefHat, label: "Kitchen (KOT)" },
+      { to: "/order-history", icon: Clock, label: "Order History" },
+    ],
+  },
+  {
+    label: "Reports",
+    items: [
+      { to: "/eod-summary", icon: CalendarDays, label: "EOD Summary" },
+      { to: "/profitability", icon: Target, label: "Profitability" },
+      { to: "/bestsellers", icon: Trophy, label: "Bestsellers" },
+    ],
+  },
+  {
+    label: "More",
+    items: [
+      { to: "/recipes", icon: ChefHat, label: "Recipes" },
+      { to: "/alerts", icon: AlertTriangle, label: "Alerts" },
+      { to: "/ai-assistant", icon: Bot, label: "AI Assistant" },
+      { to: "/multi-branch", icon: Building2, label: "Multi-Branch" },
+    ],
+  },
 ];
 
 interface AppSidebarProps {
@@ -36,29 +88,38 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.to;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={onNavigate}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                isActive
-                  ? "bg-sidebar-accent text-primary"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </NavLink>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {navGroups.map((group) => (
+          <div key={group.label}>
+            <p className="px-3 mb-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={onNavigate}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                      isActive
+                        ? "bg-sidebar-accent text-primary"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="px-3 pb-4">
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full">
+        <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full">
           <Settings className="h-4 w-4" />
           Settings
         </button>
