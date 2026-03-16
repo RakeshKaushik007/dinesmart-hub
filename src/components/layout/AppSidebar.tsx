@@ -11,15 +11,17 @@ import {
   Trash2,
   TrendingUp,
   ShoppingBag,
-  ChefHat as KOTIcon,
   Clock,
   CalendarDays,
   Target,
   Trophy,
   Bot,
   Building2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
+import { useTheme } from "@/hooks/use-theme";
 
 interface NavGroup {
   label: string;
@@ -77,6 +79,7 @@ interface AppSidebarProps {
 
 const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
+  const { theme, toggle } = useTheme();
 
   return (
     <aside className="h-screen w-64 border-r border-border bg-sidebar flex flex-col">
@@ -118,7 +121,14 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
         ))}
       </nav>
 
-      <div className="px-3 pb-4">
+      <div className="px-3 pb-4 space-y-1">
+        <button
+          onClick={toggle}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? "Light Mode" : "Dark Mode"}
+        </button>
         <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full">
           <Settings className="h-4 w-4" />
           Settings
