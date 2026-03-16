@@ -19,9 +19,12 @@ import {
   Building2,
   Sun,
   Moon,
+  LogOut,
+  Shield,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
+import { useAuth } from "@/hooks/useAuth";
 
 interface NavGroup {
   label: string;
@@ -77,9 +80,20 @@ interface AppSidebarProps {
   onNavigate?: () => void;
 }
 
+const roleBadgeColors: Record<string, string> = {
+  super_admin: "bg-destructive/20 text-destructive",
+  admin: "bg-primary/20 text-primary",
+  owner: "bg-accent/20 text-accent-foreground",
+  branch_manager: "bg-secondary text-secondary-foreground",
+  employee: "bg-muted text-muted-foreground",
+};
+
 const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
   const { theme, toggle } = useTheme();
+  const { profile, roles, signOut } = useAuth();
+
+  const topRole = roles.length > 0 ? roles[0].role : null;
 
   return (
     <aside className="h-screen w-64 border-r border-border bg-sidebar flex flex-col">
@@ -89,6 +103,19 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
           <h1 className="text-sm font-bold text-sidebar-foreground tracking-tight">Blennix</h1>
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest">POS System</p>
         </div>
+      </div>
+
+      {/* User info */}
+      <div className="px-4 py-3 border-b border-sidebar-border">
+        <p className="text-xs font-medium text-sidebar-foreground truncate">
+          {profile?.full_name || profile?.email || "User"}
+        </p>
+        {topRole && (
+          <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${roleBadgeColors[topRole] || "bg-muted text-muted-foreground"}`}>
+            <Shield className="h-3 w-3" />
+            {topRole.replace("_", " ")}
+          </span>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
@@ -132,6 +159,13 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
         <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full">
           <Settings className="h-4 w-4" />
           Settings
+        </button>
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-destructive hover:bg-destructive/10 transition-all w-full"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
         </button>
       </div>
     </aside>
