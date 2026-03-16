@@ -1,0 +1,112 @@
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User, Session } from "@supabase/supabase-js";
+
+export type AppRole = "super_admin" | "admin" | "owner" | "branch_manager" | "employee";
+
+interface UserRole {
+  role: AppRole;
+  branch_id: string | null;
+}
+
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  roles: UserRole[];
+  profile: { full_name: string | null; email: string | null; avatar_url: string | null } | null;
+  hasRole: (role: AppRole) => boolean;
+  hasAnyRole: (roles: AppRole[]) => boolean;
+  isAtLeast: (role: AppRole) => boolean;
+  signOut: () => Promise<void>;
+}
+
+const ROLE_HIERARCHY: AppRole[] = ["super_admin", "admin", "owner", "branch_manager", "employee"];
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  loading: true,
+  roles: [],
+  profile: null,
+  hasRole: () => false,
+  hasAnyRole: () => false,
+  isAtLeast: () => false,
+  signOut: async () => {},
+});
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState<UserRole[]>([]);
+  const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
+
+  const fetchUserData = useCallback(async (userId: string) => {
+    const [rolesRes, profileRes] = await Promise.all([
+      supabase.from("user_roles").select("role, branch_id").eq("user_id", userId),
+      supabase.from("profiles").select("full_name, email, avatar_url").eq("user_id", userId).single(),
+    ]);
+
+    if (rolesRes.data) {
+      setRoles(rolesRes.data.map((r) => ({ role: r.role as AppRole, branch_id: r.branch_id })));
+    }
+    if (profileRes.data) {
+      setProfile(profileRes.data);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Set up auth listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        // Use setTimeout to avoid Supabase deadlock
+        setTimeout(() => fetchUserData(session.user.id), 0);
+      } else {
+        setRoles([]);
+        setProfile(null);
+      }
+      setLoading(false);
+    });
+
+    // THEN check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchUserData]);
+
+  const hasRole = useCallback((role: AppRole) => roles.some((r) => r.role === role), [roles]);
+  const hasAnyRole = useCallback((rs: AppRole[]) => roles.some((r) => rs.includes(r.role)), [roles]);
+  const isAtLeast = useCallback(
+    (role: AppRole) => {
+      const targetIdx = ROLE_HIERARCHY.indexOf(role);
+      return roles.some((r) => ROLE_HIERARCHY.indexOf(r.role) <= targetIdx);
+    },
+    [roles]
+  );
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setRoles([]);
+    setProfile(null);
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, session, loading, roles, profile, hasRole, hasAnyRole, isAtLeast, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
