@@ -9,7 +9,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
-import InventoryOverview from "@/pages/InventoryOverview";
+import Index from "@/pages/Index";
 import IngredientsPage from "@/pages/IngredientsPage";
 import RecipesPage from "@/pages/RecipesPage";
 import AlertsPage from "@/pages/AlertsPage";
@@ -45,7 +45,7 @@ const App = () => (
 
               {/* Protected routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route path="/" element={<InventoryOverview />} />
+                <Route path="/" element={<Index />} />
                 <Route path="/billing" element={<BillingPage />} />
                 <Route path="/tables" element={<TablesPage />} />
                 <Route path="/ingredients" element={<IngredientsPage />} />
