@@ -9,7 +9,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
-import InventoryOverview from "@/pages/InventoryOverview";
+import Index from "@/pages/Index";
 import IngredientsPage from "@/pages/IngredientsPage";
 import RecipesPage from "@/pages/RecipesPage";
 import AlertsPage from "@/pages/AlertsPage";
