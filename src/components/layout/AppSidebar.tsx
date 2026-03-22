@@ -24,60 +24,74 @@ import {
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, AppRole } from "@/hooks/useAuth";
+
+interface NavItem {
+  to: string;
+  icon: any;
+  label: string;
+  minRole: AppRole; // minimum role level required
+}
 
 interface NavGroup {
   label: string;
-  items: { to: string; icon: any; label: string }[];
+  minRole: AppRole;
+  items: NavItem[];
 }
 
 const navGroups: NavGroup[] = [
   {
     label: "Main",
+    minRole: "employee",
     items: [
-      { to: "/", icon: LayoutDashboard, label: "Overview" },
-      { to: "/billing", icon: CreditCard, label: "Billing" },
-      { to: "/tables", icon: Armchair, label: "Tables" },
+      { to: "/", icon: LayoutDashboard, label: "Overview", minRole: "employee" },
+      { to: "/billing", icon: CreditCard, label: "Billing", minRole: "employee" },
+      { to: "/tables", icon: Armchair, label: "Tables", minRole: "employee" },
     ],
   },
   {
     label: "Inventory",
+    minRole: "branch_manager",
     items: [
-      { to: "/ingredients", icon: Package, label: "Stock & Alerts" },
-      { to: "/purchase-orders", icon: Truck, label: "Purchase Orders" },
-      { to: "/wastage", icon: Trash2, label: "Wastage Logs" },
-      { to: "/dynamic-pricing", icon: TrendingUp, label: "Dynamic Pricing" },
+      { to: "/ingredients", icon: Package, label: "Stock & Alerts", minRole: "branch_manager" },
+      { to: "/purchase-orders", icon: Truck, label: "Purchase Orders", minRole: "branch_manager" },
+      { to: "/wastage", icon: Trash2, label: "Wastage Logs", minRole: "branch_manager" },
+      { to: "/dynamic-pricing", icon: TrendingUp, label: "Dynamic Pricing", minRole: "owner" },
     ],
   },
   {
     label: "Orders",
+    minRole: "employee",
     items: [
-      { to: "/active-orders", icon: ShoppingBag, label: "Active Orders" },
-      { to: "/kitchen-display", icon: ChefHat, label: "Kitchen (KOT)" },
-      { to: "/order-history", icon: Clock, label: "Order History" },
+      { to: "/active-orders", icon: ShoppingBag, label: "Active Orders", minRole: "employee" },
+      { to: "/kitchen-display", icon: ChefHat, label: "Kitchen (KOT)", minRole: "employee" },
+      { to: "/order-history", icon: Clock, label: "Order History", minRole: "branch_manager" },
     ],
   },
   {
     label: "Reports",
+    minRole: "branch_manager",
     items: [
-      { to: "/eod-summary", icon: CalendarDays, label: "EOD Summary" },
-      { to: "/profitability", icon: Target, label: "Profitability" },
-      { to: "/bestsellers", icon: Trophy, label: "Bestsellers" },
+      { to: "/eod-summary", icon: CalendarDays, label: "EOD Summary", minRole: "branch_manager" },
+      { to: "/profitability", icon: Target, label: "Profitability", minRole: "owner" },
+      { to: "/bestsellers", icon: Trophy, label: "Bestsellers", minRole: "branch_manager" },
     ],
   },
   {
     label: "More",
+    minRole: "branch_manager",
     items: [
-      { to: "/recipes", icon: ChefHat, label: "Recipes" },
-      { to: "/alerts", icon: AlertTriangle, label: "Alerts" },
-      { to: "/ai-assistant", icon: Bot, label: "AI Assistant" },
-      { to: "/multi-branch", icon: Building2, label: "Multi-Branch" },
+      { to: "/recipes", icon: ChefHat, label: "Recipes", minRole: "branch_manager" },
+      { to: "/alerts", icon: AlertTriangle, label: "Alerts", minRole: "employee" },
+      { to: "/ai-assistant", icon: Bot, label: "AI Assistant", minRole: "owner" },
+      { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
     ],
   },
   {
     label: "Admin",
+    minRole: "super_admin",
     items: [
-      { to: "/admin/users", icon: Shield, label: "User Management" },
+      { to: "/admin/users", icon: Shield, label: "User Management", minRole: "super_admin" },
     ],
   },
 ];
@@ -97,9 +111,18 @@ const roleBadgeColors: Record<string, string> = {
 const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
   const { theme, toggle } = useTheme();
-  const { profile, roles, signOut } = useAuth();
+  const { profile, roles, signOut, isAtLeast } = useAuth();
 
   const topRole = roles.length > 0 ? roles[0].role : null;
+
+  // Filter groups and items by role
+  const visibleGroups = navGroups
+    .filter((group) => isAtLeast(group.minRole))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => isAtLeast(item.minRole)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside className="h-screen w-64 border-r border-border bg-sidebar flex flex-col">
@@ -125,7 +148,7 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               {group.label}
