@@ -63,6 +63,7 @@ const App = () => (
                 <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/ai-assistant" element={<AIAssistantPage />} />
                 <Route path="/multi-branch" element={<MultiBranchPage />} />
+                <Route path="/admin/users" element={<AdminUsersPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

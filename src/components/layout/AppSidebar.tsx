@@ -74,6 +74,12 @@ const navGroups: NavGroup[] = [
       { to: "/multi-branch", icon: Building2, label: "Multi-Branch" },
     ],
   },
+  {
+    label: "Admin",
+    items: [
+      { to: "/admin/users", icon: Shield, label: "User Management" },
+    ],
+  },
 ];
 
 interface AppSidebarProps {
