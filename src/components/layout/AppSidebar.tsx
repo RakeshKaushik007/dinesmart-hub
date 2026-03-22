@@ -148,7 +148,7 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               {group.label}
