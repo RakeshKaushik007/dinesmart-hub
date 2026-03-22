@@ -111,9 +111,18 @@ const roleBadgeColors: Record<string, string> = {
 const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
   const { theme, toggle } = useTheme();
-  const { profile, roles, signOut } = useAuth();
+  const { profile, roles, signOut, isAtLeast } = useAuth();
 
   const topRole = roles.length > 0 ? roles[0].role : null;
+
+  // Filter groups and items by role
+  const visibleGroups = navGroups
+    .filter((group) => isAtLeast(group.minRole))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => isAtLeast(item.minRole)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside className="h-screen w-64 border-r border-border bg-sidebar flex flex-col">
