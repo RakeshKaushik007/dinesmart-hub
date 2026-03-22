@@ -26,6 +26,7 @@ import ProfitabilityPage from "@/pages/ProfitabilityPage";
 import BestsellersPage from "@/pages/BestsellersPage";
 import AIAssistantPage from "@/pages/AIAssistantPage";
 import MultiBranchPage from "@/pages/MultiBranchPage";
+import AdminUsersPage from "@/pages/AdminUsersPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/ai-assistant" element={<AIAssistantPage />} />
                 <Route path="/multi-branch" element={<MultiBranchPage />} />
+                <Route path="/admin/users" element={<AdminUsersPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
