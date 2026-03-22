@@ -26,6 +26,7 @@ import ProfitabilityPage from "@/pages/ProfitabilityPage";
 import BestsellersPage from "@/pages/BestsellersPage";
 import AIAssistantPage from "@/pages/AIAssistantPage";
 import MultiBranchPage from "@/pages/MultiBranchPage";
+import AdminUsersPage from "@/pages/AdminUsersPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
