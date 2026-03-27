@@ -82,7 +82,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
     };
   }, [fetchUserData]);
-  }, [fetchUserData]);
 
   const hasRole = useCallback((role: AppRole) => roles.some((r) => r.role === role), [roles]);
   const hasAnyRole = useCallback((rs: AppRole[]) => roles.some((r) => rs.includes(r.role)), [roles]);
