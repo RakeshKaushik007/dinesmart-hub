@@ -66,6 +66,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: "/active-orders", icon: ShoppingBag, label: "Active Orders", minRole: "employee" },
       { to: "/kitchen-display", icon: ChefHat, label: "Kitchen (KOT)", minRole: "employee" },
+      { to: "/aggregator-orders", icon: Bike, label: "Swiggy / Zomato", minRole: "employee" },
       { to: "/order-history", icon: Clock, label: "Order History", minRole: "branch_manager" },
     ],
   },
