@@ -76,6 +76,9 @@ const App = () => (
                 <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
 
+                {/* Settings - all roles */}
+                <Route path="/settings" element={<SettingsPage />} />
+
                 {/* Super Admin only */}
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin"]}><AdminUsersPage /></ProtectedRoute>} />
               </Route>
