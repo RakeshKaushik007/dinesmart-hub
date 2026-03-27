@@ -46,24 +46,31 @@ const App = () => (
 
               {/* Protected routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              {/* All roles */}
                 <Route path="/" element={<Index />} />
-                <Route path="/billing" element={<BillingPage />} />
-                <Route path="/tables" element={<TablesPage />} />
-                <Route path="/ingredients" element={<IngredientsPage />} />
-                <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
-                <Route path="/wastage" element={<WastagePage />} />
-                <Route path="/dynamic-pricing" element={<DynamicPricingPage />} />
-                <Route path="/active-orders" element={<ActiveOrdersPage />} />
-                <Route path="/kitchen-display" element={<KitchenDisplayPage />} />
-                <Route path="/order-history" element={<OrderHistoryPage />} />
-                <Route path="/eod-summary" element={<EODSummaryPage />} />
-                <Route path="/profitability" element={<ProfitabilityPage />} />
-                <Route path="/bestsellers" element={<BestsellersPage />} />
-                <Route path="/recipes" element={<RecipesPage />} />
-                <Route path="/alerts" element={<AlertsPage />} />
-                <Route path="/ai-assistant" element={<AIAssistantPage />} />
-                <Route path="/multi-branch" element={<MultiBranchPage />} />
-                <Route path="/admin/users" element={<AdminUsersPage />} />
+                <Route path="/billing" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><BillingPage /></ProtectedRoute>} />
+                <Route path="/tables" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><TablesPage /></ProtectedRoute>} />
+                <Route path="/active-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><ActiveOrdersPage /></ProtectedRoute>} />
+                <Route path="/kitchen-display" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><KitchenDisplayPage /></ProtectedRoute>} />
+                <Route path="/alerts" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><AlertsPage /></ProtectedRoute>} />
+
+                {/* Branch Manager+ */}
+                <Route path="/ingredients" element={<ProtectedRoute requiredRole="branch_manager"><IngredientsPage /></ProtectedRoute>} />
+                <Route path="/purchase-orders" element={<ProtectedRoute requiredRole="branch_manager"><PurchaseOrdersPage /></ProtectedRoute>} />
+                <Route path="/wastage" element={<ProtectedRoute requiredRole="branch_manager"><WastagePage /></ProtectedRoute>} />
+                <Route path="/order-history" element={<ProtectedRoute requiredRole="branch_manager"><OrderHistoryPage /></ProtectedRoute>} />
+                <Route path="/eod-summary" element={<ProtectedRoute requiredRole="branch_manager"><EODSummaryPage /></ProtectedRoute>} />
+                <Route path="/bestsellers" element={<ProtectedRoute requiredRole="branch_manager"><BestsellersPage /></ProtectedRoute>} />
+                <Route path="/recipes" element={<ProtectedRoute requiredRole="branch_manager"><RecipesPage /></ProtectedRoute>} />
+
+                {/* Owner+ */}
+                <Route path="/dynamic-pricing" element={<ProtectedRoute requiredRole="owner"><DynamicPricingPage /></ProtectedRoute>} />
+                <Route path="/profitability" element={<ProtectedRoute requiredRole="owner"><ProfitabilityPage /></ProtectedRoute>} />
+                <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
+                <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
+
+                {/* Super Admin only */}
+                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin"]}><AdminUsersPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
