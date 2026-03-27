@@ -57,31 +57,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Set up auth listener FIRST
+    let isMounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Use setTimeout to avoid Supabase deadlock
-        setTimeout(() => fetchUserData(session.user.id), 0);
+        setTimeout(() => {
+          if (!isMounted) return;
+          fetchUserData(session.user.id).finally(() => {
+            if (isMounted) setLoading(false);
+          });
+        }, 0);
       } else {
         setRoles([]);
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    // THEN check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchUserData]);
 
   const hasRole = useCallback((role: AppRole) => roles.some((r) => r.role === role), [roles]);
