@@ -46,6 +46,8 @@ const App = () => (
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              <Route path="/order/:tableId" element={<CustomerOrderPage />} />
+              <Route path="/kiosk" element={<KioskPage />} />
 
               {/* Protected routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
