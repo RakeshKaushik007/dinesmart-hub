@@ -28,6 +28,7 @@ import AIAssistantPage from "@/pages/AIAssistantPage";
 import MultiBranchPage from "@/pages/MultiBranchPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import AggregatorOrdersPage from "@/pages/AggregatorOrdersPage";
+import SettingsPage from "@/pages/SettingsPage";
 import KioskPage from "@/pages/KioskPage";
 import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
 import NotFound from "./pages/NotFound.tsx";
@@ -74,6 +75,9 @@ const App = () => (
                 <Route path="/profitability" element={<ProtectedRoute requiredRole="owner"><ProfitabilityPage /></ProtectedRoute>} />
                 <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
+
+                {/* Settings - all roles */}
+                <Route path="/settings" element={<SettingsPage />} />
 
                 {/* Super Admin only */}
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin"]}><AdminUsersPage /></ProtectedRoute>} />
