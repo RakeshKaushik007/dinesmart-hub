@@ -21,6 +21,7 @@ import {
   Moon,
   LogOut,
   Shield,
+  Bike,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
