@@ -37,7 +37,7 @@ const ActiveOrdersPage = () => {
   const [sourceFilter, setSourceFilter] = useState("all");
 
   const fetchOrders = async () => {
-    const activeStatuses = ["new", "accepted", "preparing", "ready", "dispatched"];
+    const activeStatuses = ["new", "accepted", "preparing", "ready", "dispatched"] as const;
     const { data: ordersData } = await supabase
       .from("orders")
       .select("id, order_number, order_source, order_type, status, total, customer_name, table_id, created_at")
