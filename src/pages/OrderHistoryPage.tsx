@@ -1,35 +1,52 @@
-import { useState } from "react";
-import { Search, FileText, Clock } from "lucide-react";
-
-interface HistoryOrder {
-  id: string;
-  source: string;
-  customerName: string;
-  items: string[];
-  total: number;
-  status: "completed" | "cancelled" | "refunded";
-  paymentMode: string;
-  completedAt: string;
-}
-
-const mockHistory: HistoryOrder[] = [
-  { id: "ORD-4195", source: "Dine-in", customerName: "Table 5", items: ["Paneer Butter Masala x2", "Jeera Rice x2"], total: 940, status: "completed", paymentMode: "UPI", completedAt: "2026-03-14T11:45:00" },
-  { id: "ORD-4190", source: "Zomato", customerName: "Amit Kumar", items: ["Chicken Biryani x1"], total: 380, status: "completed", paymentMode: "Online", completedAt: "2026-03-14T11:20:00" },
-  { id: "ORD-4188", source: "Swiggy", customerName: "Neha Gupta", items: ["Dal Tadka x1", "Jeera Rice x1"], total: 370, status: "cancelled", paymentMode: "—", completedAt: "2026-03-14T10:55:00" },
-  { id: "ORD-4185", source: "QR", customerName: "Table 9 (QR)", items: ["Paneer Butter Masala x1", "Chicken Biryani x1"], total: 700, status: "completed", paymentMode: "Card", completedAt: "2026-03-14T10:30:00" },
-  { id: "ORD-4180", source: "Dine-in", customerName: "Table 2", items: ["Dal Tadka x3", "Jeera Rice x3"], total: 1110, status: "refunded", paymentMode: "Cash", completedAt: "2026-03-14T09:50:00" },
-  { id: "ORD-4175", source: "Zomato", customerName: "Kiran Rao", items: ["Chicken Biryani x2"], total: 760, status: "completed", paymentMode: "Online", completedAt: "2026-03-13T21:00:00" },
-];
+import { useState, useEffect } from "react";
+import { Search, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const statusStyles: Record<string, string> = {
   completed: "bg-emerald-500/10 text-emerald-600",
   cancelled: "bg-destructive/10 text-destructive",
-  refunded: "bg-amber-500/10 text-amber-600",
 };
 
 const OrderHistoryPage = () => {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const filtered = mockHistory.filter(o => o.id.toLowerCase().includes(search.toLowerCase()) || o.customerName.toLowerCase().includes(search.toLowerCase()));
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data: ordersData } = await supabase
+        .from("orders")
+        .select("id, order_number, order_source, status, total, payment_mode, customer_name, completed_at, cancelled_at, created_at")
+        .in("status", ["completed", "cancelled"])
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (!ordersData) { setLoading(false); return; }
+
+      const orderIds = ordersData.map(o => o.id);
+      const { data: itemsData } = await supabase
+        .from("order_items")
+        .select("order_id, item_name, quantity")
+        .in("order_id", orderIds);
+
+      const enriched = ordersData.map(o => ({
+        ...o,
+        items: (itemsData || []).filter(i => i.order_id === o.id).map(i => `${i.item_name} x${i.quantity}`),
+      }));
+
+      setOrders(enriched);
+      setLoading(false);
+    };
+    fetch();
+  }, []);
+
+  const filtered = orders.filter(o =>
+    String(o.order_number).includes(search) || (o.customer_name || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -40,13 +57,8 @@ const OrderHistoryPage = () => {
 
       <div className="relative max-w-xs">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search by order ID or name..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-lg border border-input bg-secondary pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
+        <input type="text" placeholder="Search by order # or name..." value={search} onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-lg border border-input bg-secondary pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -54,7 +66,7 @@ const OrderHistoryPage = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-medium">Order ID</th>
+                <th className="text-left px-5 py-3 font-medium">Order #</th>
                 <th className="text-left px-5 py-3 font-medium hidden sm:table-cell">Source</th>
                 <th className="text-left px-5 py-3 font-medium">Customer</th>
                 <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Items</th>
@@ -67,25 +79,26 @@ const OrderHistoryPage = () => {
             <tbody>
               {filtered.map((order) => (
                 <tr key={order.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3.5 font-mono font-semibold text-card-foreground">{order.id}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{order.source}</td>
-                  <td className="px-5 py-3.5 text-card-foreground">{order.customerName}</td>
+                  <td className="px-5 py-3.5 font-mono font-semibold text-card-foreground">#{order.order_number}</td>
+                  <td className="px-5 py-3.5 text-muted-foreground hidden sm:table-cell uppercase text-xs">{order.order_source}</td>
+                  <td className="px-5 py-3.5 text-card-foreground">{order.customer_name || "Walk-in"}</td>
                   <td className="px-5 py-3.5 text-xs text-muted-foreground hidden md:table-cell">{order.items.join(", ")}</td>
-                  <td className="px-5 py-3.5 text-right font-mono font-semibold text-card-foreground">₹{order.total}</td>
+                  <td className="px-5 py-3.5 text-right font-mono font-semibold text-card-foreground">₹{Number(order.total).toLocaleString()}</td>
                   <td className="px-5 py-3.5">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusStyles[order.status]}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusStyles[order.status] || "bg-muted text-muted-foreground"}`}>
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-muted-foreground hidden lg:table-cell">{order.paymentMode}</td>
+                  <td className="px-5 py-3.5 text-muted-foreground hidden lg:table-cell uppercase text-xs">{order.payment_mode}</td>
                   <td className="px-5 py-3.5 text-muted-foreground font-mono text-xs hidden lg:table-cell">
-                    {new Date(order.completedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(order.completed_at || order.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {filtered.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">No orders found.</div>}
       </div>
     </div>
   );

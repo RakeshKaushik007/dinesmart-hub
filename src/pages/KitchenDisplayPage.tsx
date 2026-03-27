@@ -1,68 +1,95 @@
-import { Clock, CheckCircle2, ChefHat, Flame } from "lucide-react";
-
-interface KOTItem {
-  id: string;
-  orderId: string;
-  table: string;
-  source: string;
-  items: { name: string; qty: number; mods?: string }[];
-  status: "queued" | "cooking" | "done";
-  orderedAt: string;
-  priority: "normal" | "rush";
-}
-
-const mockKOTs: KOTItem[] = [
-  { id: "KOT-101", orderId: "ORD-4201", table: "T-03", source: "Dine-in", items: [{ name: "Paneer Butter Masala", qty: 2, mods: "Extra butter" }, { name: "Jeera Rice", qty: 2 }], status: "cooking", orderedAt: "2026-03-14T12:30:00", priority: "normal" },
-  { id: "KOT-102", orderId: "ORD-4202", table: "—", source: "Zomato", items: [{ name: "Chicken Biryani", qty: 1 }, { name: "Dal Tadka", qty: 1, mods: "Less spicy" }], status: "queued", orderedAt: "2026-03-14T12:35:00", priority: "rush" },
-  { id: "KOT-103", orderId: "ORD-4203", table: "—", source: "Swiggy", items: [{ name: "Paneer Butter Masala", qty: 1 }], status: "done", orderedAt: "2026-03-14T12:20:00", priority: "normal" },
-  { id: "KOT-104", orderId: "ORD-4204", table: "T-07", source: "QR", items: [{ name: "Chicken Biryani", qty: 2 }, { name: "Jeera Rice", qty: 1 }], status: "cooking", orderedAt: "2026-03-14T12:25:00", priority: "normal" },
-  { id: "KOT-105", orderId: "ORD-4205", table: "T-12", source: "Dine-in", items: [{ name: "Dal Tadka", qty: 2 }, { name: "Jeera Rice", qty: 2 }], status: "queued", orderedAt: "2026-03-14T12:38:00", priority: "normal" },
-];
+import { useState, useEffect } from "react";
+import { Clock, CheckCircle2, ChefHat, Flame, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const statusConfig: Record<string, { label: string; bg: string; icon: typeof Clock }> = {
-  queued: { label: "Queued", bg: "border-amber-500/40 bg-amber-500/5", icon: Clock },
-  cooking: { label: "Cooking", bg: "border-orange-500/40 bg-orange-500/5", icon: Flame },
-  done: { label: "Done", bg: "border-emerald-500/40 bg-emerald-500/5 opacity-60", icon: CheckCircle2 },
+  new: { label: "Queued", bg: "border-amber-500/40 bg-amber-500/5", icon: Clock },
+  accepted: { label: "Queued", bg: "border-amber-500/40 bg-amber-500/5", icon: Clock },
+  preparing: { label: "Cooking", bg: "border-orange-500/40 bg-orange-500/5", icon: Flame },
+  ready: { label: "Done", bg: "border-emerald-500/40 bg-emerald-500/5 opacity-60", icon: CheckCircle2 },
 };
 
-const KitchenDisplayPage = () => {
-  const queued = mockKOTs.filter(k => k.status === "queued");
-  const cooking = mockKOTs.filter(k => k.status === "cooking");
-  const done = mockKOTs.filter(k => k.status === "done");
+interface KOTOrder {
+  id: string;
+  order_number: number;
+  order_source: string;
+  status: string;
+  customer_name: string | null;
+  created_at: string;
+  items: { item_name: string; quantity: number; notes: string | null }[];
+}
 
-  const renderKOT = (kot: KOTItem) => {
-    const config = statusConfig[kot.status];
+const KitchenDisplayPage = () => {
+  const [orders, setOrders] = useState<KOTOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchOrders = async () => {
+    const { data: ordersData } = await supabase
+      .from("orders")
+      .select("id, order_number, order_source, status, customer_name, created_at")
+      .in("status", ["new", "accepted", "preparing", "ready"])
+      .order("created_at", { ascending: true });
+
+    if (!ordersData) { setLoading(false); return; }
+
+    const orderIds = ordersData.map(o => o.id);
+    const { data: itemsData } = await supabase
+      .from("order_items")
+      .select("order_id, item_name, quantity, notes")
+      .in("order_id", orderIds);
+
+    const enriched: KOTOrder[] = ordersData.map(o => ({
+      ...o,
+      items: (itemsData || []).filter(i => i.order_id === o.id),
+    }));
+
+    setOrders(enriched);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    const channel = supabase
+      .channel("kot-orders")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchOrders())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
+  const queued = orders.filter(k => k.status === "new" || k.status === "accepted");
+  const cooking = orders.filter(k => k.status === "preparing");
+  const done = orders.filter(k => k.status === "ready");
+
+  const renderKOT = (order: KOTOrder) => {
+    const config = statusConfig[order.status] || statusConfig.new;
     const StatusIcon = config.icon;
     return (
-      <div key={kot.id} className={`rounded-xl border-2 p-4 ${config.bg}`}>
+      <div key={order.id} className={`rounded-xl border-2 p-4 ${config.bg}`}>
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold font-mono text-card-foreground">{kot.id}</span>
-            {kot.priority === "rush" && (
-              <span className="rounded-full bg-destructive/10 text-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                Rush
-              </span>
-            )}
-          </div>
+          <span className="text-sm font-bold font-mono text-card-foreground">#{order.order_number}</span>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <StatusIcon className="h-3.5 w-3.5" />
             {config.label}
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-          <span className="font-semibold text-card-foreground">{kot.table}</span>
+          <span className="font-semibold text-card-foreground">{order.customer_name || "Walk-in"}</span>
           <span>•</span>
-          <span>{kot.source}</span>
+          <span className="uppercase">{order.order_source}</span>
           <span>•</span>
-          <span className="font-mono">{new Date(kot.orderedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
+          <span className="font-mono">{new Date(order.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
         <div className="space-y-2">
-          {kot.items.map((item, i) => (
+          {order.items.map((item, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className="rounded bg-secondary px-1.5 py-0.5 text-xs font-bold font-mono text-secondary-foreground min-w-[24px] text-center">{item.qty}</span>
+              <span className="rounded bg-secondary px-1.5 py-0.5 text-xs font-bold font-mono text-secondary-foreground min-w-[24px] text-center">{item.quantity}</span>
               <div>
-                <p className="text-sm font-medium text-card-foreground">{item.name}</p>
-                {item.mods && <p className="text-[10px] text-muted-foreground italic">— {item.mods}</p>}
+                <p className="text-sm font-medium text-card-foreground">{item.item_name}</p>
+                {item.notes && <p className="text-[10px] text-muted-foreground italic">— {item.notes}</p>}
               </div>
             </div>
           ))}

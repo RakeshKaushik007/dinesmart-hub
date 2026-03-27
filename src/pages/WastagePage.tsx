@@ -1,37 +1,40 @@
-import { useState } from "react";
-import { Trash2, Plus, AlertTriangle } from "lucide-react";
-
-interface WastageLog {
-  id: string;
-  ingredientName: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  reason: "expired" | "spoiled" | "spilled" | "overcooked" | "discrepancy";
-  cost: number;
-  loggedBy: string;
-  timestamp: string;
-  notes: string;
-}
-
-const mockLogs: WastageLog[] = [
-  { id: "w1", ingredientName: "Tomatoes", category: "Vegetables", quantity: 2, unit: "kg", reason: "expired", cost: 80, loggedBy: "Ravi K.", timestamp: "2026-03-14T08:30:00", notes: "Found soft and moldy in cold storage" },
-  { id: "w2", ingredientName: "Cream", category: "Dairy", quantity: 0.5, unit: "L", reason: "spoiled", cost: 110, loggedBy: "Anita S.", timestamp: "2026-03-13T17:00:00", notes: "Sour smell, discarded" },
-  { id: "w3", ingredientName: "Chicken Breast", category: "Protein", quantity: 1, unit: "kg", reason: "overcooked", cost: 280, loggedBy: "Chef Manoj", timestamp: "2026-03-13T13:45:00", notes: "Burnt during rush hour" },
-  { id: "w4", ingredientName: "Cooking Oil", category: "Oils", quantity: 2, unit: "L", reason: "spilled", cost: 360, loggedBy: "Ravi K.", timestamp: "2026-03-12T11:00:00", notes: "Container fell off shelf" },
-  { id: "w5", ingredientName: "Basmati Rice", category: "Grains", quantity: 3, unit: "kg", reason: "discrepancy", cost: 255, loggedBy: "Anita S.", timestamp: "2026-03-11T20:00:00", notes: "Physical count 3kg less than system" },
-];
+import { useState, useEffect } from "react";
+import { Plus, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const reasonStyles: Record<string, string> = {
   expired: "bg-destructive/10 text-destructive",
   spoiled: "bg-amber-500/10 text-amber-600",
   spilled: "bg-blue-500/10 text-blue-600",
-  overcooked: "bg-orange-500/10 text-orange-600",
+  over_cooking: "bg-orange-500/10 text-orange-600",
   discrepancy: "bg-purple-500/10 text-purple-600",
 };
 
 const WastagePage = () => {
-  const totalWaste = mockLogs.reduce((s, l) => s + l.cost, 0);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await supabase
+        .from("wastage_logs")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setLogs(data || []);
+      setLoading(false);
+    };
+    fetch();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
+  const totalWaste = logs.reduce((s, l) => s + Number(l.cost), 0);
+  const reasons = logs.map(l => l.reason);
+  const topReason = reasons.length > 0
+    ? [...new Set(reasons)].sort((a, b) => reasons.filter(r => r === b).length - reasons.filter(r => r === a).length)[0]
+    : "—";
 
   return (
     <div className="space-y-6">
@@ -48,16 +51,16 @@ const WastagePage = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-destructive/30 bg-card p-5">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Waste (This Week)</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Waste</p>
           <p className="mt-2 text-2xl font-bold text-destructive font-mono">₹{totalWaste.toLocaleString()}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Incidents</p>
-          <p className="mt-2 text-2xl font-bold text-card-foreground font-mono">{mockLogs.length}</p>
+          <p className="mt-2 text-2xl font-bold text-card-foreground font-mono">{logs.length}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Top Reason</p>
-          <p className="mt-2 text-2xl font-bold text-card-foreground">Expired</p>
+          <p className="mt-2 text-2xl font-bold text-card-foreground capitalize">{topReason.replace("_", " ")}</p>
         </div>
       </div>
 
@@ -71,34 +74,33 @@ const WastagePage = () => {
                 <th className="text-right px-5 py-3 font-medium">Qty</th>
                 <th className="text-left px-5 py-3 font-medium">Reason</th>
                 <th className="text-right px-5 py-3 font-medium">Cost</th>
-                <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Logged By</th>
                 <th className="text-left px-5 py-3 font-medium hidden lg:table-cell">Date</th>
               </tr>
             </thead>
             <tbody>
-              {mockLogs.map((log) => (
+              {logs.map((log) => (
                 <tr key={log.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                   <td className="px-5 py-3.5">
-                    <p className="font-medium text-card-foreground">{log.ingredientName}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 lg:hidden">{log.notes}</p>
+                    <p className="font-medium text-card-foreground">{log.ingredient_name}</p>
+                    {log.notes && <p className="text-[10px] text-muted-foreground mt-0.5">{log.notes}</p>}
                   </td>
                   <td className="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{log.category}</td>
                   <td className="px-5 py-3.5 text-right font-mono text-card-foreground">{log.quantity} {log.unit}</td>
                   <td className="px-5 py-3.5">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${reasonStyles[log.reason]}`}>
-                      {log.reason}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${reasonStyles[log.reason] || "bg-muted text-muted-foreground"}`}>
+                      {log.reason.replace("_", " ")}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-right font-mono text-destructive font-semibold">₹{log.cost}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{log.loggedBy}</td>
+                  <td className="px-5 py-3.5 text-right font-mono text-destructive font-semibold">₹{Number(log.cost).toLocaleString()}</td>
                   <td className="px-5 py-3.5 text-muted-foreground font-mono text-xs hidden lg:table-cell">
-                    {new Date(log.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                    {new Date(log.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {logs.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">No wastage logs recorded.</div>}
       </div>
     </div>
   );
