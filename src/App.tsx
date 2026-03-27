@@ -57,6 +57,7 @@ const App = () => (
                 <Route path="/tables" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><TablesPage /></ProtectedRoute>} />
                 <Route path="/active-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><ActiveOrdersPage /></ProtectedRoute>} />
                 <Route path="/kitchen-display" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><KitchenDisplayPage /></ProtectedRoute>} />
+                <Route path="/aggregator-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><AggregatorOrdersPage /></ProtectedRoute>} />
                 <Route path="/alerts" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><AlertsPage /></ProtectedRoute>} />
 
                 {/* Branch Manager+ */}
