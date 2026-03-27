@@ -27,6 +27,9 @@ import BestsellersPage from "@/pages/BestsellersPage";
 import AIAssistantPage from "@/pages/AIAssistantPage";
 import MultiBranchPage from "@/pages/MultiBranchPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
+import AggregatorOrdersPage from "@/pages/AggregatorOrdersPage";
+import KioskPage from "@/pages/KioskPage";
+import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
