@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Users, Clock, User, CalendarClock } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Users, Clock, User, CalendarClock, QrCode, Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 type TableStatus = "available" | "occupied" | "reserved";
 
@@ -201,7 +202,7 @@ const TablesPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <p className="text-xs text-muted-foreground font-medium">Change Status</p>
                   <div className="flex flex-wrap gap-2">
                     {(["available", "occupied", "reserved"] as TableStatus[])
@@ -216,6 +217,71 @@ const TablesPage = () => {
                           </Button>
                         );
                       })}
+                  </div>
+                </div>
+
+                {/* QR Code Section */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                    <QrCode className="h-3.5 w-3.5" /> QR Code for Table Ordering
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white p-3 rounded-xl" id={`qr-table-${selectedTable.id}`}>
+                      <QRCodeSVG
+                        value={`${window.location.origin}/order/${selectedTable.id}`}
+                        size={120}
+                        level="H"
+                        includeMargin={false}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Customers scan this QR to order directly from Table {selectedTable.table_number}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => {
+                          const svg = document.querySelector(`#qr-table-${selectedTable.id} svg`);
+                          if (!svg) return;
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const canvas = document.createElement("canvas");
+                          canvas.width = 400; canvas.height = 480;
+                          const ctx = canvas.getContext("2d")!;
+                          ctx.fillStyle = "white"; ctx.fillRect(0, 0, 400, 480);
+                          const img = new Image();
+                          img.onload = () => {
+                            ctx.drawImage(img, 50, 30, 300, 300);
+                            ctx.fillStyle = "black"; ctx.font = "bold 28px sans-serif"; ctx.textAlign = "center";
+                            ctx.fillText(`Table ${selectedTable.table_number}`, 200, 380);
+                            ctx.font = "16px sans-serif"; ctx.fillStyle = "#666";
+                            ctx.fillText("Scan to order", 200, 420);
+                            const link = document.createElement("a");
+                            link.download = `table-${selectedTable.table_number}-qr.png`;
+                            link.href = canvas.toDataURL("image/png");
+                            link.click();
+                          };
+                          img.src = "data:image/svg+xml;base64," + btoa(svgData);
+                        }}>
+                          <Download className="h-3 w-3 mr-1" /> Download
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => {
+                          const svg = document.querySelector(`#qr-table-${selectedTable.id} svg`);
+                          if (!svg) return;
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const printWindow = window.open("", "_blank");
+                          if (!printWindow) return;
+                          printWindow.document.write(`
+                            <html><head><title>Table ${selectedTable.table_number} QR</title>
+                            <style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:sans-serif;}
+                            h1{font-size:36px;margin-top:20px;}p{color:#666;font-size:18px;}</style></head>
+                            <body>${svgData}<h1>Table ${selectedTable.table_number}</h1><p>Scan to place your order</p>
+                            <script>setTimeout(()=>{window.print();window.close();},500)<\/script></body></html>
+                          `);
+                          printWindow.document.close();
+                        }}>
+                          <Printer className="h-3 w-3 mr-1" /> Print
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

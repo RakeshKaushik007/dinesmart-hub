@@ -27,6 +27,9 @@ import BestsellersPage from "@/pages/BestsellersPage";
 import AIAssistantPage from "@/pages/AIAssistantPage";
 import MultiBranchPage from "@/pages/MultiBranchPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
+import AggregatorOrdersPage from "@/pages/AggregatorOrdersPage";
+import KioskPage from "@/pages/KioskPage";
+import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -43,6 +46,8 @@ const App = () => (
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              <Route path="/order/:tableId" element={<CustomerOrderPage />} />
+              <Route path="/kiosk" element={<KioskPage />} />
 
               {/* Protected routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -52,6 +57,7 @@ const App = () => (
                 <Route path="/tables" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><TablesPage /></ProtectedRoute>} />
                 <Route path="/active-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><ActiveOrdersPage /></ProtectedRoute>} />
                 <Route path="/kitchen-display" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><KitchenDisplayPage /></ProtectedRoute>} />
+                <Route path="/aggregator-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><AggregatorOrdersPage /></ProtectedRoute>} />
                 <Route path="/alerts" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><AlertsPage /></ProtectedRoute>} />
 
                 {/* Branch Manager+ */}
