@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Users, Clock, User, CalendarClock } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Users, Clock, User, CalendarClock, QrCode, Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 type TableStatus = "available" | "occupied" | "reserved";
 
