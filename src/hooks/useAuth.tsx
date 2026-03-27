@@ -62,13 +62,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Use setTimeout to avoid Supabase deadlock
-        setTimeout(() => fetchUserData(session.user.id), 0);
+        // Use setTimeout to avoid Supabase deadlock, but keep loading true until done
+        setTimeout(() => {
+          fetchUserData(session.user.id).finally(() => setLoading(false));
+        }, 0);
       } else {
         setRoles([]);
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     // THEN check existing session
@@ -76,9 +78,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserData(session.user.id);
+        fetchUserData(session.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
