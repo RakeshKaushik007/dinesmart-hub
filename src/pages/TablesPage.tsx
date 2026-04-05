@@ -402,6 +402,20 @@ const TablesPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Delete Table - owner only, available tables only */}
+                  {isAtLeast("owner") && selectedTable.status === "available" && (
+                    <div className="pt-2 border-t border-border">
+                      <Button variant="destructive" size="sm" className="w-full" onClick={async () => {
+                        await supabase.from("restaurant_tables").update({ is_active: false }).eq("id", selectedTable.id);
+                        setSelectedTable(null);
+                        fetchTables();
+                        toast({ title: `Table ${selectedTable.table_number} removed` });
+                      }}>
+                        <Trash2 className="h-4 w-4 mr-2" /> Remove Table
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </>
             );
