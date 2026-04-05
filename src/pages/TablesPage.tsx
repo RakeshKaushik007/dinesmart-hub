@@ -44,7 +44,12 @@ const TablesPage = () => {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTable, setSelectedTable] = useState<TableData | null>(null);
+  const [addDialog, setAddDialog] = useState(false);
+  const [newTableNumber, setNewTableNumber] = useState("");
+  const [newSeats, setNewSeats] = useState("4");
+  const [newSection, setNewSection] = useState("Main");
   const { toast } = useToast();
+  const { isAtLeast } = useAuth();
 
   const fetchTables = async () => {
     const { data: tablesData } = await supabase
