@@ -3,6 +3,7 @@ import {
   ChefHat,
   AlertTriangle,
   LayoutDashboard,
+  UtensilsCrossed,
   Settings,
   Package,
   CreditCard,
