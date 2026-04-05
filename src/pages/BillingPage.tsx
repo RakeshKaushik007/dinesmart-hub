@@ -1,10 +1,17 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Search, Plus, Minus, Trash2, Receipt, X, Loader2 } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Receipt, X, Loader2, UtensilsCrossed, ShoppingBag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MenuItem {
   id: string;
@@ -22,6 +29,12 @@ interface CartItem {
   quantity: number;
 }
 
+interface TableOption {
+  id: string;
+  table_number: number;
+  status: string;
+}
+
 const BillingPage = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,26 +42,25 @@ const BillingPage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activePanel, setActivePanel] = useState<"menu" | "cart">("menu");
+  const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
+  const [selectedTableId, setSelectedTableId] = useState<string>("");
+  const [tables, setTables] = useState<TableOption[]>([]);
+  const [placingOrder, setPlacingOrder] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     const fetch = async () => {
-      const { data: items } = await supabase
-        .from("menu_items")
-        .select("id, name, selling_price, cost_price, is_available, category_id")
-        .eq("is_active", true)
-        .order("name");
-
-      const { data: cats } = await supabase.from("menu_categories").select("id, name");
+      const [{ data: items }, { data: cats }, { data: tablesData }] = await Promise.all([
+        supabase.from("menu_items").select("id, name, selling_price, cost_price, is_available, category_id").eq("is_active", true).order("name"),
+        supabase.from("menu_categories").select("id, name"),
+        supabase.from("restaurant_tables").select("id, table_number, status").eq("is_active", true).order("table_number"),
+      ]);
       const catMap: Record<string, string> = {};
       cats?.forEach(c => catMap[c.id] = c.name);
-
-      setMenuItems((items || []).map(i => ({
-        ...i,
-        category: catMap[i.category_id || ""] || "Uncategorized",
-      })));
+      setMenuItems((items || []).map(i => ({ ...i, category: catMap[i.category_id || ""] || "Uncategorized" })));
+      setTables(tablesData || []);
       setLoading(false);
     };
     fetch();
@@ -74,51 +86,106 @@ const BillingPage = () => {
   }, []);
 
   const removeItem = useCallback((id: string) => setCart(prev => prev.filter(c => c.menuItemId !== id)), []);
-  const clearCart = useCallback(() => setCart([]), []);
+  const clearCart = useCallback(() => { setCart([]); setSelectedTableId(""); }, []);
 
   const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
   const tax = Math.round(subtotal * 0.05);
   const total = subtotal + tax;
 
-  const handleCheckout = async () => {
+  const handlePlaceOrder = async () => {
     if (cart.length === 0) return;
+    if (orderType === "dine_in" && !selectedTableId) {
+      toast({ title: "Select a table", description: "Dining orders require a table number", variant: "destructive" });
+      return;
+    }
+    setPlacingOrder(true);
 
     const { data: order, error } = await supabase.from("orders").insert({
-      order_source: "pos",
-      order_type: "dine_in",
-      status: "new",
-      payment_mode: "pending",
+      order_source: "pos" as const,
+      order_type: orderType,
+      status: "new" as const,
+      payment_mode: "pending" as const,
       subtotal,
       tax,
       total,
       discount: 0,
       created_by: user?.id,
-    }).select().single();
+      table_id: orderType === "dine_in" ? selectedTableId : null,
+    }).select("id, order_number").single();
 
     if (error || !order) {
       toast({ title: "Error", description: error?.message || "Failed to create order", variant: "destructive" });
+      setPlacingOrder(false);
       return;
     }
 
-    const orderItems = cart.map(c => ({
-      order_id: order.id,
-      menu_item_id: c.menuItemId,
-      item_name: c.name,
-      quantity: c.quantity,
-      unit_price: c.price,
-      total_price: c.price * c.quantity,
-    }));
+    await supabase.from("order_items").insert(
+      cart.map(c => ({
+        order_id: order.id,
+        menu_item_id: c.menuItemId,
+        item_name: c.name,
+        quantity: c.quantity,
+        unit_price: c.price,
+        total_price: c.price * c.quantity,
+      }))
+    );
 
-    await supabase.from("order_items").insert(orderItems);
+    // Update table status if dining
+    if (orderType === "dine_in" && selectedTableId) {
+      await supabase.from("restaurant_tables").update({ status: "occupied" }).eq("id", selectedTableId);
+      await supabase.from("table_sessions").insert({
+        table_id: selectedTableId,
+        guest_name: "POS Customer",
+        order_id: order.id,
+      });
+    }
 
-    toast({ title: "Order placed!", description: `Order #${order.order_number} — ₹${total.toLocaleString()}` });
+    // Print KOT
+    const tableInfo = orderType === "dine_in"
+      ? `Table ${tables.find(t => t.id === selectedTableId)?.table_number || "?"}`
+      : "Takeaway";
+    printKOT(order.order_number, tableInfo, cart);
+
+    toast({ title: "Order placed & KOT sent!", description: `Order #${order.order_number} — ${tableInfo}` });
     setCart([]);
+    setSelectedTableId("");
     setSearch("");
+    setPlacingOrder(false);
     searchRef.current?.focus();
+  };
+
+  const printKOT = (orderNum: number, tableInfo: string, items: CartItem[]) => {
+    const printWindow = window.open("", "_blank", "width=300,height=500");
+    if (!printWindow) return;
+    const itemsHtml = items.map(i => `
+      <tr><td style="padding:4px 0;font-size:14px;">${i.name}</td><td style="text-align:right;padding:4px 0;font-size:14px;font-weight:bold;">×${i.quantity}</td></tr>
+    `).join("");
+    printWindow.document.write(`
+      <html><head><title>KOT #${orderNum}</title>
+      <style>body{font-family:monospace;margin:0;padding:16px;width:260px;}
+      h2{text-align:center;margin:0 0 4px;font-size:18px;}
+      .info{text-align:center;font-size:13px;border-bottom:1px dashed #000;padding-bottom:8px;margin-bottom:8px;}
+      table{width:100%;border-collapse:collapse;}
+      .footer{border-top:1px dashed #000;margin-top:8px;padding-top:8px;text-align:center;font-size:11px;}</style></head>
+      <body>
+        <h2>--- KOT ---</h2>
+        <div class="info">
+          <div><strong>Order #${orderNum}</strong></div>
+          <div>${tableInfo}</div>
+          <div>${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
+        </div>
+        <table>${itemsHtml}</table>
+        <div class="footer">Kitchen Copy</div>
+        <script>setTimeout(()=>{window.print();window.close();},400)<\/script>
+      </body></html>
+    `);
+    printWindow.document.close();
   };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Disable F8 for accidental billing - checkout is now a separate flow on Active Orders
+      if (e.key === "F8") { e.preventDefault(); return; }
       if (e.key === "/" && document.activeElement !== searchRef.current) { e.preventDefault(); searchRef.current?.focus(); setActivePanel("menu"); return; }
       if (e.key === "Escape") { search ? setSearch("") : searchRef.current?.blur(); return; }
       if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); setActivePanel(p => p === "menu" ? "cart" : "menu"); return; }
@@ -127,7 +194,6 @@ const BillingPage = () => {
         else if (e.key === "ArrowUp") { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)); }
         else if (e.key === "Enter") { e.preventDefault(); const item = filteredItems[selectedIndex]; if (item) addToCart(item); }
       }
-      if (e.key === "F8") { e.preventDefault(); handleCheckout(); }
       if (e.key === "F9") { e.preventDefault(); clearCart(); }
     };
     window.addEventListener("keydown", handler);
@@ -141,11 +207,12 @@ const BillingPage = () => {
   }
 
   const categories = ["All", ...new Set(menuItems.map(i => i.category))];
+  const availableTables = tables.filter(t => t.status === "available");
 
   return (
     <div className="flex gap-4 h-[calc(100vh-3rem)]">
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <h1 className="text-xl font-bold text-foreground whitespace-nowrap">Billing</h1>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -154,8 +221,37 @@ const BillingPage = () => {
           </div>
         </div>
 
+        {/* Order Type & Table Selector */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <button onClick={() => { setOrderType("dine_in"); setSelectedTableId(""); }}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${orderType === "dine_in" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}>
+              <UtensilsCrossed className="h-3.5 w-3.5" /> Dining
+            </button>
+            <button onClick={() => { setOrderType("takeaway"); setSelectedTableId(""); }}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${orderType === "takeaway" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}>
+              <ShoppingBag className="h-3.5 w-3.5" /> Takeaway
+            </button>
+          </div>
+          {orderType === "dine_in" && (
+            <Select value={selectedTableId} onValueChange={setSelectedTableId}>
+              <SelectTrigger className="w-40 h-9 text-xs">
+                <SelectValue placeholder="Select table" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTables.length === 0 && (
+                  <SelectItem value="none" disabled>No tables available</SelectItem>
+                )}
+                {availableTables.map(t => (
+                  <SelectItem key={t.id} value={t.id}>Table {t.table_number}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
         <div className="flex gap-2 mb-3 flex-wrap">
-          {[{ key: "/", label: "Search" }, { key: "↑↓", label: "Navigate" }, { key: "Enter", label: "Add item" }, { key: "Tab", label: "Switch panel" }, { key: "F8", label: "Checkout" }, { key: "F9", label: "Clear" }].map(s => (
+          {[{ key: "/", label: "Search" }, { key: "↑↓", label: "Navigate" }, { key: "Enter", label: "Add item" }, { key: "Tab", label: "Switch panel" }, { key: "F9", label: "Clear" }].map(s => (
             <span key={s.key} className="text-[10px] font-mono bg-secondary text-muted-foreground rounded px-1.5 py-0.5">
               <span className="text-foreground font-semibold">{s.key}</span> {s.label}
             </span>
@@ -190,14 +286,23 @@ const BillingPage = () => {
         </div>
       </div>
 
+      {/* Cart Sidebar */}
       <div className={`w-80 shrink-0 flex flex-col rounded-xl border bg-card ${activePanel === "cart" ? "border-primary/30 ring-1 ring-primary/20" : "border-border"}`}>
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Receipt className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-card-foreground">Current Order</h2>
+            <h2 className="text-sm font-semibold text-card-foreground">
+              {orderType === "dine_in" ? "Dine-In" : "Takeaway"} Order
+            </h2>
           </div>
           {cart.length > 0 && <button onClick={clearCart} className="text-xs text-muted-foreground hover:text-destructive transition-colors"><X className="h-4 w-4" /></button>}
         </div>
+
+        {orderType === "dine_in" && selectedTableId && (
+          <div className="px-4 py-2 bg-primary/5 border-b border-border text-xs font-medium text-primary">
+            Table {tables.find(t => t.id === selectedTableId)?.table_number}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {cart.length === 0 ? (
@@ -225,8 +330,9 @@ const BillingPage = () => {
           <div className="flex justify-between text-xs text-muted-foreground"><span>Subtotal</span><span className="font-mono">₹{subtotal.toLocaleString()}</span></div>
           <div className="flex justify-between text-xs text-muted-foreground"><span>GST (5%)</span><span className="font-mono">₹{tax.toLocaleString()}</span></div>
           <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border"><span>Total</span><span className="font-mono">₹{total.toLocaleString()}</span></div>
-          <Button onClick={handleCheckout} disabled={cart.length === 0} className="w-full mt-2" size="lg">
-            <Receipt className="h-4 w-4 mr-2" />Checkout (F8)
+          <Button onClick={handlePlaceOrder} disabled={cart.length === 0 || placingOrder} className="w-full mt-2" size="lg">
+            {placingOrder ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Receipt className="h-4 w-4 mr-2" />}
+            Place Order & Print KOT
           </Button>
         </div>
       </div>
