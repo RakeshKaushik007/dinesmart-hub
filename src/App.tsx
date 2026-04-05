@@ -31,6 +31,7 @@ import AggregatorOrdersPage from "@/pages/AggregatorOrdersPage";
 import SettingsPage from "@/pages/SettingsPage";
 import KioskPage from "@/pages/KioskPage";
 import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
+import MenuManagementPage from "@/pages/MenuManagementPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -75,6 +76,7 @@ const App = () => (
                 <Route path="/profitability" element={<ProtectedRoute requiredRole="owner"><ProfitabilityPage /></ProtectedRoute>} />
                 <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
+                <Route path="/menu-management" element={<ProtectedRoute requiredRole="owner"><MenuManagementPage /></ProtectedRoute>} />
 
                 {/* Settings - all roles */}
                 <Route path="/settings" element={<SettingsPage />} />

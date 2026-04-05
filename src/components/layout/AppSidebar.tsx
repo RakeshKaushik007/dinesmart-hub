@@ -3,6 +3,7 @@ import {
   ChefHat,
   AlertTriangle,
   LayoutDashboard,
+  UtensilsCrossed,
   Settings,
   Package,
   CreditCard,
@@ -84,6 +85,7 @@ const navGroups: NavGroup[] = [
     minRole: "branch_manager",
     items: [
       { to: "/recipes", icon: ChefHat, label: "Recipes", minRole: "branch_manager" },
+      { to: "/menu-management", icon: UtensilsCrossed, label: "Menu", minRole: "owner" },
       { to: "/alerts", icon: AlertTriangle, label: "Alerts", minRole: "employee" },
       { to: "/ai-assistant", icon: Bot, label: "AI Assistant", minRole: "owner" },
       { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },

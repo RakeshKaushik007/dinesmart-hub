@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2 } from "lucide-react";
+import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { QRCodeSVG } from "qrcode.react";
 
 type TableStatus = "available" | "occupied" | "reserved";
@@ -40,7 +44,12 @@ const TablesPage = () => {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTable, setSelectedTable] = useState<TableData | null>(null);
+  const [addDialog, setAddDialog] = useState(false);
+  const [newTableNumber, setNewTableNumber] = useState("");
+  const [newSeats, setNewSeats] = useState("4");
+  const [newSection, setNewSection] = useState("Main");
   const { toast } = useToast();
+  const { isAtLeast } = useAuth();
 
   const fetchTables = async () => {
     const { data: tablesData } = await supabase
@@ -148,6 +157,11 @@ const TablesPage = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Table Management</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{totalGuests} guests seated · {counts.available} tables free</p>
         </div>
+        {isAtLeast("owner") && (
+          <Button size="sm" onClick={() => setAddDialog(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Add Table
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -216,6 +230,45 @@ const TablesPage = () => {
           );
         })}
       </div>
+
+      {/* Add Table Dialog */}
+      <Dialog open={addDialog} onOpenChange={setAddDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Add New Table</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Table Number</label>
+              <Input type="number" value={newTableNumber} onChange={e => setNewTableNumber(e.target.value)} placeholder="e.g. 17" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Seats</label>
+              <Input type="number" value={newSeats} onChange={e => setNewSeats(e.target.value)} placeholder="4" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Section</label>
+              <Input value={newSection} onChange={e => setNewSection(e.target.value)} placeholder="Main" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialog(false)}>Cancel</Button>
+            <Button disabled={!newTableNumber} onClick={async () => {
+              const { error } = await supabase.from("restaurant_tables").insert({
+                table_number: Number(newTableNumber),
+                seats: Number(newSeats) || 4,
+                section: newSection.trim() || "Main",
+              });
+              if (error) {
+                toast({ title: "Error", description: error.message, variant: "destructive" });
+              } else {
+                toast({ title: `Table ${newTableNumber} added` });
+                setAddDialog(false);
+                setNewTableNumber(""); setNewSeats("4"); setNewSection("Main");
+                fetchTables();
+              }
+            }}>Add Table</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!selectedTable} onOpenChange={() => setSelectedTable(null)}>
         <DialogContent className="sm:max-w-md">
@@ -349,6 +402,20 @@ const TablesPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Delete Table - owner only, available tables only */}
+                  {isAtLeast("owner") && selectedTable.status === "available" && (
+                    <div className="pt-2 border-t border-border">
+                      <Button variant="destructive" size="sm" className="w-full" onClick={async () => {
+                        await supabase.from("restaurant_tables").update({ is_active: false }).eq("id", selectedTable.id);
+                        setSelectedTable(null);
+                        fetchTables();
+                        toast({ title: `Table ${selectedTable.table_number} removed` });
+                      }}>
+                        <Trash2 className="h-4 w-4 mr-2" /> Remove Table
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </>
             );
