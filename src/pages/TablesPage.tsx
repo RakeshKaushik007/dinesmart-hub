@@ -231,6 +231,45 @@ const TablesPage = () => {
         })}
       </div>
 
+      {/* Add Table Dialog */}
+      <Dialog open={addDialog} onOpenChange={setAddDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Add New Table</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Table Number</label>
+              <Input type="number" value={newTableNumber} onChange={e => setNewTableNumber(e.target.value)} placeholder="e.g. 17" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Seats</label>
+              <Input type="number" value={newSeats} onChange={e => setNewSeats(e.target.value)} placeholder="4" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Section</label>
+              <Input value={newSection} onChange={e => setNewSection(e.target.value)} placeholder="Main" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialog(false)}>Cancel</Button>
+            <Button disabled={!newTableNumber} onClick={async () => {
+              const { error } = await supabase.from("restaurant_tables").insert({
+                table_number: Number(newTableNumber),
+                seats: Number(newSeats) || 4,
+                section: newSection.trim() || "Main",
+              });
+              if (error) {
+                toast({ title: "Error", description: error.message, variant: "destructive" });
+              } else {
+                toast({ title: `Table ${newTableNumber} added` });
+                setAddDialog(false);
+                setNewTableNumber(""); setNewSeats("4"); setNewSection("Main");
+                fetchTables();
+              }
+            }}>Add Table</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!selectedTable} onOpenChange={() => setSelectedTable(null)}>
         <DialogContent className="sm:max-w-md">
           {selectedTable && (() => {
