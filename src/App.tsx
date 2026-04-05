@@ -31,6 +31,7 @@ import AggregatorOrdersPage from "@/pages/AggregatorOrdersPage";
 import SettingsPage from "@/pages/SettingsPage";
 import KioskPage from "@/pages/KioskPage";
 import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
+import MenuManagementPage from "@/pages/MenuManagementPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
