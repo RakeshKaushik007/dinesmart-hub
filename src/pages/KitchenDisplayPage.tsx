@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Clock, CheckCircle2, ChefHat, Flame, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; bg: string; icon: typeof Clock }> = {
   new: { label: "Queued", bg: "border-amber-500/40 bg-amber-500/5", icon: Clock },
@@ -64,6 +66,16 @@ const KitchenDisplayPage = () => {
   const cooking = orders.filter(k => k.status === "preparing");
   const done = orders.filter(k => k.status === "ready");
 
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    const updateData: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
+    if (newStatus === "preparing") updateData.accepted_at = new Date().toISOString();
+    if (newStatus === "ready") updateData.completed_at = new Date().toISOString();
+
+    const { error } = await supabase.from("orders").update(updateData).eq("id", orderId);
+    if (error) { toast.error("Failed to update status"); return; }
+    toast.success(`Order moved to ${statusConfig[newStatus]?.label || newStatus}`);
+  };
+
   const renderKOT = (order: KOTOrder) => {
     const config = statusConfig[order.status] || statusConfig.new;
     const StatusIcon = config.icon;
@@ -83,7 +95,7 @@ const KitchenDisplayPage = () => {
           <span>•</span>
           <span className="font-mono">{new Date(order.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 mb-3">
           {order.items.map((item, i) => (
             <div key={i} className="flex items-start gap-2">
               <span className="rounded bg-secondary px-1.5 py-0.5 text-xs font-bold font-mono text-secondary-foreground min-w-[24px] text-center">{item.quantity}</span>
@@ -94,6 +106,27 @@ const KitchenDisplayPage = () => {
             </div>
           ))}
         </div>
+        <ToggleGroup
+          type="single"
+          value={order.status === "new" || order.status === "accepted" ? "queued" : order.status}
+          onValueChange={(val) => {
+            if (!val) return;
+            const statusMap: Record<string, string> = { queued: "accepted", preparing: "preparing", ready: "ready" };
+            handleStatusChange(order.id, statusMap[val]);
+          }}
+          className="w-full justify-between border rounded-lg p-0.5 bg-muted/30"
+          size="sm"
+        >
+          <ToggleGroupItem value="queued" className="flex-1 text-[10px] gap-1 data-[state=on]:bg-amber-500/20 data-[state=on]:text-amber-700 rounded-md">
+            <Clock className="h-3 w-3" /> Queued
+          </ToggleGroupItem>
+          <ToggleGroupItem value="preparing" className="flex-1 text-[10px] gap-1 data-[state=on]:bg-orange-500/20 data-[state=on]:text-orange-700 rounded-md">
+            <Flame className="h-3 w-3" /> Cooking
+          </ToggleGroupItem>
+          <ToggleGroupItem value="ready" className="flex-1 text-[10px] gap-1 data-[state=on]:bg-emerald-500/20 data-[state=on]:text-emerald-700 rounded-md">
+            <CheckCircle2 className="h-3 w-3" /> Served
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
     );
   };
