@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2, Plus, Trash2, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -219,6 +219,14 @@ const TablesPage = () => {
                     <div className="flex items-center gap-1 text-xs">
                       <Clock className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground text-[10px] sm:text-xs">{table.occupied_since}</span>
+                    </div>
+                  )}
+                  {table.duration_minutes !== undefined && (
+                    <div className="flex items-center gap-1 text-xs">
+                      <Timer className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground text-[10px] sm:text-xs font-mono">
+                        {table.duration_minutes >= 60 ? `${Math.floor(table.duration_minutes / 60)}h ${table.duration_minutes % 60}m` : `${table.duration_minutes}m`}
+                      </span>
                     </div>
                   )}
                   {table.is_paid && (
