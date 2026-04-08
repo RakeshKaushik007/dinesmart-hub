@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2, Plus, Trash2, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +27,8 @@ interface TableData {
   guest_name?: string;
   order_total?: number;
   occupied_since?: string;
+  seated_at_raw?: string;
+  duration_minutes?: number;
   is_paid?: boolean;
   order_id?: string;
 }
@@ -78,10 +80,14 @@ const TablesPage = () => {
       const session = sessions?.find((s) => s.table_id === t.id);
       const orderInfo = session?.order_id ? orderMap[session.order_id] : null;
       const isPaid = orderInfo?.status === "completed";
+      const seatedAt = session?.seated_at;
+      const durationMs = seatedAt ? Date.now() - new Date(seatedAt).getTime() : 0;
       return {
         ...t,
         guest_name: session?.guest_name ?? undefined,
-        occupied_since: session?.seated_at ? new Date(session.seated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : undefined,
+        occupied_since: seatedAt ? new Date(seatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : undefined,
+        seated_at_raw: seatedAt ?? undefined,
+        duration_minutes: seatedAt ? Math.floor(durationMs / 60000) : undefined,
         is_paid: isPaid,
         order_total: orderInfo?.total,
         order_id: session?.order_id ?? undefined,
@@ -215,6 +221,14 @@ const TablesPage = () => {
                       <span className="text-muted-foreground text-[10px] sm:text-xs">{table.occupied_since}</span>
                     </div>
                   )}
+                  {table.duration_minutes !== undefined && (
+                    <div className="flex items-center gap-1 text-xs">
+                      <Timer className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground text-[10px] sm:text-xs font-mono">
+                        {table.duration_minutes >= 60 ? `${Math.floor(table.duration_minutes / 60)}h ${table.duration_minutes % 60}m` : `${table.duration_minutes}m`}
+                      </span>
+                    </div>
+                  )}
                   {table.is_paid && (
                     <div className="flex items-center gap-1 text-xs mt-1">
                       <CheckCircle className="h-3 w-3 text-emerald-500" />
@@ -305,6 +319,22 @@ const TablesPage = () => {
                       <div className="bg-secondary/50 rounded-lg p-3">
                         <p className="text-muted-foreground text-xs">Order Total</p>
                         <p className="text-foreground font-medium">₹{Number(selectedTable.order_total).toLocaleString()}</p>
+                      </div>
+                    )}
+                    {selectedTable.occupied_since && (
+                      <div className="bg-secondary/50 rounded-lg p-3">
+                        <p className="text-muted-foreground text-xs">Booked At</p>
+                        <p className="text-foreground font-medium">{selectedTable.occupied_since}</p>
+                      </div>
+                    )}
+                    {selectedTable.duration_minutes !== undefined && (
+                      <div className="bg-secondary/50 rounded-lg p-3">
+                        <p className="text-muted-foreground text-xs">Duration</p>
+                        <p className="text-foreground font-medium font-mono">
+                          {selectedTable.duration_minutes >= 60
+                            ? `${Math.floor(selectedTable.duration_minutes / 60)}h ${selectedTable.duration_minutes % 60}m`
+                            : `${selectedTable.duration_minutes}m`}
+                        </p>
                       </div>
                     )}
                   </div>

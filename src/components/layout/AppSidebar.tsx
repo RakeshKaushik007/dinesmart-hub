@@ -9,6 +9,7 @@ import {
   CreditCard,
   Armchair,
   Truck,
+  ClipboardList,
   Trash2,
   TrendingUp,
   ShoppingBag,
@@ -78,6 +79,7 @@ const navGroups: NavGroup[] = [
       { to: "/eod-summary", icon: CalendarDays, label: "EOD Summary", minRole: "branch_manager" },
       { to: "/profitability", icon: Target, label: "Profitability", minRole: "owner" },
       { to: "/bestsellers", icon: Trophy, label: "Bestsellers", minRole: "branch_manager" },
+      { to: "/audit-log", icon: ClipboardList, label: "Audit Log", minRole: "branch_manager" },
     ],
   },
   {

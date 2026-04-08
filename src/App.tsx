@@ -32,6 +32,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import KioskPage from "@/pages/KioskPage";
 import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
 import MenuManagementPage from "@/pages/MenuManagementPage";
+import AuditLogPage from "@/pages/AuditLogPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
                 <Route path="/order-history" element={<ProtectedRoute requiredRole="branch_manager"><OrderHistoryPage /></ProtectedRoute>} />
                 <Route path="/eod-summary" element={<ProtectedRoute requiredRole="branch_manager"><EODSummaryPage /></ProtectedRoute>} />
                 <Route path="/bestsellers" element={<ProtectedRoute requiredRole="branch_manager"><BestsellersPage /></ProtectedRoute>} />
+                <Route path="/audit-log" element={<ProtectedRoute requiredRole="branch_manager"><AuditLogPage /></ProtectedRoute>} />
                 <Route path="/recipes" element={<ProtectedRoute requiredRole="branch_manager"><RecipesPage /></ProtectedRoute>} />
 
                 {/* Owner+ */}
