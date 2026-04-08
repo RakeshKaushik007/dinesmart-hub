@@ -321,6 +321,22 @@ const TablesPage = () => {
                         <p className="text-foreground font-medium">₹{Number(selectedTable.order_total).toLocaleString()}</p>
                       </div>
                     )}
+                    {selectedTable.occupied_since && (
+                      <div className="bg-secondary/50 rounded-lg p-3">
+                        <p className="text-muted-foreground text-xs">Booked At</p>
+                        <p className="text-foreground font-medium">{selectedTable.occupied_since}</p>
+                      </div>
+                    )}
+                    {selectedTable.duration_minutes !== undefined && (
+                      <div className="bg-secondary/50 rounded-lg p-3">
+                        <p className="text-muted-foreground text-xs">Duration</p>
+                        <p className="text-foreground font-medium font-mono">
+                          {selectedTable.duration_minutes >= 60
+                            ? `${Math.floor(selectedTable.duration_minutes / 60)}h ${selectedTable.duration_minutes % 60}m`
+                            : `${selectedTable.duration_minutes}m`}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Clear Table - only show for occupied tables */}
