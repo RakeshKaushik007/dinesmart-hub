@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Clock, Loader2, CreditCard, Banknote, Smartphone, Receipt, Printer, X } from "lucide-react";
+import { Clock, Loader2, CreditCard, Banknote, Smartphone, Receipt, Printer, X, DoorOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +52,9 @@ const ActiveOrdersPage = () => {
   const [checkoutOrder, setCheckoutOrder] = useState<OrderWithItems | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<"cash" | "upi" | "card" | null>(null);
   const [settling, setSettling] = useState(false);
+  const [releaseTable, setReleaseTable] = useState(true);
   const { toast } = useToast();
+  const { user, profile } = useAuth();
 
   const fetchOrders = async () => {
     const activeStatuses = ["new", "accepted", "preparing", "ready", "dispatched"] as const;
@@ -104,15 +108,19 @@ const ActiveOrdersPage = () => {
       completed_at: new Date().toISOString(),
     }).eq("id", checkoutOrder.id);
 
-    // If dine-in with table, mark table as paid-occupied (yellow state) - don't clear yet
-    // Table clearing is manual via Tables page
+    // Release table if checkbox is checked and it's a dine-in order
+    if (releaseTable && checkoutOrder.table_id) {
+      await supabase.from("restaurant_tables").update({ status: "available" }).eq("id", checkoutOrder.table_id);
+      await supabase.from("table_sessions").update({ cleared_at: new Date().toISOString() }).eq("table_id", checkoutOrder.table_id).is("cleared_at", null);
+    }
 
-    // Print receipt
+    // Print receipt with staff info
     printReceipt(checkoutOrder, selectedPayment);
 
-    toast({ title: "Order Settled!", description: `Order #${checkoutOrder.order_number} paid via ${selectedPayment.toUpperCase()}` });
+    toast({ title: "Order Settled!", description: `Order #${checkoutOrder.order_number} paid via ${selectedPayment.toUpperCase()}${releaseTable && checkoutOrder.table_id ? " · Table released" : ""}` });
     setCheckoutOrder(null);
     setSelectedPayment(null);
+    setReleaseTable(true);
     setSettling(false);
   };
 
