@@ -127,6 +127,8 @@ const ActiveOrdersPage = () => {
   const printReceipt = (order: OrderWithItems, paymentMethod: string) => {
     const printWindow = window.open("", "_blank", "width=300,height=600");
     if (!printWindow) return;
+    const staffName = profile?.full_name || user?.email || "Staff";
+    const staffId = user?.id?.slice(0, 8).toUpperCase() || "N/A";
     const itemsHtml = order.items.map(i => `
       <tr>
         <td style="padding:3px 0;font-size:12px;">${i.item_name}</td>
@@ -151,7 +153,8 @@ const ActiveOrdersPage = () => {
       .totals div{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;}
       .grand{font-size:16px;font-weight:bold;border-top:1px solid #000;padding-top:4px;margin-top:4px;}
       .pay{text-align:center;margin-top:8px;padding:6px;background:#f0f0f0;font-size:12px;font-weight:bold;text-transform:uppercase;}
-      .footer{text-align:center;font-size:10px;color:#999;margin-top:12px;border-top:1px dashed #000;padding-top:8px;}</style></head>
+      .staff{text-align:center;font-size:10px;color:#555;margin-top:6px;border-top:1px dashed #000;padding-top:6px;}
+      .footer{text-align:center;font-size:10px;color:#999;margin-top:6px;}</style></head>
       <body>
         <h2>BLENNIX</h2>
         <div class="sub">Tax Invoice</div>
@@ -170,6 +173,7 @@ const ActiveOrdersPage = () => {
           <div class="grand"><span>Total</span><span>₹${Number(order.total).toFixed(2)}</span></div>
         </div>
         <div class="pay">Paid via ${paymentMethod}</div>
+        <div class="staff">Billed by: ${staffName} (${staffId})</div>
         <div class="footer">Thank you! Visit again.</div>
         <script>setTimeout(()=>{window.print();window.close();},400)<\/script>
       </body></html>
@@ -292,6 +296,17 @@ const ActiveOrdersPage = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Table release option for dine-in */}
+                {checkoutOrder.table_id && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50">
+                    <Checkbox id="release-table" checked={releaseTable} onCheckedChange={(v) => setReleaseTable(!!v)} />
+                    <label htmlFor="release-table" className="text-sm cursor-pointer flex items-center gap-1.5">
+                      <DoorOpen className="h-4 w-4 text-muted-foreground" />
+                      Release table after settlement
+                    </label>
+                  </div>
+                )}
 
                 <Button onClick={handleSettle} disabled={!selectedPayment || settling} className="w-full" size="lg">
                   {settling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}
