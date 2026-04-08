@@ -27,6 +27,8 @@ interface TableData {
   guest_name?: string;
   order_total?: number;
   occupied_since?: string;
+  seated_at_raw?: string;
+  duration_minutes?: number;
   is_paid?: boolean;
   order_id?: string;
 }
@@ -78,10 +80,14 @@ const TablesPage = () => {
       const session = sessions?.find((s) => s.table_id === t.id);
       const orderInfo = session?.order_id ? orderMap[session.order_id] : null;
       const isPaid = orderInfo?.status === "completed";
+      const seatedAt = session?.seated_at;
+      const durationMs = seatedAt ? Date.now() - new Date(seatedAt).getTime() : 0;
       return {
         ...t,
         guest_name: session?.guest_name ?? undefined,
-        occupied_since: session?.seated_at ? new Date(session.seated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : undefined,
+        occupied_since: seatedAt ? new Date(seatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : undefined,
+        seated_at_raw: seatedAt ?? undefined,
+        duration_minutes: seatedAt ? Math.floor(durationMs / 60000) : undefined,
         is_paid: isPaid,
         order_total: orderInfo?.total,
         order_id: session?.order_id ?? undefined,
