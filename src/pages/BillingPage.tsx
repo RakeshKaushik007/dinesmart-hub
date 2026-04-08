@@ -48,7 +48,7 @@ const BillingPage = () => {
   const [placingOrder, setPlacingOrder] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     const fetch = async () => {
@@ -157,6 +157,8 @@ const BillingPage = () => {
   const printKOT = (orderNum: number, tableInfo: string, items: CartItem[]) => {
     const printWindow = window.open("", "_blank", "width=300,height=500");
     if (!printWindow) return;
+    const staffName = profile?.full_name || user?.email || "Staff";
+    const staffId = user?.id?.slice(0, 8).toUpperCase() || "N/A";
     const itemsHtml = items.map(i => `
       <tr><td style="padding:4px 0;font-size:14px;">${i.name}</td><td style="text-align:right;padding:4px 0;font-size:14px;font-weight:bold;">×${i.quantity}</td></tr>
     `).join("");
@@ -166,7 +168,8 @@ const BillingPage = () => {
       h2{text-align:center;margin:0 0 4px;font-size:18px;}
       .info{text-align:center;font-size:13px;border-bottom:1px dashed #000;padding-bottom:8px;margin-bottom:8px;}
       table{width:100%;border-collapse:collapse;}
-      .footer{border-top:1px dashed #000;margin-top:8px;padding-top:8px;text-align:center;font-size:11px;}</style></head>
+      .staff{border-top:1px dashed #000;margin-top:8px;padding-top:6px;font-size:11px;text-align:center;color:#555;}
+      .footer{margin-top:4px;text-align:center;font-size:11px;}</style></head>
       <body>
         <h2>--- KOT ---</h2>
         <div class="info">
@@ -175,6 +178,7 @@ const BillingPage = () => {
           <div>${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
         </div>
         <table>${itemsHtml}</table>
+        <div class="staff">KOT by: ${staffName} (${staffId})</div>
         <div class="footer">Kitchen Copy</div>
         <script>setTimeout(()=>{window.print();window.close();},400)<\/script>
       </body></html>

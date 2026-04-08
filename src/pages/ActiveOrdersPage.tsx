@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Clock, Loader2, CreditCard, Banknote, Smartphone, Receipt, Printer, X } from "lucide-react";
+import { Clock, Loader2, CreditCard, Banknote, Smartphone, Receipt, Printer, X, DoorOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +52,9 @@ const ActiveOrdersPage = () => {
   const [checkoutOrder, setCheckoutOrder] = useState<OrderWithItems | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<"cash" | "upi" | "card" | null>(null);
   const [settling, setSettling] = useState(false);
+  const [releaseTable, setReleaseTable] = useState(true);
   const { toast } = useToast();
+  const { user, profile } = useAuth();
 
   const fetchOrders = async () => {
     const activeStatuses = ["new", "accepted", "preparing", "ready", "dispatched"] as const;
@@ -104,21 +108,27 @@ const ActiveOrdersPage = () => {
       completed_at: new Date().toISOString(),
     }).eq("id", checkoutOrder.id);
 
-    // If dine-in with table, mark table as paid-occupied (yellow state) - don't clear yet
-    // Table clearing is manual via Tables page
+    // Release table if checkbox is checked and it's a dine-in order
+    if (releaseTable && checkoutOrder.table_id) {
+      await supabase.from("restaurant_tables").update({ status: "available" }).eq("id", checkoutOrder.table_id);
+      await supabase.from("table_sessions").update({ cleared_at: new Date().toISOString() }).eq("table_id", checkoutOrder.table_id).is("cleared_at", null);
+    }
 
-    // Print receipt
+    // Print receipt with staff info
     printReceipt(checkoutOrder, selectedPayment);
 
-    toast({ title: "Order Settled!", description: `Order #${checkoutOrder.order_number} paid via ${selectedPayment.toUpperCase()}` });
+    toast({ title: "Order Settled!", description: `Order #${checkoutOrder.order_number} paid via ${selectedPayment.toUpperCase()}${releaseTable && checkoutOrder.table_id ? " · Table released" : ""}` });
     setCheckoutOrder(null);
     setSelectedPayment(null);
+    setReleaseTable(true);
     setSettling(false);
   };
 
   const printReceipt = (order: OrderWithItems, paymentMethod: string) => {
     const printWindow = window.open("", "_blank", "width=300,height=600");
     if (!printWindow) return;
+    const staffName = profile?.full_name || user?.email || "Staff";
+    const staffId = user?.id?.slice(0, 8).toUpperCase() || "N/A";
     const itemsHtml = order.items.map(i => `
       <tr>
         <td style="padding:3px 0;font-size:12px;">${i.item_name}</td>
@@ -143,7 +153,8 @@ const ActiveOrdersPage = () => {
       .totals div{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;}
       .grand{font-size:16px;font-weight:bold;border-top:1px solid #000;padding-top:4px;margin-top:4px;}
       .pay{text-align:center;margin-top:8px;padding:6px;background:#f0f0f0;font-size:12px;font-weight:bold;text-transform:uppercase;}
-      .footer{text-align:center;font-size:10px;color:#999;margin-top:12px;border-top:1px dashed #000;padding-top:8px;}</style></head>
+      .staff{text-align:center;font-size:10px;color:#555;margin-top:6px;border-top:1px dashed #000;padding-top:6px;}
+      .footer{text-align:center;font-size:10px;color:#999;margin-top:6px;}</style></head>
       <body>
         <h2>BLENNIX</h2>
         <div class="sub">Tax Invoice</div>
@@ -162,6 +173,7 @@ const ActiveOrdersPage = () => {
           <div class="grand"><span>Total</span><span>₹${Number(order.total).toFixed(2)}</span></div>
         </div>
         <div class="pay">Paid via ${paymentMethod}</div>
+        <div class="staff">Billed by: ${staffName} (${staffId})</div>
         <div class="footer">Thank you! Visit again.</div>
         <script>setTimeout(()=>{window.print();window.close();},400)<\/script>
       </body></html>
@@ -284,6 +296,17 @@ const ActiveOrdersPage = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Table release option for dine-in */}
+                {checkoutOrder.table_id && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50">
+                    <Checkbox id="release-table" checked={releaseTable} onCheckedChange={(v) => setReleaseTable(!!v)} />
+                    <label htmlFor="release-table" className="text-sm cursor-pointer flex items-center gap-1.5">
+                      <DoorOpen className="h-4 w-4 text-muted-foreground" />
+                      Release table after settlement
+                    </label>
+                  </div>
+                )}
 
                 <Button onClick={handleSettle} disabled={!selectedPayment || settling} className="w-full" size="lg">
                   {settling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}

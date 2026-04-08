@@ -67,7 +67,7 @@ const KitchenDisplayPage = () => {
   const done = orders.filter(k => k.status === "ready");
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
-    const updateData: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
+    const updateData: { status: "new" | "accepted" | "preparing" | "ready" | "dispatched" | "completed" | "cancelled"; updated_at: string; accepted_at?: string; completed_at?: string } = { status: newStatus as any, updated_at: new Date().toISOString() };
     if (newStatus === "preparing") updateData.accepted_at = new Date().toISOString();
     if (newStatus === "ready") updateData.completed_at = new Date().toISOString();
 
