@@ -157,7 +157,7 @@ const TablesPage = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Table Management</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{totalGuests} guests seated · {counts.available} tables free</p>
         </div>
-        {isAtLeast("owner") && (
+        {isAtLeast("branch_manager") && (
           <Button size="sm" onClick={() => setAddDialog(true)}>
             <Plus className="h-4 w-4 mr-1" /> Add Table
           </Button>
