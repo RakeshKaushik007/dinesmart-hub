@@ -137,7 +137,7 @@ const TablesPage = () => {
       await supabase.from("table_sessions").update({ cleared_at: new Date().toISOString() }).eq("table_id", tableId).is("cleared_at", null);
     }
     setSelectedTable(null);
-    toast({ title: `Table ${tables.find((t) => t.id === tableId)?.table_number} → ${newStatus}` });
+    toast({ title: `Table ${tables.find((t) => t.id === tableId)?.table_number} → ${statusConfig[newStatus]?.label || newStatus}` });
   };
 
   const getDisplayStatus = (table: TableData) => {
