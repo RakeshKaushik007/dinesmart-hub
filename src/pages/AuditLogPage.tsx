@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, Receipt, Armchair, Clock, Filter } from "lucide-react";
+import { Loader2, Receipt, Armchair, Clock, Filter, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -136,6 +136,28 @@ const AuditLogPage = () => {
             <SelectItem value="table_session">Table Sessions Only</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" className="h-9 text-sm gap-1.5" disabled={filtered.length === 0}
+          onClick={() => {
+            const headers = ["Time", "Type", "Details", "Staff/Guest", "Staff ID", "Amount"];
+            const rows = filtered.map(e => [
+              new Date(e.timestamp).toLocaleString("en-IN"),
+              e.type === "billing" ? "Billing" : "Table Session",
+              `"${e.details.replace(/"/g, '""')}"`,
+              e.staff_name,
+              e.staff_id,
+              e.type === "billing" ? String(e.meta.total) : "",
+            ]);
+            const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `audit-log-${dateFilter}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}>
+          <Download className="h-3.5 w-3.5" /> Export CSV
+        </Button>
         <span className="text-xs text-muted-foreground ml-auto">{filtered.length} entries</span>
       </div>
 
