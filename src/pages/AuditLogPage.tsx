@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, Receipt, Armchair, Clock, Filter } from "lucide-react";
+import { Loader2, Receipt, Armchair, Clock, Filter, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
