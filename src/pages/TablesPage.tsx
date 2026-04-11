@@ -434,7 +434,7 @@ const TablesPage = () => {
                   </div>
 
                   {/* Delete Table - owner only, available tables only */}
-                  {isAtLeast("owner") && selectedTable.status === "available" && (
+                  {isAtLeast("branch_manager") && selectedTable.status === "available" && (
                     <div className="pt-2 border-t border-border">
                       <Button variant="destructive" size="sm" className="w-full" onClick={async () => {
                         await supabase.from("restaurant_tables").update({ is_active: false }).eq("id", selectedTable.id);
