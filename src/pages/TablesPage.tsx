@@ -132,7 +132,14 @@ const TablesPage = () => {
   };
 
   const changeStatus = async (tableId: string, newStatus: TableStatus) => {
-    await supabase.from("restaurant_tables").update({ status: newStatus }).eq("id", tableId);
+    const { error } = await supabase.from("restaurant_tables").update({ status: newStatus }).eq("id", tableId);
+    if (error) {
+      toast({ title: "Error updating table", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (newStatus === "occupied") {
+      await supabase.from("table_sessions").insert({ table_id: tableId, seated_at: new Date().toISOString() });
+    }
     if (newStatus === "available") {
       await supabase.from("table_sessions").update({ cleared_at: new Date().toISOString() }).eq("table_id", tableId).is("cleared_at", null);
     }

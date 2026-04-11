@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, Receipt, Armchair, Clock, Filter, Download } from "lucide-react";
+import { Loader2, Receipt, Armchair, Clock, Filter, Download, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,6 @@ const AuditLogPage = () => {
 
     const auditEntries: AuditEntry[] = [];
 
-    // Billing events
     orders?.forEach(o => {
       const staff = o.created_by ? profileMap[o.created_by] : null;
       const tableNum = o.table_id ? tableMap[o.table_id] : null;
@@ -70,7 +69,6 @@ const AuditLogPage = () => {
       });
     });
 
-    // Table session events
     sessions?.forEach(s => {
       const tableNum = tableMap[s.table_id] || "?";
       const seatedTime = new Date(s.seated_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -97,7 +95,6 @@ const AuditLogPage = () => {
       });
     });
 
-    // Sort by timestamp descending
     auditEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     setEntries(auditEntries);
     setLoading(false);
@@ -108,6 +105,88 @@ const AuditLogPage = () => {
   }, [dateFilter]);
 
   const filtered = typeFilter === "all" ? entries : entries.filter(e => e.type === typeFilter);
+
+  const handlePrint = () => {
+    const billingEntries = filtered.filter(e => e.type === "billing");
+    const sessionEntries = filtered.filter(e => e.type === "table_session");
+    const totalRevenue = billingEntries.reduce((s, e) => s + Number(e.meta.total || 0), 0);
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Audit Log — ${dateFilter}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, Helvetica, sans-serif; padding: 24px; color: #1a1a1a; font-size: 12px; }
+          h1 { font-size: 20px; margin-bottom: 4px; }
+          .subtitle { color: #666; font-size: 13px; margin-bottom: 20px; }
+          .summary { display: flex; gap: 24px; margin-bottom: 20px; padding: 12px; background: #f5f5f5; border-radius: 6px; }
+          .summary-item { text-align: center; }
+          .summary-item .val { font-size: 18px; font-weight: bold; }
+          .summary-item .lbl { font-size: 10px; color: #666; text-transform: uppercase; }
+          h2 { font-size: 14px; margin: 16px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+          th { text-align: left; background: #f0f0f0; padding: 6px 8px; font-size: 11px; text-transform: uppercase; color: #555; border-bottom: 2px solid #ddd; }
+          td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+          .amount { text-align: right; font-family: monospace; font-weight: bold; }
+          .footer { margin-top: 24px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #ddd; padding-top: 8px; }
+          @media print { body { padding: 12px; } }
+        </style>
+      </head>
+      <body>
+        <h1>Audit Log Report</h1>
+        <p class="subtitle">Date: ${new Date(dateFilter).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · ${filtered.length} entries</p>
+        
+        <div class="summary">
+          <div class="summary-item"><div class="val">${billingEntries.length}</div><div class="lbl">Bills Settled</div></div>
+          <div class="summary-item"><div class="val">₹${totalRevenue.toLocaleString()}</div><div class="lbl">Total Revenue</div></div>
+          <div class="summary-item"><div class="val">${sessionEntries.length}</div><div class="lbl">Table Sessions</div></div>
+        </div>
+
+        ${billingEntries.length > 0 ? `
+          <h2>Billing Settlements</h2>
+          <table>
+            <thead><tr><th>Time</th><th>Order</th><th>Staff</th><th>Payment</th><th>Type</th><th class="amount">Amount</th></tr></thead>
+            <tbody>
+              ${billingEntries.map(e => `<tr>
+                <td>${new Date(e.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</td>
+                <td>#${e.meta.order_number}</td>
+                <td>${e.staff_name}</td>
+                <td>${String(e.meta.payment).toUpperCase()}</td>
+                <td>${e.meta.type || ""}</td>
+                <td class="amount">₹${Number(e.meta.total).toLocaleString()}</td>
+              </tr>`).join("")}
+              <tr style="font-weight:bold;border-top:2px solid #333"><td colspan="5">Total</td><td class="amount">₹${totalRevenue.toLocaleString()}</td></tr>
+            </tbody>
+          </table>
+        ` : ""}
+
+        ${sessionEntries.length > 0 ? `
+          <h2>Table Sessions</h2>
+          <table>
+            <thead><tr><th>Table</th><th>Guest</th><th>Booked</th><th>Released</th><th>Duration</th></tr></thead>
+            <tbody>
+              ${sessionEntries.map(e => `<tr>
+                <td>${e.meta.table || ""}</td>
+                <td>${e.staff_name}</td>
+                <td>${e.meta.booked || ""}</td>
+                <td>${e.meta.released || ""}</td>
+                <td>${e.meta.duration_min ? `${e.meta.duration_min}m` : "—"}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        ` : ""}
+
+        <div class="footer">Generated on ${new Date().toLocaleString("en-IN")} · Audit Log Report</div>
+        <script>setTimeout(()=>{window.print();},500)<\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -157,6 +236,9 @@ const AuditLogPage = () => {
             URL.revokeObjectURL(url);
           }}>
           <Download className="h-3.5 w-3.5" /> Export CSV
+        </Button>
+        <Button variant="outline" size="sm" className="h-9 text-sm gap-1.5" disabled={filtered.length === 0} onClick={handlePrint}>
+          <Printer className="h-3.5 w-3.5" /> Print Report
         </Button>
         <span className="text-xs text-muted-foreground ml-auto">{filtered.length} entries</span>
       </div>
