@@ -35,7 +35,7 @@ interface TableData {
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; ring: string }> = {
   available: { label: "Available", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", ring: "ring-emerald-500/30" },
-  occupied: { label: "Occupied", color: "text-destructive", bg: "bg-destructive/10", ring: "ring-destructive/30" },
+  occupied: { label: "Booked", color: "text-destructive", bg: "bg-destructive/10", ring: "ring-destructive/30" },
   reserved: { label: "Reserved", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", ring: "ring-amber-500/30" },
   paid_occupied: { label: "Paid (Seated)", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", ring: "ring-amber-500/30" },
 };
@@ -177,7 +177,7 @@ const TablesPage = () => {
             <button key={s} onClick={() => setStatusFilter(statusFilter === s ? "all" : s)}
               className={`rounded-xl border p-3 sm:p-4 text-left transition-all ${statusFilter === s ? `${cfg.bg} border-transparent ring-2 ${cfg.ring}` : "bg-card border-border hover:bg-muted/30"}`}>
               <p className={`text-lg sm:text-2xl font-bold font-mono ${cfg.color}`}>{counts[s]}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 capitalize">{s}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{cfg.label}</p>
             </button>
           );
         })}
@@ -366,8 +366,8 @@ const TablesPage = () => {
                             return (
                               <Button key={s} variant="outline" size="sm"
                                 onClick={() => changeStatus(selectedTable.id, s)}
-                                className={`${c.bg} ${c.color} border-transparent capitalize`}>
-                                Mark {s}
+                                className={`${c.bg} ${c.color} border-transparent`}>
+                                Mark {c.label}
                               </Button>
                             );
                           })}
