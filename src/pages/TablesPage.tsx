@@ -177,7 +177,7 @@ const TablesPage = () => {
             <button key={s} onClick={() => setStatusFilter(statusFilter === s ? "all" : s)}
               className={`rounded-xl border p-3 sm:p-4 text-left transition-all ${statusFilter === s ? `${cfg.bg} border-transparent ring-2 ${cfg.ring}` : "bg-card border-border hover:bg-muted/30"}`}>
               <p className={`text-lg sm:text-2xl font-bold font-mono ${cfg.color}`}>{counts[s]}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 capitalize">{s}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{cfg.label}</p>
             </button>
           );
         })}
