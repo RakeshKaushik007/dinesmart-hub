@@ -35,7 +35,7 @@ interface TableData {
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; ring: string }> = {
   available: { label: "Available", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", ring: "ring-emerald-500/30" },
-  occupied: { label: "Occupied", color: "text-destructive", bg: "bg-destructive/10", ring: "ring-destructive/30" },
+  occupied: { label: "Booked", color: "text-destructive", bg: "bg-destructive/10", ring: "ring-destructive/30" },
   reserved: { label: "Reserved", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", ring: "ring-amber-500/30" },
   paid_occupied: { label: "Paid (Seated)", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", ring: "ring-amber-500/30" },
 };
@@ -366,8 +366,8 @@ const TablesPage = () => {
                             return (
                               <Button key={s} variant="outline" size="sm"
                                 onClick={() => changeStatus(selectedTable.id, s)}
-                                className={`${c.bg} ${c.color} border-transparent capitalize`}>
-                                Mark {s}
+                                className={`${c.bg} ${c.color} border-transparent`}>
+                                Mark {c.label}
                               </Button>
                             );
                           })}
