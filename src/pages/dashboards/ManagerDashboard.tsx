@@ -39,12 +39,17 @@ interface HourlyData {
   orders: number;
 }
 
+const DIRECT_MODES = ["cash", "upi", "card"];
+const AGGREGATOR_MODES = ["zomato_pay", "swiggy_dineout", "easydiner"];
+
 const ManagerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [totalSales, setTotalSales] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
   const [avgOrderValue, setAvgOrderValue] = useState(0);
   const [cancellations, setCancellations] = useState(0);
+  const [directRevenue, setDirectRevenue] = useState(0);
+  const [aggregatorRevenue, setAggregatorRevenue] = useState(0);
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [paymentData, setPaymentData] = useState<{ name: string; value: number }[]>([]);
   const [orderTypeData, setOrderTypeData] = useState<{ name: string; value: number }[]>([]);
