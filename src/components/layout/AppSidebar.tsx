@@ -24,6 +24,7 @@ import {
   LogOut,
   Shield,
   Bike,
+  FileSpreadsheet,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
@@ -89,6 +90,7 @@ const navGroups: NavGroup[] = [
       { to: "/alerts", icon: AlertTriangle, label: "Alerts", minRole: "employee" },
       { to: "/recipes", icon: ChefHat, label: "Recipes", minRole: "branch_manager" },
       { to: "/menu-management", icon: UtensilsCrossed, label: "Menu", minRole: "owner" },
+      { to: "/data-import", icon: FileSpreadsheet, label: "Data Import", minRole: "owner" },
       { to: "/ai-assistant", icon: Bot, label: "AI Assistant", minRole: "owner" },
       { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
     ],
