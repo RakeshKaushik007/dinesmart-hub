@@ -71,7 +71,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   const [releaseTable, setReleaseTable] = useState(true);
 
   // Discount state
-  const [discountType, setDiscountType] = useState<"flat" | "percentage" | "">("");
+  const [discountType, setDiscountType] = useState<"flat" | "percentage" | "none" | "">("");
   const [discountValue, setDiscountValue] = useState("");
 
   // Service charge
