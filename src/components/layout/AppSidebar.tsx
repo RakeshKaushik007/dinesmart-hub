@@ -25,6 +25,7 @@ import {
   Shield,
   Bike,
   FileSpreadsheet,
+  Ban,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
@@ -81,6 +82,7 @@ const navGroups: NavGroup[] = [
       { to: "/profitability", icon: Target, label: "Profitability", minRole: "owner" },
       { to: "/bestsellers", icon: Trophy, label: "Bestsellers", minRole: "branch_manager" },
       { to: "/audit-log", icon: ClipboardList, label: "Audit Log", minRole: "branch_manager" },
+      { to: "/void-nc-log", icon: Ban, label: "Void / NC Log", minRole: "branch_manager" },
     ],
   },
   {

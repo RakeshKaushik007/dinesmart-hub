@@ -39,12 +39,17 @@ interface HourlyData {
   orders: number;
 }
 
+const DIRECT_MODES = ["cash", "upi", "card"];
+const AGGREGATOR_MODES = ["zomato_pay", "swiggy_dineout", "easydiner"];
+
 const ManagerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [totalSales, setTotalSales] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
   const [avgOrderValue, setAvgOrderValue] = useState(0);
   const [cancellations, setCancellations] = useState(0);
+  const [directRevenue, setDirectRevenue] = useState(0);
+  const [aggregatorRevenue, setAggregatorRevenue] = useState(0);
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [paymentData, setPaymentData] = useState<{ name: string; value: number }[]>([]);
   const [orderTypeData, setOrderTypeData] = useState<{ name: string; value: number }[]>([]);
@@ -74,7 +79,16 @@ const ManagerDashboard = () => {
       setTotalSales(total);
       setOrderCount(completedOrders.length);
       setAvgOrderValue(completedOrders.length > 0 ? total / completedOrders.length : 0);
-      setCancellations(cancelled.length);
+      // Direct vs Aggregator revenue
+      const direct = completedOrders
+        .filter((o) => DIRECT_MODES.includes(o.payment_mode))
+        .reduce((s, o) => s + Number(o.total), 0);
+      const agg = completedOrders
+        .filter((o) => AGGREGATOR_MODES.includes(o.payment_mode))
+        .reduce((s, o) => s + Number(o.total), 0);
+      setDirectRevenue(direct);
+      setAggregatorRevenue(agg);
+
 
       // Hourly distribution
       const hourMap: Record<number, { sales: number; orders: number }> = {};
@@ -188,7 +202,35 @@ const ManagerDashboard = () => {
               <div className={`rounded-lg p-2 ${kpi.bg}`}>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
               </div>
+      </div>
+
+      {/* Revenue Settlement Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-lg p-2 bg-emerald-50 dark:bg-emerald-950/40">
+              <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Direct Revenue</p>
+              <p className="text-sm text-muted-foreground">Cash, UPI, Card — in your account</p>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">₹{directRevenue.toLocaleString("en-IN")}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-lg p-2 bg-amber-50 dark:bg-amber-950/40">
+              <CreditCard className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Aggregator Pending</p>
+              <p className="text-sm text-muted-foreground">Zomato Pay, Swiggy Dineout, EazyDiner</p>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">₹{aggregatorRevenue.toLocaleString("en-IN")}</p>
+        </div>
+      </div>
             <p className="text-2xl font-bold text-card-foreground tabular-nums">{kpi.value}</p>
           </div>
         ))}
