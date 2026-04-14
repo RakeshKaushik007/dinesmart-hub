@@ -33,6 +33,7 @@ import KioskPage from "@/pages/KioskPage";
 import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
 import MenuManagementPage from "@/pages/MenuManagementPage";
 import AuditLogPage from "@/pages/AuditLogPage";
+import DataImportPage from "@/pages/DataImportPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ const App = () => (
                 <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
                 <Route path="/menu-management" element={<ProtectedRoute requiredRole="owner"><MenuManagementPage /></ProtectedRoute>} />
+                <Route path="/data-import" element={<ProtectedRoute requiredRole="owner"><DataImportPage /></ProtectedRoute>} />
 
                 {/* Settings - all roles */}
                 <Route path="/settings" element={<SettingsPage />} />
