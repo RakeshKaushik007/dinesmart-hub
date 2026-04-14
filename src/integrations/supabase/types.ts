@@ -282,6 +282,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_nc: boolean | null
+          is_void: boolean | null
           item_name: string
           menu_item_id: string | null
           notes: string | null
@@ -289,10 +291,14 @@ export type Database = {
           quantity: number
           total_price: number
           unit_price: number
+          void_reason: string | null
+          voided_by: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          is_nc?: boolean | null
+          is_void?: boolean | null
           item_name: string
           menu_item_id?: string | null
           notes?: string | null
@@ -300,10 +306,14 @@ export type Database = {
           quantity?: number
           total_price?: number
           unit_price?: number
+          void_reason?: string | null
+          voided_by?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          is_nc?: boolean | null
+          is_void?: boolean | null
           item_name?: string
           menu_item_id?: string | null
           notes?: string | null
@@ -311,6 +321,8 @@ export type Database = {
           quantity?: number
           total_price?: number
           unit_price?: number
+          void_reason?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -341,12 +353,15 @@ export type Database = {
           customer_name: string | null
           customer_phone: string | null
           discount: number
+          discount_type: string | null
+          discount_value: number | null
           id: string
           notes: string | null
           order_number: number
           order_source: Database["public"]["Enums"]["order_source"]
           order_type: Database["public"]["Enums"]["order_type"]
           payment_mode: Database["public"]["Enums"]["payment_mode"]
+          service_charge: number | null
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
           table_id: string | null
@@ -365,12 +380,15 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string | null
           discount?: number
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
           notes?: string | null
           order_number?: number
           order_source?: Database["public"]["Enums"]["order_source"]
           order_type?: Database["public"]["Enums"]["order_type"]
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          service_charge?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           table_id?: string | null
@@ -389,12 +407,15 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string | null
           discount?: number
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
           notes?: string | null
           order_number?: number
           order_source?: Database["public"]["Enums"]["order_source"]
           order_type?: Database["public"]["Enums"]["order_type"]
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          service_charge?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           table_id?: string | null
@@ -1000,7 +1021,16 @@ export type Database = {
         | "completed"
         | "cancelled"
       order_type: "dine_in" | "takeaway" | "online"
-      payment_mode: "cash" | "upi" | "card" | "wallet" | "mixed" | "pending"
+      payment_mode:
+        | "cash"
+        | "upi"
+        | "card"
+        | "wallet"
+        | "mixed"
+        | "pending"
+        | "zomato_pay"
+        | "swiggy_dineout"
+        | "easydiner"
       po_status: "draft" | "sent" | "partial" | "received" | "cancelled"
     }
     CompositeTypes: {
@@ -1141,7 +1171,17 @@ export const Constants = {
         "cancelled",
       ],
       order_type: ["dine_in", "takeaway", "online"],
-      payment_mode: ["cash", "upi", "card", "wallet", "mixed", "pending"],
+      payment_mode: [
+        "cash",
+        "upi",
+        "card",
+        "wallet",
+        "mixed",
+        "pending",
+        "zomato_pay",
+        "swiggy_dineout",
+        "easydiner",
+      ],
       po_status: ["draft", "sent", "partial", "received", "cancelled"],
     },
   },
