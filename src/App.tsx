@@ -33,6 +33,7 @@ import KioskPage from "@/pages/KioskPage";
 import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
 import MenuManagementPage from "@/pages/MenuManagementPage";
 import AuditLogPage from "@/pages/AuditLogPage";
+import DataImportPage from "@/pages/DataImportPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
