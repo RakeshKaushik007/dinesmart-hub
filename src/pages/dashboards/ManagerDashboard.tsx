@@ -202,6 +202,10 @@ const ManagerDashboard = () => {
               <div className={`rounded-lg p-2 ${kpi.bg}`}>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
               </div>
+            </div>
+            <p className="text-2xl font-bold text-card-foreground tabular-nums">{kpi.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Revenue Settlement Breakdown */}
@@ -230,10 +234,6 @@ const ManagerDashboard = () => {
           </div>
           <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">₹{aggregatorRevenue.toLocaleString("en-IN")}</p>
         </div>
-      </div>
-            <p className="text-2xl font-bold text-card-foreground tabular-nums">{kpi.value}</p>
-          </div>
-        ))}
       </div>
 
       {/* Charts Row */}
