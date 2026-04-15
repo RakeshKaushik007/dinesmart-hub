@@ -236,7 +236,7 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
                 >
                   {group.label}
                 </button>
-                {group.items.length > 1 && (
+                {group.items.length >= 1 && (
                   <button
                     onClick={(e) => toggleGroup(group.label, e)}
                     className="p-0.5 rounded hover:bg-sidebar-accent transition-colors"
