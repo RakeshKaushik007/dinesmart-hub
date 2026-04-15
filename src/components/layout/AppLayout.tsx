@@ -9,12 +9,12 @@ const AppLayout = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile hamburger */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 px-4 py-3 bg-background border-b border-border md:hidden">
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-foreground">
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-        <span className="text-sm font-bold text-foreground">Blennix POS</span>
-      </div>
+        <div className="fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-3 bg-background border-b border-border md:hidden">
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-foreground">
+            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+          <span className="text-sm font-bold text-foreground">Blennix POS</span>
+        </div>
 
       {/* Overlay */}
       {sidebarOpen && (

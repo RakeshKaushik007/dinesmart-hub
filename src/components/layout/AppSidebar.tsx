@@ -217,24 +217,24 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
         ))}
       </nav>
 
-      <div className="px-3 pb-4 space-y-1">
+      <div className="shrink-0 border-t border-sidebar-border px-3 py-3 space-y-1">
         <button
           onClick={toggle}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full"
         >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
           {theme === "dark" ? "Light Mode" : "Dark Mode"}
         </button>
         <NavLink to="/settings" onClick={onNavigate}
           className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all w-full ${isActive ? "bg-sidebar-accent text-primary" : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
-          <Settings className="h-4 w-4" />
+          <Settings className="h-4 w-4 shrink-0" />
           Settings
         </NavLink>
         <button
           onClick={signOut}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-destructive hover:bg-destructive/10 transition-all w-full"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 shrink-0" />
           Sign Out
         </button>
       </div>
