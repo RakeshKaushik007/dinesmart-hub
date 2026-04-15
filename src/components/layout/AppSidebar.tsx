@@ -64,6 +64,13 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Alerts",
+    minRole: "employee",
+    items: [
+      { to: "/alerts", icon: AlertTriangle, label: "Alerts", minRole: "employee" },
+    ],
+  },
+  {
     label: "Reports",
     minRole: "branch_manager",
     items: [
@@ -78,7 +85,6 @@ const navGroups: NavGroup[] = [
     items: [
       { to: "/audit-log", icon: ClipboardList, label: "Audit Log", minRole: "branch_manager" },
       { to: "/wastage", icon: Trash2, label: "Wastage Logs", minRole: "branch_manager" },
-      { to: "/alerts", icon: AlertTriangle, label: "Alerts", minRole: "employee" },
     ],
   },
   {
