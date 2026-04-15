@@ -214,7 +214,7 @@ const BillingPage = () => {
   const availableTables = tables.filter(t => t.status === "available");
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-3rem)]">
+    <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-7rem)] md:h-[calc(100vh-3rem)]">
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center gap-3 mb-3">
           <h1 className="text-xl font-bold text-foreground whitespace-nowrap">Billing</h1>
@@ -291,7 +291,7 @@ const BillingPage = () => {
       </div>
 
       {/* Cart Sidebar */}
-      <div className={`w-80 shrink-0 flex flex-col rounded-xl border bg-card ${activePanel === "cart" ? "border-primary/30 ring-1 ring-primary/20" : "border-border"}`}>
+      <div className={`w-full md:w-80 shrink-0 flex flex-col rounded-xl border bg-card ${activePanel === "cart" ? "border-primary/30 ring-1 ring-primary/20" : "border-border"}`}>
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Receipt className="h-4 w-4 text-primary" />
