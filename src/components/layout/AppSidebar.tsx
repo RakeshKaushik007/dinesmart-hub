@@ -59,6 +59,7 @@ const navGroups: NavGroup[] = [
       { to: "/billing", icon: CreditCard, label: "Billing", minRole: "employee" },
       { to: "/tables", icon: Armchair, label: "Tables", minRole: "employee" },
       { to: "/active-orders", icon: ShoppingBag, label: "Active Orders", minRole: "employee" },
+      { to: "/aggregator-orders", icon: Bike, label: "Aggregator Orders", minRole: "employee" },
     ],
   },
   {
@@ -66,7 +67,6 @@ const navGroups: NavGroup[] = [
     minRole: "employee",
     items: [
       { to: "/kitchen-display", icon: ChefHat, label: "Kitchen (KOT)", minRole: "employee" },
-      { to: "/aggregator-orders", icon: Bike, label: "Aggregator Orders", minRole: "employee" },
     ],
   },
   {
