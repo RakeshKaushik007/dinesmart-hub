@@ -73,8 +73,8 @@ const App = () => (
                 <Route path="/eod-summary" element={<ProtectedRoute requiredRole="branch_manager"><EODSummaryPage /></ProtectedRoute>} />
                 <Route path="/bestsellers" element={<ProtectedRoute requiredRole="branch_manager"><BestsellersPage /></ProtectedRoute>} />
                 <Route path="/audit-log" element={<ProtectedRoute requiredRole="branch_manager"><AuditLogPage /></ProtectedRoute>} />
-                <Route path="/recipes" element={<ProtectedRoute requiredRole="branch_manager"><RecipesPage /></ProtectedRoute>} />
                 <Route path="/void-nc-log" element={<ProtectedRoute requiredRole="branch_manager"><VoidNCLogPage /></ProtectedRoute>} />
+                <Route path="/recipes" element={<ProtectedRoute requiredRole="branch_manager"><RecipesPage /></ProtectedRoute>} />
 
                 {/* Owner+ */}
                 <Route path="/dynamic-pricing" element={<ProtectedRoute requiredRole="owner"><DynamicPricingPage /></ProtectedRoute>} />
