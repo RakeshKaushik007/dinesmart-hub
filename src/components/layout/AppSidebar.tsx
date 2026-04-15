@@ -25,6 +25,7 @@ import {
   Shield,
   Bike,
   FileSpreadsheet,
+  Ban,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
