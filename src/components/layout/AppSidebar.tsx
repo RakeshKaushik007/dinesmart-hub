@@ -46,12 +46,36 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: "Main",
+    label: "Dashboard",
     minRole: "employee",
     items: [
       { to: "/", icon: LayoutDashboard, label: "Overview", minRole: "employee" },
+    ],
+  },
+  {
+    label: "Point of Sale",
+    minRole: "employee",
+    items: [
       { to: "/billing", icon: CreditCard, label: "Billing", minRole: "employee" },
       { to: "/tables", icon: Armchair, label: "Tables", minRole: "employee" },
+      { to: "/active-orders", icon: ShoppingBag, label: "Active Orders", minRole: "employee" },
+    ],
+  },
+  {
+    label: "Kitchen",
+    minRole: "employee",
+    items: [
+      { to: "/kitchen-display", icon: ChefHat, label: "Kitchen (KOT)", minRole: "employee" },
+      { to: "/aggregator-orders", icon: Bike, label: "Aggregator Orders", minRole: "employee" },
+    ],
+  },
+  {
+    label: "Menu & Recipes",
+    minRole: "branch_manager",
+    items: [
+      { to: "/menu-management", icon: UtensilsCrossed, label: "Menu Management", minRole: "owner" },
+      { to: "/recipes", icon: ChefHat, label: "Recipes", minRole: "branch_manager" },
+      { to: "/dynamic-pricing", icon: TrendingUp, label: "Dynamic Pricing", minRole: "owner" },
     ],
   },
   {
@@ -61,17 +85,6 @@ const navGroups: NavGroup[] = [
       { to: "/ingredients", icon: Package, label: "Stock & Alerts", minRole: "branch_manager" },
       { to: "/purchase-orders", icon: Truck, label: "Purchase Orders", minRole: "branch_manager" },
       { to: "/wastage", icon: Trash2, label: "Wastage Logs", minRole: "branch_manager" },
-      { to: "/dynamic-pricing", icon: TrendingUp, label: "Dynamic Pricing", minRole: "owner" },
-    ],
-  },
-  {
-    label: "Orders",
-    minRole: "employee",
-    items: [
-      { to: "/active-orders", icon: ShoppingBag, label: "Active Orders", minRole: "employee" },
-      { to: "/kitchen-display", icon: ChefHat, label: "Kitchen (KOT)", minRole: "employee" },
-      { to: "/aggregator-orders", icon: Bike, label: "Swiggy / Zomato", minRole: "employee" },
-      { to: "/order-history", icon: Clock, label: "Order History", minRole: "branch_manager" },
     ],
   },
   {
@@ -79,22 +92,27 @@ const navGroups: NavGroup[] = [
     minRole: "branch_manager",
     items: [
       { to: "/eod-summary", icon: CalendarDays, label: "EOD Summary", minRole: "branch_manager" },
-      { to: "/profitability", icon: Target, label: "Profitability", minRole: "owner" },
       { to: "/bestsellers", icon: Trophy, label: "Bestsellers", minRole: "branch_manager" },
+      { to: "/profitability", icon: Target, label: "Profitability", minRole: "owner" },
+      { to: "/order-history", icon: Clock, label: "Order History", minRole: "branch_manager" },
       { to: "/audit-log", icon: ClipboardList, label: "Audit Log", minRole: "branch_manager" },
       { to: "/void-nc-log", icon: Ban, label: "Void / NC Log", minRole: "branch_manager" },
     ],
   },
   {
-    label: "More",
+    label: "Notifications",
     minRole: "employee",
     items: [
       { to: "/alerts", icon: AlertTriangle, label: "Alerts", minRole: "employee" },
-      { to: "/recipes", icon: ChefHat, label: "Recipes", minRole: "branch_manager" },
-      { to: "/menu-management", icon: UtensilsCrossed, label: "Menu", minRole: "owner" },
+    ],
+  },
+  {
+    label: "Settings",
+    minRole: "owner",
+    items: [
+      { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
       { to: "/data-import", icon: FileSpreadsheet, label: "Data Import", minRole: "owner" },
       { to: "/ai-assistant", icon: Bot, label: "AI Assistant", minRole: "owner" },
-      { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
     ],
   },
   {
