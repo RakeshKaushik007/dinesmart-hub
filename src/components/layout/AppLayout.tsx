@@ -19,22 +19,24 @@ const AppLayout = () => {
       {/* Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-[55] bg-background/60 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar - hidden on mobile, shown on md+ */}
       <div className={`
-        fixed left-0 top-0 z-50 h-screen transition-transform duration-200
+        fixed left-0 top-0 z-[60] h-screen transition-transform duration-200
         md:translate-x-0
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
       `}>
         <AppSidebar onNavigate={() => setSidebarOpen(false)} />
       </div>
 
-      <main className="pt-14 md:pt-0 md:ml-64 p-4 sm:p-6">
-        <Outlet />
+      <main className="pt-14 md:pt-0 md:ml-64 min-h-screen">
+        <div className="p-4 sm:p-6">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

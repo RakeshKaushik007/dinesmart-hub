@@ -214,7 +214,7 @@ const BillingPage = () => {
   const availableTables = tables.filter(t => t.status === "available");
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-3rem)]">
+    <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-7rem)] md:h-[calc(100vh-3rem)]">
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center gap-3 mb-3">
           <h1 className="text-xl font-bold text-foreground whitespace-nowrap">Billing</h1>
