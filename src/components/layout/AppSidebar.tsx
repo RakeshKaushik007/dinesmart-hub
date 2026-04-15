@@ -91,7 +91,7 @@ const navGroups: NavGroup[] = [
     label: "Transactions",
     minRole: "branch_manager",
     items: [
-      { to: "/void-nc-log", icon: Ban, label: "Voids & NC", minRole: "branch_manager" },
+      { to: "/void-nc-log", icon: Ban, label: "Voids & Non-Chargeable", minRole: "branch_manager" },
     ],
   },
   {
