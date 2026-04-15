@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChefHat,
   AlertTriangle,
@@ -26,6 +27,7 @@ import {
   Bike,
   FileSpreadsheet,
   Ban,
+  ChevronDown,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
@@ -35,7 +37,7 @@ interface NavItem {
   to: string;
   icon: any;
   label: string;
-  minRole: AppRole; // minimum role level required
+  minRole: AppRole;
 }
 
 interface NavGroup {
@@ -150,12 +152,12 @@ const roleBadgeColors: Record<string, string> = {
 
 const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggle } = useTheme();
   const { profile, roles, signOut, isAtLeast } = useAuth();
 
   const topRole = roles.length > 0 ? roles[0].role : null;
 
-  // Filter groups and items by role
   const visibleGroups = navGroups
     .filter((group) => isAtLeast(group.minRole))
     .map((group) => ({
@@ -163,6 +165,32 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
       items: group.items.filter((item) => isAtLeast(item.minRole)),
     }))
     .filter((group) => group.items.length > 0);
+
+  // Auto-expand groups that contain the active route
+  const initialOpen = visibleGroups.reduce<Record<string, boolean>>((acc, group) => {
+    acc[group.label] = group.items.some((item) => location.pathname === item.to);
+    return acc;
+  }, {});
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen);
+
+  const toggleGroup = (label: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const handleHeadingClick = (group: typeof visibleGroups[0]) => {
+    if (group.items.length > 0) {
+      navigate(group.items[0].to);
+      onNavigate?.();
+    }
+    // Also ensure the group is open
+    setOpenGroups((prev) => ({ ...prev, [group.label]: true }));
+  };
+
+  // Check if any item in a group is active
+  const isGroupActive = (group: typeof visibleGroups[0]) =>
+    group.items.some((item) => location.pathname === item.to);
 
   return (
     <aside className="h-screen w-64 border-r border-border bg-sidebar flex flex-col">
@@ -187,34 +215,71 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        {visibleGroups.map((group) => (
-          <div key={group.label}>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const isActive = location.pathname === item.to;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={onNavigate}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                      isActive
-                        ? "bg-sidebar-accent text-primary"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    }`}
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+        {visibleGroups.map((group) => {
+          const isOpen = openGroups[group.label] ?? isGroupActive(group);
+          const groupActive = isGroupActive(group);
+
+          return (
+            <div key={group.label}>
+              {/* Group heading: click label → navigate, click chevron → toggle */}
+              <div
+                className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                  groupActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-sidebar-foreground"
+                }`}
+              >
+                <button
+                  onClick={() => handleHeadingClick(group)}
+                  className="flex-1 text-left text-[10px] font-semibold uppercase tracking-widest"
+                >
+                  {group.label}
+                </button>
+                {group.items.length > 1 && (
+                  <button
+                    onClick={(e) => toggleGroup(group.label, e)}
+                    className="p-0.5 rounded hover:bg-sidebar-accent transition-colors"
                   >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </NavLink>
-                );
-              })}
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                        isOpen ? "rotate-0" : "-rotate-90"
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
+
+              {/* Collapsible items */}
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <div className="space-y-0.5 mt-0.5">
+                  {group.items.map((item) => {
+                    const isActive = location.pathname === item.to;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={onNavigate}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                          isActive
+                            ? "bg-sidebar-accent text-primary"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {item.label}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="shrink-0 border-t border-sidebar-border px-3 py-3 space-y-1">
