@@ -91,7 +91,7 @@ const BillingPage = () => {
   const clearCart = useCallback(() => { setCart([]); setSelectedTableId(""); }, []);
 
   const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
-  const tax = Math.round(subtotal * 0.05);
+  const tax = Math.round(subtotal * (settings.taxRate / 100));
   const total = subtotal + tax;
 
   const handlePlaceOrder = async () => {
