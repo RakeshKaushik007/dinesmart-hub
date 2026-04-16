@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   ChefHat,
@@ -139,6 +139,85 @@ const roleBadgeColors: Record<string, string> = {
   employee: "bg-muted text-muted-foreground",
 };
 
+/** Animated collapsible content for sidebar groups */
+const CollapsibleContent = ({
+  group,
+  isCollapsed,
+  location,
+  onNavigate,
+}: {
+  group: { items: NavItem[] };
+  isCollapsed: boolean;
+  location: { pathname: string };
+  onNavigate?: () => void;
+}) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | "auto">(isCollapsed ? 0 : "auto");
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      setHeight(isCollapsed ? 0 : "auto");
+      return;
+    }
+    if (!contentRef.current) return;
+    if (isCollapsed) {
+      // Collapse: set explicit height first, then animate to 0
+      setHeight(contentRef.current.scrollHeight);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setHeight(0));
+      });
+    } else {
+      // Expand: animate from 0 to scrollHeight, then set auto
+      setHeight(0);
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          setHeight(contentRef.current.scrollHeight);
+        }
+      });
+    }
+  }, [isCollapsed]);
+
+  const handleTransitionEnd = () => {
+    if (!isCollapsed) setHeight("auto");
+  };
+
+  return (
+    <div
+      ref={contentRef}
+      style={{
+        height: height === "auto" ? "auto" : `${height}px`,
+        overflow: "hidden",
+        transition: isFirstRender.current ? "none" : "height 0.2s ease-out, opacity 0.2s ease-out",
+        opacity: isCollapsed && height === 0 ? 0 : 1,
+      }}
+      onTransitionEnd={handleTransitionEnd}
+    >
+      <div className="space-y-0.5">
+        {group.items.map((item) => {
+          const isActive = location.pathname === item.to;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={onNavigate}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                isActive
+                  ? "bg-sidebar-accent text-primary"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {item.label}
+            </NavLink>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
   const { theme, toggle } = useTheme();
@@ -154,11 +233,23 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
     }))
     .filter((group) => group.items.length > 0);
 
-  // Initialize all groups as expanded
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const STORAGE_KEY = "blennix-sidebar-collapsed";
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const toggleGroup = (label: string) => {
-    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+    setCollapsed((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   return (
@@ -207,28 +298,7 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
                   <ChevronDown className="h-3 w-3" />
                 )}
               </button>
-              {!isCollapsed && (
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const isActive = location.pathname === item.to;
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={onNavigate}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                          isActive
-                            ? "bg-sidebar-accent text-primary"
-                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                        }`}
-                      >
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        {item.label}
-                      </NavLink>
-                    );
-                  })}
-                </div>
-              )}
+              <CollapsibleContent group={group} isCollapsed={isCollapsed} location={location} onNavigate={onNavigate} />
             </div>
           );
         })}
