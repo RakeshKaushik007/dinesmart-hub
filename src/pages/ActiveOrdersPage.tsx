@@ -17,6 +17,7 @@ const statusStyles: Record<string, string> = {
   preparing: "bg-amber-500/10 text-amber-600",
   ready: "bg-emerald-500/10 text-emerald-600",
   dispatched: "bg-muted text-muted-foreground",
+  pending_adjustment: "bg-amber-500/10 text-amber-600",
 };
 
 const ActiveOrdersPage = () => {
@@ -26,7 +27,7 @@ const ActiveOrdersPage = () => {
   const [checkoutOrder, setCheckoutOrder] = useState<OrderWithItems | null>(null);
 
   const fetchOrders = async () => {
-    const activeStatuses = ["new", "accepted", "preparing", "ready", "dispatched"] as const;
+    const activeStatuses = ["new", "accepted", "preparing", "ready", "dispatched", "pending_adjustment"] as const;
     const { data: ordersData } = await supabase
       .from("orders")
       .select("id, order_number, order_source, order_type, status, subtotal, tax, total, payment_mode, customer_name, table_id, created_at")
@@ -119,7 +120,7 @@ const ActiveOrdersPage = () => {
                     )}
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusStyles[order.status] || "bg-muted text-muted-foreground"}`}>
-                    {order.status}
+                    {order.status === "pending_adjustment" ? "Reopened" : order.status}
                   </span>
                 </div>
                 <p className="text-sm text-card-foreground font-medium">{order.customer_name || "Walk-in"} · {order.order_type === "dine_in" ? "Dining" : "Takeaway"}</p>
