@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   Receipt, Printer, Loader2, Banknote, Smartphone, CreditCard,
-  DoorOpen, Ban, Gift, Percent, IndianRupee, Building2,
+  DoorOpen, Ban, Gift, Percent, IndianRupee, Building2, Plus, XCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/hooks/useSettings";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -17,6 +18,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import VoidItemDialog from "./VoidItemDialog";
+import AddItemsDialog from "./AddItemsDialog";
+import CancelOrderDialog from "./CancelOrderDialog";
 
 export interface OrderItem {
   id?: string;
@@ -76,14 +79,24 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
 
   // Service charge
   const [serviceChargeEnabled, setServiceChargeEnabled] = useState(false);
-  const SERVICE_CHARGE_PCT = 5;
 
   // Void
   const [voidingItem, setVoidingItem] = useState<OrderItem | null>(null);
   const [localItems, setLocalItems] = useState<OrderItem[]>([]);
 
+  // Add items dialog
+  const [showAddItems, setShowAddItems] = useState(false);
+
+  // Cancel order dialog
+  const [showCancelOrder, setShowCancelOrder] = useState(false);
+
   const { toast } = useToast();
   const { user, profile, isAtLeast } = useAuth();
+  const settings = useSettings();
+
+  const TAX_PCT = settings.taxRate;
+  const TAX_LABEL = settings.taxLabel;
+  const SERVICE_CHARGE_PCT = settings.serviceChargePct;
 
   // Sync items when order changes
   const items = order ? (localItems.length > 0 ? localItems : order.items) : [];
@@ -95,6 +108,8 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     setDiscountValue("");
     setServiceChargeEnabled(false);
     setLocalItems([]);
+    setShowAddItems(false);
+    setShowCancelOrder(false);
   };
 
   // Recalculate totals
@@ -110,23 +125,20 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     else if (discountType === "percentage") discountAmt = (dv / 100) * activeSubtotal;
 
     const discountedSubtotal = activeSubtotal - discountAmt;
-    const gst = discountedSubtotal * 0.05;
+    const gst = discountedSubtotal * (TAX_PCT / 100);
     const serviceCharge = serviceChargeEnabled ? discountedSubtotal * (SERVICE_CHARGE_PCT / 100) : 0;
     const grandTotal = discountedSubtotal + gst + serviceCharge;
 
     return { activeSubtotal, discountAmt, discountedSubtotal, gst, serviceCharge, grandTotal };
-  }, [items, discountType, discountValue, serviceChargeEnabled, order]);
+  }, [items, discountType, discountValue, serviceChargeEnabled, order, TAX_PCT, SERVICE_CHARGE_PCT]);
 
   const handleVoidConfirm = async (reason: string, _pin: string) => {
     if (!voidingItem || !order) return;
-    // In production, validate PIN against manager credentials
-    // For now we accept any 4+ digit PIN
     if (_pin.length < 4) {
       toast({ title: "Invalid PIN", description: "Manager PIN must be at least 4 digits", variant: "destructive" });
       return;
     }
 
-    // Update DB
     if (voidingItem.id) {
       await supabase.from("order_items").update({
         is_void: true,
@@ -135,7 +147,6 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
       }).eq("id", voidingItem.id);
     }
 
-    // Update local state
     setLocalItems(prev => {
       const current = prev.length > 0 ? prev : order.items;
       return current.map(i =>
@@ -230,7 +241,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
       .staff{text-align:center;font-size:10px;color:#555;margin-top:6px;border-top:1px dashed #000;padding-top:6px;}
       .footer{text-align:center;font-size:10px;color:#999;margin-top:6px;}</style></head>
       <body>
-        <h2>BLENNIX</h2>
+        <h2>${settings.restaurantName.toUpperCase()}</h2>
         <div class="sub">Tax Invoice</div>
         <div class="info">
           <div>Order #${o.order_number} · ${tableInfo}</div>
@@ -244,7 +255,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         <div class="totals">
           <div><span>Subtotal</span><span>₹${calculated.activeSubtotal.toFixed(2)}</span></div>
           ${discountLine}
-          <div><span>GST (5%)</span><span>₹${calculated.gst.toFixed(2)}</span></div>
+          <div><span>${TAX_LABEL} (${TAX_PCT}%)</span><span>₹${calculated.gst.toFixed(2)}</span></div>
           ${scLine}
           <div class="grand"><span>Total</span><span>₹${calculated.grandTotal.toFixed(2)}</span></div>
         </div>
@@ -277,6 +288,18 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
               <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="font-medium capitalize">{order.order_type === "dine_in" ? "Dining" : "Takeaway"}</span></div>
               {order.table_number && <div className="flex justify-between"><span className="text-muted-foreground">Table</span><span className="font-medium">{order.table_number}</span></div>}
               {order.customer_name && <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span className="font-medium">{order.customer_name}</span></div>}
+            </div>
+
+            {/* Action buttons: Add Items + Cancel Order */}
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowAddItems(true)} className="flex-1">
+                <Plus className="h-4 w-4 mr-1.5" /> Add Items
+              </Button>
+              {isManager && (
+                <Button variant="destructive" size="sm" onClick={() => setShowCancelOrder(true)} className="flex-1">
+                  <XCircle className="h-4 w-4 mr-1.5" /> Cancel Order
+                </Button>
+              )}
             </div>
 
             {/* Items with void/NC actions */}
@@ -353,7 +376,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
               {calculated.discountAmt > 0 && (
                 <div className="flex justify-between text-sm text-emerald-600"><span>Discount</span><span className="font-mono">-₹{calculated.discountAmt.toFixed(2)}</span></div>
               )}
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (5%)</span><span className="font-mono">₹{calculated.gst.toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">{TAX_LABEL} ({TAX_PCT}%)</span><span className="font-mono">₹{calculated.gst.toFixed(2)}</span></div>
               {calculated.serviceCharge > 0 && (
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Service Charge ({SERVICE_CHARGE_PCT}%)</span><span className="font-mono">₹{calculated.serviceCharge.toFixed(2)}</span></div>
               )}
@@ -410,6 +433,26 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         itemName={voidingItem?.item_name || ""}
         onConfirm={handleVoidConfirm}
       />
+
+      {order && (
+        <>
+          <AddItemsDialog
+            open={showAddItems}
+            orderId={order.id}
+            orderNumber={order.order_number}
+            onClose={() => setShowAddItems(false)}
+            onAdded={() => { resetState(); onSettled(); }}
+          />
+          <CancelOrderDialog
+            open={showCancelOrder}
+            orderId={order.id}
+            orderNumber={order.order_number}
+            tableId={order.table_id}
+            onClose={() => setShowCancelOrder(false)}
+            onCancelled={() => { resetState(); onSettled(); }}
+          />
+        </>
+      )}
     </>
   );
 };
