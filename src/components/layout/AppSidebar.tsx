@@ -154,11 +154,23 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
     }))
     .filter((group) => group.items.length > 0);
 
-  // Initialize all groups as expanded
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const STORAGE_KEY = "blennix-sidebar-collapsed";
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const toggleGroup = (label: string) => {
-    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+    setCollapsed((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   return (
