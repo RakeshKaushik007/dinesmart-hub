@@ -361,6 +361,7 @@ export type Database = {
           order_source: Database["public"]["Enums"]["order_source"]
           order_type: Database["public"]["Enums"]["order_type"]
           payment_mode: Database["public"]["Enums"]["payment_mode"]
+          reopen_reason: string | null
           service_charge: number | null
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
@@ -388,6 +389,7 @@ export type Database = {
           order_source?: Database["public"]["Enums"]["order_source"]
           order_type?: Database["public"]["Enums"]["order_type"]
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          reopen_reason?: string | null
           service_charge?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -415,6 +417,7 @@ export type Database = {
           order_source?: Database["public"]["Enums"]["order_source"]
           order_type?: Database["public"]["Enums"]["order_type"]
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          reopen_reason?: string | null
           service_charge?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -1020,6 +1023,7 @@ export type Database = {
         | "dispatched"
         | "completed"
         | "cancelled"
+        | "pending_adjustment"
       order_type: "dine_in" | "takeaway" | "online"
       payment_mode:
         | "cash"
@@ -1169,6 +1173,7 @@ export const Constants = {
         "dispatched",
         "completed",
         "cancelled",
+        "pending_adjustment",
       ],
       order_type: ["dine_in", "takeaway", "online"],
       payment_mode: [
