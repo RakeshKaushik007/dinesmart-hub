@@ -334,7 +334,7 @@ const BillingPage = () => {
 
         <div className="border-t border-border p-4 space-y-2">
           <div className="flex justify-between text-xs text-muted-foreground"><span>Subtotal</span><span className="font-mono">₹{subtotal.toLocaleString()}</span></div>
-          <div className="flex justify-between text-xs text-muted-foreground"><span>GST (5%)</span><span className="font-mono">₹{tax.toLocaleString()}</span></div>
+          <div className="flex justify-between text-xs text-muted-foreground"><span>{settings.taxLabel} ({settings.taxRate}%)</span><span className="font-mono">₹{tax.toLocaleString()}</span></div>
           <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border"><span>Total</span><span className="font-mono">₹{total.toLocaleString()}</span></div>
           <Button onClick={handlePlaceOrder} disabled={cart.length === 0 || placingOrder} className="w-full mt-2" size="lg">
             {placingOrder ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Receipt className="h-4 w-4 mr-2" />}
