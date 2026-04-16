@@ -219,28 +219,7 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
                   <ChevronDown className="h-3 w-3" />
                 )}
               </button>
-              {!isCollapsed && (
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const isActive = location.pathname === item.to;
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={onNavigate}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                          isActive
-                            ? "bg-sidebar-accent text-primary"
-                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                        }`}
-                      >
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        {item.label}
-                      </NavLink>
-                    );
-                  })}
-                </div>
-              )}
+              <CollapsibleContent group={group} isCollapsed={isCollapsed} location={location} onNavigate={onNavigate} />
             </div>
           );
         })}
