@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/hooks/useSettings";
 import {
   Select,
   SelectContent,
@@ -49,6 +50,7 @@ const BillingPage = () => {
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  const settings = useSettings();
 
   useEffect(() => {
     const fetch = async () => {
@@ -89,7 +91,7 @@ const BillingPage = () => {
   const clearCart = useCallback(() => { setCart([]); setSelectedTableId(""); }, []);
 
   const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
-  const tax = Math.round(subtotal * 0.05);
+  const tax = Math.round(subtotal * (settings.taxRate / 100));
   const total = subtotal + tax;
 
   const handlePlaceOrder = async () => {
@@ -332,7 +334,7 @@ const BillingPage = () => {
 
         <div className="border-t border-border p-4 space-y-2">
           <div className="flex justify-between text-xs text-muted-foreground"><span>Subtotal</span><span className="font-mono">₹{subtotal.toLocaleString()}</span></div>
-          <div className="flex justify-between text-xs text-muted-foreground"><span>GST (5%)</span><span className="font-mono">₹{tax.toLocaleString()}</span></div>
+          <div className="flex justify-between text-xs text-muted-foreground"><span>{settings.taxLabel} ({settings.taxRate}%)</span><span className="font-mono">₹{tax.toLocaleString()}</span></div>
           <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border"><span>Total</span><span className="font-mono">₹{total.toLocaleString()}</span></div>
           <Button onClick={handlePlaceOrder} disabled={cart.length === 0 || placingOrder} className="w-full mt-2" size="lg">
             {placingOrder ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Receipt className="h-4 w-4 mr-2" />}
