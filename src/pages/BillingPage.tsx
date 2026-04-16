@@ -50,6 +50,7 @@ const BillingPage = () => {
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  const settings = useSettings();
 
   useEffect(() => {
     const fetch = async () => {
