@@ -156,7 +156,6 @@ const LoginPage = () => {
                     </button>
                   </div>
                 </div>
-                </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
                   {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
