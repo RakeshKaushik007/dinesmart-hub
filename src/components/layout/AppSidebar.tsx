@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   ChefHat,
@@ -26,6 +27,8 @@ import {
   Bike,
   FileSpreadsheet,
   Ban,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
@@ -35,7 +38,7 @@ interface NavItem {
   to: string;
   icon: any;
   label: string;
-  minRole: AppRole; // minimum role level required
+  minRole: AppRole;
 }
 
 interface NavGroup {
@@ -143,7 +146,6 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
 
   const topRole = roles.length > 0 ? roles[0].role : null;
 
-  // Filter groups and items by role
   const visibleGroups = navGroups
     .filter((group) => isAtLeast(group.minRole))
     .map((group) => ({
@@ -151,6 +153,13 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
       items: group.items.filter((item) => isAtLeast(item.minRole)),
     }))
     .filter((group) => group.items.length > 0);
+
+  // Initialize all groups as expanded
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (label: string) => {
+    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
 
   return (
     <aside className="h-screen w-64 border-r border-border bg-sidebar flex flex-col">
@@ -175,34 +184,54 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        {visibleGroups.map((group) => (
-          <div key={group.label}>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const isActive = location.pathname === item.to;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={onNavigate}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                      isActive
-                        ? "bg-sidebar-accent text-primary"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </NavLink>
-                );
-              })}
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+        {visibleGroups.map((group) => {
+          const isCollapsed = collapsed[group.label] ?? false;
+          const hasActiveItem = group.items.some((item) => location.pathname === item.to);
+
+          return (
+            <div key={group.label}>
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className="flex items-center justify-between w-full px-3 py-1.5 mb-0.5 rounded-md text-[10px] font-semibold text-muted-foreground uppercase tracking-widest hover:bg-sidebar-accent/50 transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  {group.label}
+                  {isCollapsed && hasActiveItem && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </span>
+                {isCollapsed ? (
+                  <ChevronRight className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </button>
+              {!isCollapsed && (
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const isActive = location.pathname === item.to;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={onNavigate}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                          isActive
+                            ? "bg-sidebar-accent text-primary"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {item.label}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="px-3 pb-4 space-y-1">

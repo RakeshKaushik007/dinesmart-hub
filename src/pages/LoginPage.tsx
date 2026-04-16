@@ -16,6 +16,8 @@ import {
   Store,
   Users,
   ClipboardList,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 const features = [
