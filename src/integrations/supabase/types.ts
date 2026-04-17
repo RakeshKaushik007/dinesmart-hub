@@ -283,12 +283,17 @@ export type Database = {
           created_at: string
           id: string
           is_nc: boolean | null
+          is_refunded: boolean
           is_void: boolean | null
           item_name: string
           menu_item_id: string | null
+          nc_reason: string | null
           notes: string | null
           order_id: string
           quantity: number
+          refund_reason: string | null
+          refunded_at: string | null
+          refunded_by: string | null
           total_price: number
           unit_price: number
           void_reason: string | null
@@ -298,12 +303,17 @@ export type Database = {
           created_at?: string
           id?: string
           is_nc?: boolean | null
+          is_refunded?: boolean
           is_void?: boolean | null
           item_name: string
           menu_item_id?: string | null
+          nc_reason?: string | null
           notes?: string | null
           order_id: string
           quantity?: number
+          refund_reason?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           total_price?: number
           unit_price?: number
           void_reason?: string | null
@@ -313,12 +323,17 @@ export type Database = {
           created_at?: string
           id?: string
           is_nc?: boolean | null
+          is_refunded?: boolean
           is_void?: boolean | null
           item_name?: string
           menu_item_id?: string | null
+          nc_reason?: string | null
           notes?: string | null
           order_id?: string
           quantity?: number
+          refund_reason?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           total_price?: number
           unit_price?: number
           void_reason?: string | null
@@ -360,7 +375,7 @@ export type Database = {
           order_number: number
           order_source: Database["public"]["Enums"]["order_source"]
           order_type: Database["public"]["Enums"]["order_type"]
-          payment_mode: Database["public"]["Enums"]["payment_mode"]
+          payment_mode: string
           reopen_reason: string | null
           service_charge: number | null
           status: Database["public"]["Enums"]["order_status"]
@@ -388,7 +403,7 @@ export type Database = {
           order_number?: number
           order_source?: Database["public"]["Enums"]["order_source"]
           order_type?: Database["public"]["Enums"]["order_type"]
-          payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          payment_mode?: string
           reopen_reason?: string | null
           service_charge?: number | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -416,7 +431,7 @@ export type Database = {
           order_number?: number
           order_source?: Database["public"]["Enums"]["order_source"]
           order_type?: Database["public"]["Enums"]["order_type"]
-          payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          payment_mode?: string
           reopen_reason?: string | null
           service_charge?: number | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -442,6 +457,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_methods: {
+        Row: {
+          branch_id: string | null
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
