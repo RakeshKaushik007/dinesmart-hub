@@ -203,6 +203,30 @@ const PaymentMethodsPage = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label className="text-xs">Icon</Label>
+              <div className="grid grid-cols-8 gap-1.5 mt-1.5 p-2 rounded-lg border border-border bg-secondary/30 max-h-40 overflow-y-auto">
+                {PAYMENT_ICON_NAMES.map((iconName) => {
+                  const Ico = getPaymentIcon(iconName);
+                  const selected = icon === iconName;
+                  return (
+                    <button
+                      key={iconName}
+                      type="button"
+                      onClick={() => setIcon(iconName)}
+                      title={iconName}
+                      className={`h-8 w-8 flex items-center justify-center rounded-md border transition-all ${
+                        selected
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
+                      }`}
+                    >
+                      <Ico className="h-4 w-4" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
