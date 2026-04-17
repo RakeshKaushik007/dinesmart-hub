@@ -94,9 +94,24 @@ const BillingPage = () => {
   const removeItem = useCallback((id: string) => setCart(prev => prev.filter(c => c.menuItemId !== id)), []);
   const clearCart = useCallback(() => { setCart([]); setSelectedTableId(""); }, []);
 
-  const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
+  // NC marking in cart
+  const [ncTarget, setNcTarget] = useState<CartItem | null>(null);
+  const { isAtLeast } = _useAuthForNC();
+  const isManager = isAtLeast("branch_manager");
+
+  const handleMarkNC = (reason: string) => {
+    if (!ncTarget) return;
+    setCart(prev => prev.map(c =>
+      c.menuItemId === ncTarget.menuItemId ? { ...c, isNC: true, ncReason: reason } : c
+    ));
+    setNcTarget(null);
+    toast({ title: "Item marked NC", description: `${ncTarget.name}: ${reason}` });
+  };
+
+  const subtotal = cart.reduce((s, c) => s + (c.isNC ? 0 : c.price * c.quantity), 0);
   const tax = Math.round(subtotal * (settings.taxRate / 100));
   const total = subtotal + tax;
+
 
   const handlePlaceOrder = async () => {
     if (cart.length === 0) return;
@@ -132,7 +147,9 @@ const BillingPage = () => {
         item_name: c.name,
         quantity: c.quantity,
         unit_price: c.price,
-        total_price: c.price * c.quantity,
+        total_price: c.isNC ? 0 : c.price * c.quantity,
+        is_nc: !!c.isNC,
+        nc_reason: c.ncReason || null,
       }))
     );
 
