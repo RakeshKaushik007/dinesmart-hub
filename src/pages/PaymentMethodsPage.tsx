@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Loader2, CreditCard, Building2, Banknote } from "lucide-react";
+import { Plus, Trash2, Loader2, Banknote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { BUILT_IN_PAYMENT_METHODS } from "@/hooks/usePaymentMethods";
+import { PAYMENT_ICON_NAMES, getPaymentIcon, resolvePaymentIcon } from "@/lib/paymentIcons";
 
 interface CustomMethod {
   id: string;
@@ -21,6 +22,7 @@ interface CustomMethod {
   code: string;
   type: "direct" | "aggregator";
   is_active: boolean;
+  icon: string | null;
 }
 
 const slugify = (s: string) =>
@@ -34,6 +36,7 @@ const PaymentMethodsPage = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<"direct" | "aggregator">("aggregator");
+  const [icon, setIcon] = useState<string>("Building2");
   const [saving, setSaving] = useState(false);
 
   const isManager = isAtLeast("branch_manager");
@@ -42,7 +45,7 @@ const PaymentMethodsPage = () => {
     setLoading(true);
     const { data } = await supabase
       .from("payment_methods")
-      .select("id, name, code, type, is_active")
+      .select("id, name, code, type, is_active, icon")
       .order("created_at", { ascending: false });
     setMethods((data || []) as CustomMethod[]);
     setLoading(false);
@@ -60,6 +63,7 @@ const PaymentMethodsPage = () => {
       name: name.trim(),
       code,
       type,
+      icon,
       created_by: user?.id,
     });
     setSaving(false);
@@ -70,6 +74,7 @@ const PaymentMethodsPage = () => {
     toast({ title: "Payment method added", description: `${name} (${type})` });
     setName("");
     setType("aggregator");
+    setIcon("Building2");
     setShowAdd(false);
     fetchMethods();
   };
@@ -135,32 +140,35 @@ const PaymentMethodsPage = () => {
           </p>
         ) : (
           <div className="space-y-2">
-            {methods.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
-                {m.type === "aggregator" ? (
-                  <Building2 className="h-4 w-4 text-amber-600" />
-                ) : (
-                  <CreditCard className="h-4 w-4 text-sky-600" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{m.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{m.code}</p>
+            {methods.map((m) => {
+              const Icon = resolvePaymentIcon(m.code, m.icon);
+              return (
+                <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
+                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
+                    m.type === "direct" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
+                  }`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{m.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{m.code}</p>
+                  </div>
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    m.type === "direct" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
+                  }`}>
+                    {m.type}
+                  </span>
+                  <Switch checked={m.is_active} onCheckedChange={() => toggleActive(m)} />
+                  <button
+                    onClick={() => handleDelete(m)}
+                    className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
-                <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                  m.type === "direct" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
-                }`}>
-                  {m.type}
-                </span>
-                <Switch checked={m.is_active} onCheckedChange={() => toggleActive(m)} />
-                <button
-                  onClick={() => handleDelete(m)}
-                  className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
