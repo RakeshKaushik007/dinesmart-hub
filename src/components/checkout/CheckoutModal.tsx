@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import {
-  Receipt, Printer, Loader2, Banknote, Smartphone, CreditCard,
-  DoorOpen, Ban, Gift, Percent, IndianRupee, Building2, Plus, XCircle, Undo2,
+  Receipt, Printer, Loader2,
+  DoorOpen, Ban, Gift, Percent, IndianRupee, Plus, XCircle, Undo2,
 } from "lucide-react";
+import { resolvePaymentIcon } from "@/lib/paymentIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,12 +61,6 @@ interface Props {
   onSettled: () => void;
 }
 
-const iconForCode = (code: string) => {
-  if (code === "cash") return Banknote;
-  if (code === "upi") return Smartphone;
-  if (code === "card") return CreditCard;
-  return Building2;
-};
 
 const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
@@ -428,7 +423,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                   <p className="text-xs font-medium text-muted-foreground">Direct Payment</p>
                   <div className="grid grid-cols-3 gap-2">
                     {directMethods.map(pm => {
-                      const Icon = iconForCode(pm.code);
+                      const Icon = resolvePaymentIcon(pm.code, pm.icon);
                       const selected = selectedPayment === pm.code;
                       return (
                         <button key={pm.code} onClick={() => setSelectedPayment(pm.code)}
@@ -447,7 +442,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                   <p className="text-xs font-medium text-muted-foreground mt-3">Partner / Aggregator</p>
                   <div className="grid grid-cols-3 gap-2">
                     {aggregatorMethods.map(pm => {
-                      const Icon = iconForCode(pm.code);
+                      const Icon = resolvePaymentIcon(pm.code, pm.icon);
                       const selected = selectedPayment === pm.code;
                       return (
                         <button key={pm.code} onClick={() => setSelectedPayment(pm.code)}

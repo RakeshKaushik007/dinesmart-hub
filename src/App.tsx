@@ -36,6 +36,7 @@ import AuditLogPage from "@/pages/AuditLogPage";
 import DataImportPage from "@/pages/DataImportPage";
 import VoidNCLogPage from "@/pages/VoidNCLogPage";
 import PaymentMethodsPage from "@/pages/PaymentMethodsPage";
+import PendingAggregatorSettlementPage from "@/pages/PendingAggregatorSettlementPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -88,6 +89,7 @@ const App = () => (
                 {/* Settings - all roles */}
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/payment-methods" element={<ProtectedRoute requiredRole="branch_manager"><PaymentMethodsPage /></ProtectedRoute>} />
+                <Route path="/pending-settlements" element={<ProtectedRoute requiredRole="branch_manager"><PendingAggregatorSettlementPage /></ProtectedRoute>} />
 
                 {/* Super Admin only */}
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin"]}><AdminUsersPage /></ProtectedRoute>} />
