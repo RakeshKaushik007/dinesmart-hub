@@ -359,6 +359,10 @@ export type Database = {
       orders: {
         Row: {
           accepted_at: string | null
+          aggregator_settled: boolean
+          aggregator_settled_at: string | null
+          aggregator_settled_by: string | null
+          aggregator_settlement_notes: string | null
           branch_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -387,6 +391,10 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          aggregator_settled?: boolean
+          aggregator_settled_at?: string | null
+          aggregator_settled_by?: string | null
+          aggregator_settlement_notes?: string | null
           branch_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -415,6 +423,10 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          aggregator_settled?: boolean
+          aggregator_settled_at?: string | null
+          aggregator_settled_by?: string | null
+          aggregator_settlement_notes?: string | null
           branch_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -464,6 +476,7 @@ export type Database = {
           code: string
           created_at: string
           created_by: string | null
+          icon: string | null
           id: string
           is_active: boolean
           name: string
@@ -475,6 +488,7 @@ export type Database = {
           code: string
           created_at?: string
           created_by?: string | null
+          icon?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -486,6 +500,7 @@ export type Database = {
           code?: string
           created_at?: string
           created_by?: string | null
+          icon?: string | null
           id?: string
           is_active?: boolean
           name?: string
