@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Search, Plus, Minus, Trash2, Receipt, X, Loader2, UtensilsCrossed, ShoppingBag } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Receipt, X, Loader2, UtensilsCrossed, ShoppingBag, Gift } from "lucide-react";
+import NCReasonDialog from "@/components/checkout/NCReasonDialog";
+import { useAuth as _useAuthForNC } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +30,8 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  isNC?: boolean;
+  ncReason?: string;
 }
 
 interface TableOption {
