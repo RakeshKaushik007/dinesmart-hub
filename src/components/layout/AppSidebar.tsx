@@ -111,8 +111,9 @@ const navGroups: NavGroup[] = [
   },
   {
     label: "Settings",
-    minRole: "owner",
+    minRole: "branch_manager",
     items: [
+      { to: "/payment-methods", icon: CreditCard, label: "Payment Methods", minRole: "branch_manager" },
       { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
       { to: "/data-import", icon: FileSpreadsheet, label: "Data Import", minRole: "owner" },
       { to: "/ai-assistant", icon: Bot, label: "AI Assistant", minRole: "owner" },
