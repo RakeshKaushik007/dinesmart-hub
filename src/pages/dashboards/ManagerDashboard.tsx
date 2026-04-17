@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { classifyPayment, BUILT_IN_PAYMENT_METHODS, type PaymentMethod } from "@/hooks/usePaymentMethods";
 import {
   IndianRupee,
   ShoppingCart,
@@ -39,9 +40,6 @@ interface HourlyData {
   orders: number;
 }
 
-const DIRECT_MODES = ["cash", "upi", "card"];
-const AGGREGATOR_MODES = ["zomato_pay", "swiggy_dineout", "easydiner"];
-
 const ManagerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [totalSales, setTotalSales] = useState(0);
@@ -63,29 +61,35 @@ const ManagerDashboard = () => {
       const today = new Date().toISOString().split("T")[0];
       const todayStart = `${today}T00:00:00`;
 
-      const [ordersRes, itemsRes, ingredientsRes] = await Promise.all([
+      const [ordersRes, itemsRes, ingredientsRes, methodsRes] = await Promise.all([
         supabase.from("orders").select("id, status, total, order_source, order_type, payment_mode, created_at").gte("created_at", todayStart),
         supabase.from("order_items").select("item_name, quantity, total_price, order_id, created_at").gte("created_at", todayStart),
         supabase.from("ingredients").select("name, current_stock, unit, min_threshold, status").in("status", ["low", "out"]),
+        supabase.from("payment_methods").select("id, name, code, type, is_active"),
       ]);
 
       const orders = ordersRes.data || [];
       const items = itemsRes.data || [];
+      const customMethods = ((methodsRes.data || []) as PaymentMethod[]);
+      const allMethods = [...BUILT_IN_PAYMENT_METHODS, ...customMethods];
       const completedOrders = orders.filter((o) => o.status !== "cancelled");
-      const cancelled = orders.filter((o) => o.status === "cancelled");
+      const cancelledOrders = orders.filter((o) => o.status === "cancelled");
 
       // KPIs
       const total = completedOrders.reduce((s, o) => s + Number(o.total), 0);
       setTotalSales(total);
       setOrderCount(completedOrders.length);
       setAvgOrderValue(completedOrders.length > 0 ? total / completedOrders.length : 0);
-      // Direct vs Aggregator revenue
-      const direct = completedOrders
-        .filter((o) => DIRECT_MODES.includes(o.payment_mode))
-        .reduce((s, o) => s + Number(o.total), 0);
-      const agg = completedOrders
-        .filter((o) => AGGREGATOR_MODES.includes(o.payment_mode))
-        .reduce((s, o) => s + Number(o.total), 0);
+      setCancellations(cancelledOrders.length);
+
+      // Direct vs Aggregator revenue (uses payment_methods.type flag)
+      let direct = 0;
+      let agg = 0;
+      completedOrders.forEach((o) => {
+        const cls = classifyPayment(o.payment_mode, allMethods);
+        if (cls === "direct") direct += Number(o.total);
+        else if (cls === "aggregator") agg += Number(o.total);
+      });
       setDirectRevenue(direct);
       setAggregatorRevenue(agg);
 

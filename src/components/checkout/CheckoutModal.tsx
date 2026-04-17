@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   Receipt, Printer, Loader2, Banknote, Smartphone, CreditCard,
-  DoorOpen, Ban, Gift, Percent, IndianRupee, Building2, Plus, XCircle,
+  DoorOpen, Ban, Gift, Percent, IndianRupee, Building2, Plus, XCircle, Undo2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSettings } from "@/hooks/useSettings";
+import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -20,6 +21,8 @@ import {
 import VoidItemDialog from "./VoidItemDialog";
 import AddItemsDialog from "./AddItemsDialog";
 import CancelOrderDialog from "./CancelOrderDialog";
+import NCReasonDialog from "./NCReasonDialog";
+import RefundItemDialog from "./RefundItemDialog";
 
 export interface OrderItem {
   id?: string;
@@ -29,6 +32,9 @@ export interface OrderItem {
   total_price: number;
   is_void?: boolean;
   is_nc?: boolean;
+  is_refunded?: boolean;
+  refund_reason?: string | null;
+  nc_reason?: string | null;
 }
 
 export interface OrderWithItems {
@@ -48,28 +54,21 @@ export interface OrderWithItems {
   table_number?: number;
 }
 
-type PaymentType = "cash" | "upi" | "card" | "zomato_pay" | "swiggy_dineout" | "easydiner";
-
-const DIRECT_PAYMENTS: { value: PaymentType; label: string; icon: typeof Banknote }[] = [
-  { value: "cash", label: "Cash", icon: Banknote },
-  { value: "upi", label: "UPI", icon: Smartphone },
-  { value: "card", label: "Card", icon: CreditCard },
-];
-
-const PARTNER_PAYMENTS: { value: PaymentType; label: string; icon: typeof Building2 }[] = [
-  { value: "zomato_pay", label: "Zomato Pay", icon: Building2 },
-  { value: "swiggy_dineout", label: "Swiggy Dineout", icon: Building2 },
-  { value: "easydiner", label: "EazyDiner", icon: Building2 },
-];
-
 interface Props {
   order: OrderWithItems | null;
   onClose: () => void;
   onSettled: () => void;
 }
 
+const iconForCode = (code: string) => {
+  if (code === "cash") return Banknote;
+  if (code === "upi") return Smartphone;
+  if (code === "card") return CreditCard;
+  return Building2;
+};
+
 const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
-  const [selectedPayment, setSelectedPayment] = useState<PaymentType | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
   const [releaseTable, setReleaseTable] = useState(true);
 
@@ -80,8 +79,10 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   // Service charge
   const [serviceChargeEnabled, setServiceChargeEnabled] = useState(false);
 
-  // Void
+  // Void / NC / Refund
   const [voidingItem, setVoidingItem] = useState<OrderItem | null>(null);
+  const [ncItem, setNcItem] = useState<OrderItem | null>(null);
+  const [refundItem, setRefundItem] = useState<OrderItem | null>(null);
   const [localItems, setLocalItems] = useState<OrderItem[]>([]);
 
   // Add items dialog
@@ -93,12 +94,15 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   const { toast } = useToast();
   const { user, profile, isAtLeast } = useAuth();
   const settings = useSettings();
+  const { methods: paymentMethods } = usePaymentMethods();
 
   const TAX_PCT = settings.taxRate;
   const TAX_LABEL = settings.taxLabel;
   const SERVICE_CHARGE_PCT = settings.serviceChargePct;
 
-  // Sync items when order changes
+  const directMethods = paymentMethods.filter(m => m.type === "direct");
+  const aggregatorMethods = paymentMethods.filter(m => m.type === "aggregator");
+
   const items = order ? (localItems.length > 0 ? localItems : order.items) : [];
 
   const resetState = () => {
@@ -112,12 +116,15 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     setShowCancelOrder(false);
   };
 
-  // Recalculate totals
+  // Refunded items contribute ₹0 to subtotal, just like NC and void
   const calculated = useMemo(() => {
     if (!order) return { activeSubtotal: 0, discountAmt: 0, discountedSubtotal: 0, gst: 0, serviceCharge: 0, grandTotal: 0 };
 
     const activeItems = items.filter(i => !i.is_void);
-    const activeSubtotal = activeItems.reduce((sum, i) => sum + (i.is_nc ? 0 : i.total_price), 0);
+    const activeSubtotal = activeItems.reduce(
+      (sum, i) => sum + ((i.is_nc || i.is_refunded) ? 0 : i.total_price),
+      0
+    );
 
     let discountAmt = 0;
     const dv = parseFloat(discountValue) || 0;
@@ -138,7 +145,6 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
       toast({ title: "Invalid PIN", description: "Manager PIN must be at least 4 digits", variant: "destructive" });
       return;
     }
-
     if (voidingItem.id) {
       await supabase.from("order_items").update({
         is_void: true,
@@ -146,32 +152,50 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         voided_by: user?.id,
       }).eq("id", voidingItem.id);
     }
-
     setLocalItems(prev => {
       const current = prev.length > 0 ? prev : order.items;
       return current.map(i =>
-        i.item_name === voidingItem.item_name && !i.is_void
-          ? { ...i, is_void: true }
-          : i
+        i.item_name === voidingItem.item_name && !i.is_void ? { ...i, is_void: true } : i
       );
     });
-
     toast({ title: "Item Voided", description: `${voidingItem.item_name} removed from bill` });
     setVoidingItem(null);
   };
 
-  const handleMarkNC = async (item: OrderItem) => {
-    if (!order) return;
-    if (item.id) {
-      await supabase.from("order_items").update({ is_nc: true }).eq("id", item.id);
+  const handleNCConfirm = async (reason: string) => {
+    if (!ncItem || !order) return;
+    if (ncItem.id) {
+      await supabase.from("order_items").update({ is_nc: true, nc_reason: reason }).eq("id", ncItem.id);
     }
     setLocalItems(prev => {
       const current = prev.length > 0 ? prev : order.items;
       return current.map(i =>
-        i.item_name === item.item_name && !i.is_nc ? { ...i, is_nc: true } : i
+        i.item_name === ncItem.item_name && !i.is_nc ? { ...i, is_nc: true, nc_reason: reason } : i
       );
     });
-    toast({ title: "Marked NC", description: `${item.item_name} is now non-chargeable (₹0)` });
+    toast({ title: "Marked NC", description: `${ncItem.item_name}: ${reason}` });
+    setNcItem(null);
+  };
+
+  const handleRefundConfirm = async (reason: string) => {
+    if (!refundItem || !order) return;
+    if (refundItem.id) {
+      await supabase.from("order_items").update({
+        is_refunded: true,
+        refund_reason: reason,
+        refunded_by: user?.id,
+        refunded_at: new Date().toISOString(),
+      }).eq("id", refundItem.id);
+    }
+    setLocalItems(prev => {
+      const current = prev.length > 0 ? prev : order.items;
+      return current.map(i =>
+        i.item_name === refundItem.item_name && !i.is_refunded
+          ? { ...i, is_refunded: true, refund_reason: reason } : i
+      );
+    });
+    toast({ title: "Item refunded", description: `${refundItem.item_name}: ${reason}` });
+    setRefundItem(null);
   };
 
   const handleSettle = async () => {
@@ -198,33 +222,40 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
 
     printReceipt(order, selectedPayment);
 
-    const payLabel = selectedPayment.replace("_", " ").toUpperCase();
+    const method = paymentMethods.find(m => m.code === selectedPayment);
+    const payLabel = method?.name || selectedPayment.replace(/_/g, " ").toUpperCase();
     toast({ title: "Order Settled!", description: `Order #${order.order_number} paid via ${payLabel}${releaseTable && order.table_id ? " · Table released" : ""}` });
     resetState();
     onSettled();
   };
 
-  const printReceipt = (o: OrderWithItems, paymentMethod: string) => {
+  const printReceipt = (o: OrderWithItems, paymentMethodCode: string) => {
     const printWindow = window.open("", "_blank", "width=300,height=600");
     if (!printWindow) return;
     const staffName = profile?.full_name || user?.email || "Staff";
     const staffId = user?.id?.slice(0, 8).toUpperCase() || "N/A";
     const activeItems = items.filter(i => !i.is_void);
-    const itemsHtml = activeItems.map(i => `
+    const itemsHtml = activeItems.map(i => {
+      const tag = i.is_refunded
+        ? ' <em style="color:#c00">(REFUNDED)</em>'
+        : i.is_nc ? ' <em style="color:#888">(NC)</em>' : "";
+      const amt = (i.is_nc || i.is_refunded) ? "₹0.00" : `₹${i.total_price}`;
+      return `
       <tr>
-        <td style="padding:3px 0;font-size:12px;">${i.item_name}${i.is_nc ? ' <em style="color:#888">(NC)</em>' : ""}</td>
+        <td style="padding:3px 0;font-size:12px;">${i.item_name}${tag}</td>
         <td style="text-align:center;font-size:12px;">${i.quantity}</td>
         <td style="text-align:right;font-size:12px;">₹${i.unit_price}</td>
-        <td style="text-align:right;font-size:12px;font-weight:bold;">${i.is_nc ? "₹0.00" : `₹${i.total_price}`}</td>
-      </tr>
-    `).join("");
+        <td style="text-align:right;font-size:12px;font-weight:bold;">${amt}</td>
+      </tr>`;
+    }).join("");
 
     const tableInfo = o.order_type === "dine_in" && o.table_number ? `Table ${o.table_number}` : "Takeaway";
     const discountLine = calculated.discountAmt > 0
       ? `<div><span>Discount${discountType === "percentage" ? ` (${discountValue}%)` : ""}</span><span>-₹${calculated.discountAmt.toFixed(2)}</span></div>` : "";
     const scLine = calculated.serviceCharge > 0
       ? `<div><span>Service Charge (${SERVICE_CHARGE_PCT}%)</span><span>₹${calculated.serviceCharge.toFixed(2)}</span></div>` : "";
-    const payLabel = paymentMethod.replace("_", " ");
+    const method = paymentMethods.find(m => m.code === paymentMethodCode);
+    const payLabel = method?.name || paymentMethodCode.replace(/_/g, " ");
 
     printWindow.document.write(`
       <html><head><title>Receipt #${o.order_number}</title>
@@ -302,22 +333,29 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
               )}
             </div>
 
-            {/* Items with void/NC actions */}
+            {/* Items with void/NC/refund actions */}
             <div className="space-y-1">
               {items.map((item, i) => (
                 <div key={i} className={`flex items-center justify-between text-sm gap-2 ${item.is_void ? "opacity-40 line-through" : ""}`}>
                   <span className="text-muted-foreground flex-1">
                     {item.quantity}× {item.item_name}
                     {item.is_nc && <span className="ml-1 text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">NC</span>}
+                    {item.is_refunded && <span className="ml-1 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">REFUNDED</span>}
                     {item.is_void && <span className="ml-1 text-[10px] font-semibold text-destructive">VOID</span>}
                   </span>
-                  <span className="font-mono">{item.is_nc ? "₹0" : `₹${item.total_price}`}</span>
+                  <span className="font-mono">{(item.is_nc || item.is_refunded) ? "₹0" : `₹${item.total_price}`}</span>
                   {isManager && !item.is_void && (
                     <div className="flex gap-1">
-                      {!item.is_nc && (
-                        <button onClick={() => handleMarkNC(item)} title="Mark NC (₹0)"
+                      {!item.is_nc && !item.is_refunded && (
+                        <button onClick={() => setNcItem(item)} title="Mark NC (₹0)"
                           className="p-1 rounded hover:bg-amber-500/10 text-amber-600">
                           <Gift className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {!item.is_refunded && !item.is_nc && (
+                        <button onClick={() => setRefundItem(item)} title="Refund item"
+                          className="p-1 rounded hover:bg-destructive/10 text-destructive">
+                          <Undo2 className="h-3.5 w-3.5" />
                         </button>
                       )}
                       <button onClick={() => setVoidingItem(item)} title="Void item"
@@ -383,29 +421,45 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
               <div className="flex justify-between text-lg font-bold pt-1 border-t border-border"><span>Total</span><span className="font-mono">₹{calculated.grandTotal.toFixed(2)}</span></div>
             </div>
 
-            {/* Payment methods */}
+            {/* Payment methods - dynamic */}
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Direct Payment</p>
-              <div className="grid grid-cols-3 gap-2">
-                {DIRECT_PAYMENTS.map(pm => (
-                  <button key={pm.value} onClick={() => setSelectedPayment(pm.value)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${selectedPayment === pm.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}>
-                    <pm.icon className={`h-5 w-5 ${selectedPayment === pm.value ? "text-primary" : "text-muted-foreground"}`} />
-                    <span className={`text-xs font-semibold ${selectedPayment === pm.value ? "text-primary" : "text-muted-foreground"}`}>{pm.label}</span>
-                  </button>
-                ))}
-              </div>
+              {directMethods.length > 0 && (
+                <>
+                  <p className="text-xs font-medium text-muted-foreground">Direct Payment</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {directMethods.map(pm => {
+                      const Icon = iconForCode(pm.code);
+                      const selected = selectedPayment === pm.code;
+                      return (
+                        <button key={pm.code} onClick={() => setSelectedPayment(pm.code)}
+                          className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}>
+                          <Icon className={`h-5 w-5 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                          <span className={`text-xs font-semibold text-center ${selected ? "text-primary" : "text-muted-foreground"}`}>{pm.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
 
-              <p className="text-xs font-medium text-muted-foreground mt-3">Partner / Aggregator</p>
-              <div className="grid grid-cols-3 gap-2">
-                {PARTNER_PAYMENTS.map(pm => (
-                  <button key={pm.value} onClick={() => setSelectedPayment(pm.value)}
-                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${selectedPayment === pm.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}>
-                    <pm.icon className={`h-4 w-4 ${selectedPayment === pm.value ? "text-primary" : "text-muted-foreground"}`} />
-                    <span className={`text-[10px] font-semibold leading-tight text-center ${selectedPayment === pm.value ? "text-primary" : "text-muted-foreground"}`}>{pm.label}</span>
-                  </button>
-                ))}
-              </div>
+              {aggregatorMethods.length > 0 && (
+                <>
+                  <p className="text-xs font-medium text-muted-foreground mt-3">Partner / Aggregator</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {aggregatorMethods.map(pm => {
+                      const Icon = iconForCode(pm.code);
+                      const selected = selectedPayment === pm.code;
+                      return (
+                        <button key={pm.code} onClick={() => setSelectedPayment(pm.code)}
+                          className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}>
+                          <Icon className={`h-4 w-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                          <span className={`text-[10px] font-semibold leading-tight text-center ${selected ? "text-primary" : "text-muted-foreground"}`}>{pm.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Table release */}
@@ -432,6 +486,21 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         onClose={() => setVoidingItem(null)}
         itemName={voidingItem?.item_name || ""}
         onConfirm={handleVoidConfirm}
+      />
+
+      <NCReasonDialog
+        open={!!ncItem}
+        itemName={ncItem?.item_name || ""}
+        onClose={() => setNcItem(null)}
+        onConfirm={handleNCConfirm}
+      />
+
+      <RefundItemDialog
+        open={!!refundItem}
+        itemName={refundItem?.item_name || ""}
+        amount={refundItem?.total_price || 0}
+        onClose={() => setRefundItem(null)}
+        onConfirm={handleRefundConfirm}
       />
 
       {order && (
