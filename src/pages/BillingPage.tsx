@@ -337,21 +337,38 @@ const BillingPage = () => {
               <Receipt className="h-8 w-8 mb-2 opacity-30" /><p className="text-sm">No items yet</p><p className="text-xs mt-1">Search and add dishes</p>
             </div>
           ) : cart.map(item => (
-            <div key={item.menuItemId} className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2">
+            <div key={item.menuItemId} className={`flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 ${item.isNC ? "opacity-70" : ""}`}>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-card-foreground truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground font-mono">₹{item.price} × {item.quantity}</p>
+                <p className="text-sm font-medium text-card-foreground truncate">
+                  {item.name}
+                  {item.isNC && <span className="ml-1 text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">NC</span>}
+                </p>
+                <p className="text-xs text-muted-foreground font-mono">
+                  {item.isNC ? <span className="line-through">₹{item.price}</span> : `₹${item.price}`} × {item.quantity}
+                </p>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => updateQty(item.menuItemId, -1)} className="h-6 w-6 rounded bg-muted flex items-center justify-center hover:bg-destructive/20 transition-colors"><Minus className="h-3 w-3" /></button>
                 <span className="text-sm font-mono w-6 text-center text-foreground">{item.quantity}</span>
                 <button onClick={() => updateQty(item.menuItemId, 1)} className="h-6 w-6 rounded bg-muted flex items-center justify-center hover:bg-primary/20 transition-colors"><Plus className="h-3 w-3" /></button>
+                {isManager && !item.isNC && (
+                  <button onClick={() => setNcTarget(item)} title="Mark Non-Chargeable" className="h-6 w-6 rounded flex items-center justify-center text-amber-600 hover:bg-amber-500/10 transition-colors ml-1"><Gift className="h-3 w-3" /></button>
+                )}
                 <button onClick={() => removeItem(item.menuItemId)} className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors ml-1"><Trash2 className="h-3 w-3" /></button>
               </div>
-              <span className="text-sm font-mono font-semibold text-foreground w-14 text-right">₹{(item.price * item.quantity).toLocaleString()}</span>
+              <span className="text-sm font-mono font-semibold text-foreground w-14 text-right">
+                {item.isNC ? "₹0" : `₹${(item.price * item.quantity).toLocaleString()}`}
+              </span>
             </div>
           ))}
         </div>
+
+        <NCReasonDialog
+          open={!!ncTarget}
+          itemName={ncTarget?.name || ""}
+          onClose={() => setNcTarget(null)}
+          onConfirm={handleMarkNC}
+        />
 
         <div className="border-t border-border p-4 space-y-2">
           <div className="flex justify-between text-xs text-muted-foreground"><span>Subtotal</span><span className="font-mono">₹{subtotal.toLocaleString()}</span></div>
