@@ -7,13 +7,14 @@ export interface PaymentMethod {
   code: string;
   type: "direct" | "aggregator";
   is_active: boolean;
+  icon?: string | null;
 }
 
 // Built-in defaults always available, even before any custom methods are added.
 export const BUILT_IN_PAYMENT_METHODS: PaymentMethod[] = [
-  { id: "builtin-cash", name: "Cash", code: "cash", type: "direct", is_active: true },
-  { id: "builtin-upi", name: "UPI", code: "upi", type: "direct", is_active: true },
-  { id: "builtin-card", name: "Card", code: "card", type: "direct", is_active: true },
+  { id: "builtin-cash", name: "Cash", code: "cash", type: "direct", is_active: true, icon: "Banknote" },
+  { id: "builtin-upi", name: "UPI", code: "upi", type: "direct", is_active: true, icon: "Smartphone" },
+  { id: "builtin-card", name: "Card", code: "card", type: "direct", is_active: true, icon: "CreditCard" },
 ];
 
 export const DIRECT_CODES = new Set(["cash", "upi", "card"]);
@@ -26,7 +27,7 @@ export const usePaymentMethods = () => {
     setLoading(true);
     const { data } = await supabase
       .from("payment_methods")
-      .select("id, name, code, type, is_active")
+      .select("id, name, code, type, is_active, icon")
       .eq("is_active", true)
       .order("type")
       .order("name");
