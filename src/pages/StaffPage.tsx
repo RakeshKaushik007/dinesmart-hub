@@ -249,11 +249,21 @@ const StaffPage = () => {
                 {visibleStaff.map((s) => {
                   const displayRole =
                     s.roles.find((r) => !HIDDEN_ROLES.includes(r)) || null;
+                  // Managers cannot edit themselves or other managers — only employees.
+                  // Owners/admins can edit anyone visible to them.
+                  const canEdit = isOwnerOrAbove
+                    ? true
+                    : s.user_id !== user?.id && displayRole !== "branch_manager";
                   return (
                     <TableRow key={s.id} className={!s.is_active ? "opacity-60" : ""}>
                       <TableCell>
-                        <div className="font-medium">{s.full_name || "—"}</div>
-                        <div className="text-xs text-muted-foreground">{s.email}</div>
+                        <button
+                          className="text-left hover:underline"
+                          onClick={() => { setProfileStaff(s); setProfileOpen(true); }}
+                        >
+                          <div className="font-medium">{s.full_name || "—"}</div>
+                          <div className="text-xs text-muted-foreground">{s.email}</div>
+                        </button>
                       </TableCell>
                       <TableCell>
                         {displayRole ? (
@@ -277,6 +287,7 @@ const StaffPage = () => {
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={s.is_active}
+                            disabled={!canEdit}
                             onCheckedChange={(v) => toggleActiveMutation.mutate({ id: s.id, is_active: v })}
                           />
                           <Badge variant={s.is_active ? "default" : "secondary"} className="text-xs">
@@ -285,9 +296,16 @@ const StaffPage = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => { setProfileStaff(s); setProfileOpen(true); }}>
+                            <Eye className="h-3 w-3 mr-1" /> View
+                          </Button>
+                          {canEdit && (
+                            <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
+                              <Pencil className="h-3 w-3 mr-1" /> Edit
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
