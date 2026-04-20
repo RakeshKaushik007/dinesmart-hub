@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
   ChefHat,
@@ -18,6 +19,7 @@ import {
   ClipboardList,
   Eye,
   EyeOff,
+  KeyRound,
 } from "lucide-react";
 
 const features = [
@@ -34,6 +36,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -68,6 +71,32 @@ const LoginPage = () => {
     setLoading(false);
   };
 
+  const handlePinLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{4}$/.test(pin)) {
+      toast({ title: "Invalid PIN", description: "Enter your 4-digit POS PIN", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase.functions.invoke("pin-login", { body: { pin } });
+    if (error || !data?.ok) {
+      toast({ title: "Login failed", description: data?.error || error?.message || "Could not sign in", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+    const { error: verifyErr } = await supabase.auth.verifyOtp({
+      type: "magiclink",
+      token_hash: data.token_hash,
+    });
+    if (verifyErr) {
+      toast({ title: "Login failed", description: verifyErr.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navbar */}
@@ -87,9 +116,8 @@ const LoginPage = () => {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero + Login */}
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center py-12 lg:py-20">
-          {/* Left: Hero */}
+          {/* Left */}
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
               <Users className="h-3.5 w-3.5" />
@@ -102,8 +130,6 @@ const LoginPage = () => {
             <p className="text-lg text-muted-foreground leading-relaxed max-w-lg">
               From billing to kitchen display, QR ordering to aggregator management — everything your restaurant needs in one powerful system.
             </p>
-
-            {/* QR Info Box */}
             <div className="rounded-xl border border-border bg-card p-4 space-y-2 max-w-md">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <QrCode className="h-4 w-4 text-primary" />
@@ -131,36 +157,83 @@ const LoginPage = () => {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {isSignUp && (
+              {isSignUp ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" required />
                   </div>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="pr-10" />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
                   </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
-                  {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
-                </Button>
-              </form>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="pr-10" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Please wait..." : "Create Account"}
+                    {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
+                  </Button>
+                </form>
+              ) : (
+                <Tabs defaultValue="email" className="w-full">
+                  <TabsList className="grid grid-cols-2 w-full mb-4">
+                    <TabsTrigger value="email">Email</TabsTrigger>
+                    <TabsTrigger value="pin"><KeyRound className="h-3 w-3 mr-1" /> POS PIN</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="email">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                          <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="pr-10" />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={loading}>
+                        {loading ? "Please wait..." : "Sign In"}
+                        {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
+                      </Button>
+                    </form>
+                  </TabsContent>
+
+                  <TabsContent value="pin">
+                    <form onSubmit={handlePinLogin} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="pin">4-Digit POS PIN</Label>
+                        <Input
+                          id="pin"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={pin}
+                          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                          placeholder="••••"
+                          className="font-mono tracking-[0.8em] text-center text-2xl h-14"
+                          autoFocus
+                        />
+                        <p className="text-xs text-muted-foreground">Ask your manager if you don't have a PIN.</p>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={loading || pin.length !== 4}>
+                        {loading ? "Signing in..." : "Sign In with PIN"}
+                        {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
+                      </Button>
+                    </form>
+                  </TabsContent>
+                </Tabs>
+              )}
 
               <p className="text-center text-sm text-muted-foreground mt-4">
                 {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
@@ -172,7 +245,6 @@ const LoginPage = () => {
           </div>
         </div>
 
-        {/* Features Grid */}
         <div className="border-t border-border py-16">
           <h2 className="text-center text-2xl font-bold text-foreground mb-10">Everything You Need</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -188,7 +260,6 @@ const LoginPage = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="border-t border-border py-8 text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} Blennix POS. Built for modern restaurants.
         </div>

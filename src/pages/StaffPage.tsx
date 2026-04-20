@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { UserPlus, Pencil, Users, KeyRound, Shield } from "lucide-react";
+import { UserPlus, Pencil, Users, KeyRound, Shield, Eye } from "lucide-react";
+import StaffProfileDrawer from "@/components/staff/StaffProfileDrawer";
 
 interface StaffProfile {
   id: string;
@@ -59,6 +60,8 @@ const StaffPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<StaffProfile | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileStaff, setProfileStaff] = useState<StaffProfile | null>(null);
   const [form, setForm] = useState<{
     full_name: string;
     email: string;
@@ -119,8 +122,9 @@ const StaffPage = () => {
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
         body: { email: form.email, password: form.password, full_name: form.full_name },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // Edge function returns 200 with { ok, error } so we can surface the real reason.
+      if (error) throw new Error(error.message || "Could not reach the server");
+      if (!data?.ok) throw new Error(data?.error || "Failed to create user");
 
       const newUserId = data?.user?.id || data?.user_id;
       if (!newUserId) throw new Error("Could not determine new user id");
@@ -245,11 +249,21 @@ const StaffPage = () => {
                 {visibleStaff.map((s) => {
                   const displayRole =
                     s.roles.find((r) => !HIDDEN_ROLES.includes(r)) || null;
+                  // Managers cannot edit themselves or other managers — only employees.
+                  // Owners/admins can edit anyone visible to them.
+                  const canEdit = isOwnerOrAbove
+                    ? true
+                    : s.user_id !== user?.id && displayRole !== "branch_manager";
                   return (
                     <TableRow key={s.id} className={!s.is_active ? "opacity-60" : ""}>
                       <TableCell>
-                        <div className="font-medium">{s.full_name || "—"}</div>
-                        <div className="text-xs text-muted-foreground">{s.email}</div>
+                        <button
+                          className="text-left hover:underline"
+                          onClick={() => { setProfileStaff(s); setProfileOpen(true); }}
+                        >
+                          <div className="font-medium">{s.full_name || "—"}</div>
+                          <div className="text-xs text-muted-foreground">{s.email}</div>
+                        </button>
                       </TableCell>
                       <TableCell>
                         {displayRole ? (
@@ -273,6 +287,7 @@ const StaffPage = () => {
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={s.is_active}
+                            disabled={!canEdit}
                             onCheckedChange={(v) => toggleActiveMutation.mutate({ id: s.id, is_active: v })}
                           />
                           <Badge variant={s.is_active ? "default" : "secondary"} className="text-xs">
@@ -281,9 +296,16 @@ const StaffPage = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => { setProfileStaff(s); setProfileOpen(true); }}>
+                            <Eye className="h-3 w-3 mr-1" /> View
+                          </Button>
+                          {canEdit && (
+                            <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
+                              <Pencil className="h-3 w-3 mr-1" /> Edit
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -391,6 +413,8 @@ const StaffPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <StaffProfileDrawer staff={profileStaff} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 };
