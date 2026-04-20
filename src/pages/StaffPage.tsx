@@ -413,6 +413,8 @@ const StaffPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <StaffProfileDrawer staff={profileStaff} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 };
