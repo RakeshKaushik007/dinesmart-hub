@@ -60,6 +60,8 @@ const StaffPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<StaffProfile | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileStaff, setProfileStaff] = useState<StaffProfile | null>(null);
   const [form, setForm] = useState<{
     full_name: string;
     email: string;
@@ -120,8 +122,9 @@ const StaffPage = () => {
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
         body: { email: form.email, password: form.password, full_name: form.full_name },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // Edge function returns 200 with { ok, error } so we can surface the real reason.
+      if (error) throw new Error(error.message || "Could not reach the server");
+      if (!data?.ok) throw new Error(data?.error || "Failed to create user");
 
       const newUserId = data?.user?.id || data?.user_id;
       if (!newUserId) throw new Error("Could not determine new user id");
