@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { UserPlus, Pencil, Users, KeyRound, Shield } from "lucide-react";
+import { UserPlus, Pencil, Users, KeyRound, Shield, Eye } from "lucide-react";
+import StaffProfileDrawer from "@/components/staff/StaffProfileDrawer";
 
 interface StaffProfile {
   id: string;
