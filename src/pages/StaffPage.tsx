@@ -228,6 +228,25 @@ const StaffPage = () => {
         </Button>
       </div>
 
+      <Alert>
+        <ClipboardList className="h-4 w-4" />
+        <AlertTitle>Role visibility test checklist</AlertTitle>
+        <AlertDescription>
+          <div className="grid gap-4 pt-2 md:grid-cols-2">
+            {checklistSections.map((section) => (
+              <div key={section.title} className="space-y-2 rounded-lg border border-border bg-card px-4 py-3">
+                <p className="text-sm font-medium text-foreground">{section.title}</p>
+                <ol className="space-y-1 text-sm text-muted-foreground list-decimal pl-4">
+                  {section.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </AlertDescription>
+      </Alert>
+
       <div className="grid grid-cols-3 gap-4">
         <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold">{visibleStaff.length}</p><p className="text-xs text-muted-foreground">Total Staff</p></CardContent></Card>
         <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold text-primary">{activeCount}</p><p className="text-xs text-muted-foreground">Active</p></CardContent></Card>

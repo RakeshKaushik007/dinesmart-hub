@@ -1,15 +1,29 @@
-import { ChefHat, AlertCircle, TrendingUp } from "lucide-react";
+import { ChefHat, AlertCircle, TrendingUp, Plus, UtensilsCrossed } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { recipes, ingredients } from "@/data/mockInventory";
 
 const getIngredientName = (id: string) => ingredients.find((i) => i.id === id)?.name ?? "Unknown";
 const getIngredientStatus = (id: string) => ingredients.find((i) => i.id === id)?.status ?? "good";
 
 const RecipesPage = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Recipes</h1>
-        <p className="text-sm text-muted-foreground mt-1">Micro-level ingredient breakdown per dish</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Recipes</h1>
+          <p className="text-sm text-muted-foreground mt-1">Micro-level ingredient breakdown per dish</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/menu-management")}>
+            <UtensilsCrossed className="mr-2 h-4 w-4" /> Menu
+          </Button>
+          <Button onClick={() => navigate("/menu-management")}>
+            <Plus className="mr-2 h-4 w-4" /> Add Recipe
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
