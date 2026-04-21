@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, GripVertical } from "lucide-react";
@@ -30,6 +31,7 @@ interface MenuItem {
 
 const MenuManagementPage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,6 +167,9 @@ const MenuManagementPage = () => {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{categories.length} categories · {items.length} items</p>
         </div>
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => navigate("/recipes")}>
+            <GripVertical className="h-4 w-4 mr-1" /> Recipes
+          </Button>
           <Button size="sm" variant="outline" onClick={() => openCatDialog()}>
             <Plus className="h-4 w-4 mr-1" /> Category
           </Button>

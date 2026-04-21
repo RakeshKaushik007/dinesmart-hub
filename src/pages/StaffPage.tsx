@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { UserPlus, Pencil, Users, KeyRound, Shield, Eye } from "lucide-react";
+import { UserPlus, Pencil, Users, KeyRound, Shield, Eye, ClipboardList } from "lucide-react";
 import StaffProfileDrawer from "@/components/staff/StaffProfileDrawer";
 
 interface StaffProfile {
@@ -76,31 +77,15 @@ const StaffPage = () => {
   const [editForm, setEditForm] = useState({ full_name: "", phone: "", pos_pin: "" });
 
   const { data: staff = [], isLoading } = useQuery({
-    queryKey: ["staff-list"],
+    queryKey: ["staff-list", user?.id],
     queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, user_id, full_name, email, phone, pos_pin, is_active, created_at")
-          .order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("user_id, role"),
-      ]);
-      if (profilesRes.error) throw profilesRes.error;
-      if (rolesRes.error) throw rolesRes.error;
+      const { data, error } = await supabase.functions.invoke("staff-directory");
+      if (error) throw new Error(error.message || "Failed to load staff");
+      if (!data?.ok) throw new Error(data?.error || "Failed to load staff");
 
-      const rolesByUser = new Map<string, AppRole[]>();
-      (rolesRes.data || []).forEach((r) => {
-        const list = rolesByUser.get(r.user_id) || [];
-        list.push(r.role as AppRole);
-        rolesByUser.set(r.user_id, list);
-      });
-
-      return (profilesRes.data || []).map((p) => ({
-        ...p,
-        roles: rolesByUser.get(p.user_id) || [],
-      })) as StaffProfile[];
+      return (data.staff || []) as StaffProfile[];
     },
-    enabled: canManage,
+    enabled: canManage && !!user,
   });
 
   // Filter rules:
@@ -111,14 +96,30 @@ const StaffPage = () => {
   const visibleStaff = useMemo(() => {
     return staff.filter((s) => {
       if (s.user_id === user?.id) return false;
-      if (s.roles.some((r) => ALWAYS_HIDDEN_ROLES.includes(r))) return false;
-      if (!isOwnerOrAbove) {
-        if (s.roles.some((r) => HIDDEN_FROM_MANAGERS.includes(r))) return false;
-        if (s.roles.includes("branch_manager")) return false;
-      }
-      return true;
+      return s.roles.length > 0;
     });
-  }, [staff, isOwnerOrAbove, user?.id]);
+  }, [staff, user?.id]);
+
+  const checklistSections = [
+    {
+      title: "Owner view test",
+      steps: [
+        "Create a new staff account and choose Manager or Employee in the role field.",
+        "After saving, confirm the list shows restaurant owners, managers, and employees only — never the internal admin team.",
+        "Open the new manager row and verify the profile drawer loads order and audit history.",
+        "Sign out and continue with the manager checklist below.",
+      ],
+    },
+    {
+      title: "Manager view test",
+      steps: [
+        "Sign in as the manager you just created and open Staff Management.",
+        "Confirm the table only shows employees — no owner, manager, admin, or super admin rows.",
+        "Click Add Employee and verify the role is locked to Employee.",
+        "Open an employee drawer and confirm only that employee’s orders and audit actions appear.",
+      ],
+    },
+  ];
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -226,6 +227,25 @@ const StaffPage = () => {
           <UserPlus className="h-4 w-4 mr-2" /> Add {isOwnerOrAbove ? "Staff" : "Employee"}
         </Button>
       </div>
+
+      <Alert>
+        <ClipboardList className="h-4 w-4" />
+        <AlertTitle>Role visibility test checklist</AlertTitle>
+        <AlertDescription>
+          <div className="grid gap-4 pt-2 md:grid-cols-2">
+            {checklistSections.map((section) => (
+              <div key={section.title} className="space-y-2 rounded-lg border border-border bg-card px-4 py-3">
+                <p className="text-sm font-medium text-foreground">{section.title}</p>
+                <ol className="space-y-1 text-sm text-muted-foreground list-decimal pl-4">
+                  {section.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </AlertDescription>
+      </Alert>
 
       <div className="grid grid-cols-3 gap-4">
         <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold">{visibleStaff.length}</p><p className="text-xs text-muted-foreground">Total Staff</p></CardContent></Card>
