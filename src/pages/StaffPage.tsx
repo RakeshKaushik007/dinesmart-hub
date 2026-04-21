@@ -27,8 +27,11 @@ interface StaffProfile {
   roles: AppRole[];
 }
 
-// Roles that internal software/tech-support team holds — never shown to restaurant staff UI
-const HIDDEN_ROLES: AppRole[] = ["super_admin", "admin"];
+// Roles hidden from non-owner viewers (managers): internal tech team + owners.
+// Managers must not see admins, super_admins, or owners in the staff list.
+const HIDDEN_FROM_MANAGERS: AppRole[] = ["super_admin", "admin", "owner"];
+// Roles hidden from everyone (even owners) — internal software/tech team.
+const ALWAYS_HIDDEN_ROLES: AppRole[] = ["super_admin", "admin"];
 
 const roleLabel: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -100,15 +103,19 @@ const StaffPage = () => {
     enabled: canManage,
   });
 
-  // Filter: hide internal software team (super_admin / admin) from everyone.
-  // Owners see managers + employees. Branch managers see only employees (not other managers).
+  // Filter rules:
+  // - Always hide internal software team (super_admin / admin) from the staff list.
+  // - Managers additionally cannot see owners or other managers — only employees.
+  // - Owners see managers + employees (but not admins/super_admins).
+  // - Always hide the current user's own row.
   const visibleStaff = useMemo(() => {
     return staff.filter((s) => {
-      if (s.roles.some((r) => HIDDEN_ROLES.includes(r))) return false;
-      if (!isOwnerOrAbove && s.roles.includes("branch_manager")) return false;
-      // Hide self from list (avoid editing own row here)
       if (s.user_id === user?.id) return false;
-      // Show users that have no role yet too (newly created)
+      if (s.roles.some((r) => ALWAYS_HIDDEN_ROLES.includes(r))) return false;
+      if (!isOwnerOrAbove) {
+        if (s.roles.some((r) => HIDDEN_FROM_MANAGERS.includes(r))) return false;
+        if (s.roles.includes("branch_manager")) return false;
+      }
       return true;
     });
   }, [staff, isOwnerOrAbove, user?.id]);
