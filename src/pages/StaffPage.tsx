@@ -255,7 +255,7 @@ const StaffPage = () => {
               <TableBody>
                 {visibleStaff.map((s) => {
                   const displayRole =
-                    s.roles.find((r) => !HIDDEN_ROLES.includes(r)) || null;
+                    s.roles.find((r) => !ALWAYS_HIDDEN_ROLES.includes(r)) || null;
                   // Managers cannot edit themselves or other managers — only employees.
                   // Owners/admins can edit anyone visible to them.
                   const canEdit = isOwnerOrAbove
