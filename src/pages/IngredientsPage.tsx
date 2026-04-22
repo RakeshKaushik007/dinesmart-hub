@@ -1,8 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { Search, Plus, Loader2, Pencil } from "lucide-react";
 import StockBadge from "@/components/inventory/StockBadge";
 import { supabase } from "@/integrations/supabase/client";
 import type { StockStatus } from "@/data/mockInventory";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const statusFilters: { label: string; value: StockStatus | "all" }[] = [
   { label: "All", value: "all" },
@@ -18,6 +25,22 @@ const IngredientsPage = () => {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<StockStatus | "all">("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    category: "",
+    unit: "kg",
+    current_stock: "",
+    min_threshold: "",
+    cost_per_unit: "",
+    expiry_date: "",
+    notes: "",
+  });
+  const { toast } = useToast();
+  const { roles } = useAuth();
+  const branchId = roles.find((r) => r.branch_id)?.branch_id ?? null;
 
   const fetchIngredients = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -51,6 +74,94 @@ const IngredientsPage = () => {
     };
   }, [fetchIngredients]);
 
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({
+      name: "",
+      category: "",
+      unit: "kg",
+      current_stock: "",
+      min_threshold: "",
+      cost_per_unit: "",
+      expiry_date: "",
+      notes: "",
+    });
+  };
+
+  const openAddDialog = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (item: any) => {
+    setEditingId(item.id);
+    setForm({
+      name: item.name ?? "",
+      category: item.category ?? "",
+      unit: item.unit ?? "kg",
+      current_stock: String(item.current_stock ?? ""),
+      min_threshold: String(item.min_threshold ?? ""),
+      cost_per_unit: String(item.cost_per_unit ?? ""),
+      expiry_date: item.expiry_date ?? "",
+      notes: "",
+    });
+    setDialogOpen(true);
+  };
+
+  const computeStatus = (stock: number, min: number, expiry: string | null): StockStatus => {
+    if (stock <= 0) return "out";
+    if (stock <= min) return "low";
+    if (expiry) {
+      const days = (new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+      if (days <= 7) return "expiring";
+    }
+    return "good";
+  };
+
+  const handleSubmit = async () => {
+    const name = form.name.trim();
+    if (!name) {
+      toast({ title: "Name required", description: "Enter an ingredient name.", variant: "destructive" });
+      return;
+    }
+    const stock = Number(form.current_stock || 0);
+    const min = Number(form.min_threshold || 0);
+    const cost = Number(form.cost_per_unit || 0);
+    if (stock < 0 || min < 0 || cost < 0) {
+      toast({ title: "Invalid values", description: "Stock, threshold and cost must be zero or positive.", variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
+    const payload = {
+      name,
+      category: form.category.trim() || null,
+      unit: form.unit.trim() || "kg",
+      current_stock: stock,
+      min_threshold: min,
+      cost_per_unit: cost,
+      expiry_date: form.expiry_date || null,
+      status: computeStatus(stock, min, form.expiry_date || null),
+      branch_id: branchId,
+    };
+
+    const { error } = editingId
+      ? await supabase.from("ingredients").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingId)
+      : await supabase.from("ingredients").insert(payload);
+
+    if (error) {
+      toast({ title: editingId ? "Could not update ingredient" : "Could not add ingredient", description: error.message, variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+
+    toast({ title: editingId ? "Ingredient updated" : "Ingredient added", description: `${name} saved successfully.` });
+    setDialogOpen(false);
+    resetForm();
+    setSubmitting(false);
+    fetchIngredients();
+  };
+
   const categories = ["All", ...new Set(ingredients.map((i) => i.category).filter(Boolean))];
 
   const filtered = ingredients.filter((item) => {
@@ -71,7 +182,7 @@ const IngredientsPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Ingredients</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage raw materials and stock levels</p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+        <button onClick={openAddDialog} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
           <Plus className="h-4 w-4" />
           Add Ingredient
         </button>
@@ -108,6 +219,7 @@ const IngredientsPage = () => {
               <th className="text-right px-5 py-3 font-medium">Cost/Unit</th>
               <th className="text-left px-5 py-3 font-medium">Expiry</th>
               <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="text-right px-5 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -122,12 +234,62 @@ const IngredientsPage = () => {
                   {item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—"}
                 </td>
                 <td className="px-5 py-3.5"><StockBadge status={item.status as StockStatus} /></td>
+                <td className="px-5 py-3.5 text-right">
+                  <button onClick={() => openEditDialog(item)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
         {filtered.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">No ingredients match your filters.</div>}
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Edit ingredient" : "Add ingredient"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="ing-name">Name</Label>
+              <Input id="ing-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Paneer" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ing-cat">Category</Label>
+              <Input id="ing-cat" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Dairy" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ing-unit">Unit</Label>
+              <Input id="ing-unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg, L, pcs" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ing-stock">Current stock</Label>
+              <Input id="ing-stock" type="number" min="0" step="0.01" value={form.current_stock} onChange={(e) => setForm({ ...form, current_stock: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ing-min">Min threshold</Label>
+              <Input id="ing-min" type="number" min="0" step="0.01" value={form.min_threshold} onChange={(e) => setForm({ ...form, min_threshold: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ing-cost">Cost per unit (₹)</Label>
+              <Input id="ing-cost" type="number" min="0" step="0.01" value={form.cost_per_unit} onChange={(e) => setForm({ ...form, cost_per_unit: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ing-expiry">Expiry date</Label>
+              <Input id="ing-expiry" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editingId ? "Save changes" : "Add ingredient"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
