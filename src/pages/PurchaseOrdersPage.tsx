@@ -1,146 +1,478 @@
-import { useState } from "react";
-import { Plus, Truck, FileText, Search, Filter } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { FileText, Loader2, Plus, Trash2, Truck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
-interface PurchaseOrder {
+type PurchaseOrderStatus = "draft" | "sent" | "partial" | "received" | "cancelled";
+
+interface IngredientOption {
   id: string;
-  vendor: string;
-  items: { name: string; qty: number; unit: string; rate: number }[];
-  total: number;
-  status: "pending" | "received" | "partial" | "cancelled";
-  orderedAt: string;
-  receivedAt: string | null;
-  invoiceNo: string;
+  name: string;
+  unit: string;
+  cost_per_unit: number;
 }
 
-const mockOrders: PurchaseOrder[] = [
-  {
-    id: "PO-001", vendor: "Fresh Farm Supplies", invoiceNo: "INV-2026-4421",
-    items: [
-      { name: "Chicken Breast", qty: 20, unit: "kg", rate: 280 },
-      { name: "Paneer", qty: 10, unit: "kg", rate: 320 },
-    ],
-    total: 8800, status: "received", orderedAt: "2026-03-10T09:00:00", receivedAt: "2026-03-11T14:00:00",
-  },
-  {
-    id: "PO-002", vendor: "Metro Wholesale", invoiceNo: "INV-2026-7802",
-    items: [
-      { name: "Cooking Oil", qty: 15, unit: "L", rate: 180 },
-      { name: "Basmati Rice", qty: 50, unit: "kg", rate: 85 },
-    ],
-    total: 6950, status: "pending", orderedAt: "2026-03-13T11:30:00", receivedAt: null,
-  },
-  {
-    id: "PO-003", vendor: "Spice World Traders", invoiceNo: "INV-2026-1190",
-    items: [
-      { name: "Garam Masala", qty: 5, unit: "kg", rate: 650 },
-      { name: "Salt", qty: 10, unit: "kg", rate: 20 },
-    ],
-    total: 3450, status: "partial", orderedAt: "2026-03-12T08:00:00", receivedAt: null,
-  },
-  {
-    id: "PO-004", vendor: "Daily Dairy Co.", invoiceNo: "INV-2026-3345",
-    items: [
-      { name: "Cream", qty: 8, unit: "L", rate: 220 },
-      { name: "Curd", qty: 12, unit: "kg", rate: 60 },
-    ],
-    total: 2480, status: "cancelled", orderedAt: "2026-03-08T10:00:00", receivedAt: null,
-  },
-];
+interface PurchaseOrderItemRow {
+  id: string;
+  ingredient_id: string | null;
+  ingredient_name: string;
+  quantity: number;
+  received_quantity: number | null;
+  unit: string;
+  unit_cost: number;
+  total_cost: number;
+}
 
-const statusStyles: Record<string, string> = {
-  pending: "bg-amber-500/10 text-amber-600",
-  received: "bg-emerald-500/10 text-emerald-600",
-  partial: "bg-blue-500/10 text-blue-600",
+interface PurchaseOrderRow {
+  id: string;
+  po_number: number;
+  vendor_name: string;
+  vendor_phone: string | null;
+  status: PurchaseOrderStatus;
+  total_amount: number;
+  expected_date: string | null;
+  received_date: string | null;
+  notes: string | null;
+  created_at: string;
+  purchase_order_items: PurchaseOrderItemRow[] | null;
+}
+
+interface DraftLine {
+  ingredient_id: string;
+  quantity: string;
+  unit_cost: string;
+}
+
+const statusStyles: Record<PurchaseOrderStatus, string> = {
+  draft: "bg-secondary text-secondary-foreground",
+  sent: "bg-primary/10 text-primary",
+  partial: "bg-accent text-accent-foreground",
+  received: "bg-primary text-primary-foreground",
   cancelled: "bg-destructive/10 text-destructive",
+};
+
+const emptyLine: DraftLine = {
+  ingredient_id: "",
+  quantity: "",
+  unit_cost: "",
 };
 
 const PurchaseOrdersPage = () => {
   const [filter, setFilter] = useState<string>("all");
+  const [orders, setOrders] = useState<PurchaseOrderRow[]>([]);
+  const [ingredients, setIngredients] = useState<IngredientOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [vendorName, setVendorName] = useState("");
+  const [vendorPhone, setVendorPhone] = useState("");
+  const [expectedDate, setExpectedDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<PurchaseOrderStatus>("draft");
+  const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
+  const { toast } = useToast();
+  const { user, roles } = useAuth();
 
-  const filtered = filter === "all" ? mockOrders : mockOrders.filter(o => o.status === filter);
+  const branchId = useMemo(() => roles.find((role) => role.branch_id)?.branch_id ?? null, [roles]);
+
+  const fetchData = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+
+    const [ordersRes, ingredientsRes] = await Promise.all([
+      supabase
+        .from("purchase_orders")
+        .select(`
+          id,
+          po_number,
+          vendor_name,
+          vendor_phone,
+          status,
+          total_amount,
+          expected_date,
+          received_date,
+          notes,
+          created_at,
+          purchase_order_items (
+            id,
+            ingredient_id,
+            ingredient_name,
+            quantity,
+            received_quantity,
+            unit,
+            unit_cost,
+            total_cost
+          )
+        `)
+        .order("created_at", { ascending: false }),
+      supabase.from("ingredients").select("id, name, unit, cost_per_unit").order("name"),
+    ]);
+
+    if (ordersRes.error) {
+      toast({ title: "Could not load purchase orders", description: ordersRes.error.message, variant: "destructive" });
+    } else {
+      setOrders((ordersRes.data as PurchaseOrderRow[]) || []);
+    }
+
+    if (ingredientsRes.error) {
+      toast({ title: "Could not load ingredients", description: ingredientsRes.error.message, variant: "destructive" });
+    } else {
+      setIngredients(
+        (ingredientsRes.data || []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          unit: item.unit,
+          cost_per_unit: Number(item.cost_per_unit),
+        })),
+      );
+    }
+
+    if (showLoader) setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const resetForm = () => {
+    setVendorName("");
+    setVendorPhone("");
+    setExpectedDate("");
+    setNotes("");
+    setStatus("draft");
+    setLines([{ ...emptyLine }]);
+  };
+
+  const updateLine = (index: number, patch: Partial<DraftLine>) => {
+    setLines((current) =>
+      current.map((line, lineIndex) => {
+        if (lineIndex !== index) return line;
+
+        const nextLine = { ...line, ...patch };
+        if (patch.ingredient_id !== undefined) {
+          const ingredient = ingredients.find((item) => item.id === patch.ingredient_id);
+          if (ingredient) {
+            nextLine.unit_cost = ingredient.cost_per_unit.toString();
+          }
+        }
+        return nextLine;
+      }),
+    );
+  };
+
+  const addLine = () => setLines((current) => [...current, { ...emptyLine }]);
+  const removeLine = (index: number) => setLines((current) => (current.length === 1 ? current : current.filter((_, i) => i !== index)));
+
+  const orderTotal = lines.reduce((sum, line) => {
+    const qty = Number(line.quantity || 0);
+    const rate = Number(line.unit_cost || 0);
+    return sum + qty * rate;
+  }, 0);
+
+  const handleCreatePurchaseOrder = async () => {
+    const trimmedVendorName = vendorName.trim();
+    const preparedLines = lines
+      .map((line) => {
+        const ingredient = ingredients.find((item) => item.id === line.ingredient_id);
+        return {
+          ingredient,
+          quantity: Number(line.quantity || 0),
+          unitCost: Number(line.unit_cost || 0),
+        };
+      })
+      .filter((line) => line.ingredient && line.quantity > 0);
+
+    if (!trimmedVendorName) {
+      toast({ title: "Vendor name required", description: "Enter the supplier name before saving.", variant: "destructive" });
+      return;
+    }
+
+    if (preparedLines.length === 0) {
+      toast({ title: "Add at least one item", description: "Choose an ingredient and quantity for this purchase order.", variant: "destructive" });
+      return;
+    }
+
+    if (preparedLines.some((line) => line.unitCost < 0)) {
+      toast({ title: "Invalid unit cost", description: "Unit cost cannot be negative.", variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
+
+    const totalAmount = preparedLines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+
+    const { data: order, error: orderError } = await supabase
+      .from("purchase_orders")
+      .insert({
+        vendor_name: trimmedVendorName,
+        vendor_phone: vendorPhone.trim() || null,
+        expected_date: expectedDate || null,
+        notes: notes.trim() || null,
+        status,
+        total_amount: totalAmount,
+        created_by: user?.id ?? null,
+        branch_id: branchId,
+      })
+      .select("id")
+      .single();
+
+    if (orderError || !order) {
+      toast({ title: "Could not create purchase order", description: orderError?.message || "Please try again.", variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+
+    const { error: itemsError } = await supabase.from("purchase_order_items").insert(
+      preparedLines.map((line) => ({
+        purchase_order_id: order.id,
+        ingredient_id: line.ingredient!.id,
+        ingredient_name: line.ingredient!.name,
+        quantity: line.quantity,
+        received_quantity: status === "received" ? line.quantity : 0,
+        unit: line.ingredient!.unit,
+        unit_cost: line.unitCost,
+        total_cost: line.quantity * line.unitCost,
+      })),
+    );
+
+    if (itemsError) {
+      await supabase.from("purchase_orders").delete().eq("id", order.id);
+      toast({ title: "Could not save purchase order items", description: itemsError.message, variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+
+    toast({ title: "Purchase order created", description: "The new purchase order is now saved in your dashboard." });
+    resetForm();
+    setDialogOpen(false);
+    setSubmitting(false);
+    fetchData(false);
+  };
+
+  const filteredOrders = filter === "all" ? orders : orders.filter((order) => order.status === filter);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Purchase Orders</h1>
-          <p className="text-sm text-muted-foreground mt-1">Inward stock & vendor invoices</p>
+          <p className="mt-1 text-sm text-muted-foreground">Inward stock & vendor invoices</p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+        <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           New Purchase Order
-        </button>
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {["all", "pending", "received", "partial", "cancelled"].map((s) => (
+        {["all", "draft", "sent", "partial", "received", "cancelled"].map((value) => (
           <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-              filter === s ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
+            key={value}
+            onClick={() => setFilter(value)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+              filter === value ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent",
+            )}
           >
-            {s === "all" ? "All Orders" : s}
+            {value === "all" ? "All Orders" : value}
           </button>
         ))}
       </div>
 
       <div className="grid gap-4">
-        {filtered.map((order) => (
+        {filteredOrders.map((order) => (
           <div key={order.id} className="rounded-xl border border-border bg-card p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-secondary p-2.5">
                   <Truck className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-card-foreground">{order.vendor}</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs font-mono text-muted-foreground">{order.id}</span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-xs font-mono text-muted-foreground flex items-center gap-1">
-                      <FileText className="h-3 w-3" />{order.invoiceNo}
+                  <h3 className="text-sm font-semibold text-card-foreground">{order.vendor_name}</h3>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-mono">PO-{String(order.po_number).padStart(3, "0")}</span>
+                    {order.vendor_phone && <span>{order.vendor_phone}</span>}
+                    <span className="flex items-center gap-1 font-mono">
+                      <FileText className="h-3 w-3" />
+                      {new Date(order.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                     </span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${statusStyles[order.status]}`}>
+                <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider", statusStyles[order.status])}>
                   {order.status}
                 </span>
-                <span className="text-lg font-bold font-mono text-card-foreground">₹{order.total.toLocaleString()}</span>
+                <span className="font-mono text-lg font-bold text-card-foreground">₹{Number(order.total_amount).toLocaleString()}</span>
               </div>
             </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-muted-foreground border-b border-border/50">
-                    <th className="text-left py-2 font-medium">Item</th>
-                    <th className="text-right py-2 font-medium">Qty</th>
-                    <th className="text-right py-2 font-medium">Rate</th>
-                    <th className="text-right py-2 font-medium">Amount</th>
+                  <tr className="border-b border-border/50 text-muted-foreground">
+                    <th className="py-2 text-left font-medium">Item</th>
+                    <th className="py-2 text-right font-medium">Qty</th>
+                    <th className="py-2 text-right font-medium">Rate</th>
+                    <th className="py-2 text-right font-medium">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items.map((item, i) => (
-                    <tr key={i} className="border-b border-border/30">
-                      <td className="py-2 text-card-foreground">{item.name}</td>
-                      <td className="py-2 text-right font-mono">{item.qty} {item.unit}</td>
-                      <td className="py-2 text-right font-mono">₹{item.rate}</td>
-                      <td className="py-2 text-right font-mono text-card-foreground">₹{(item.qty * item.rate).toLocaleString()}</td>
+                  {(order.purchase_order_items || []).map((item) => (
+                    <tr key={item.id} className="border-b border-border/30">
+                      <td className="py-2 text-card-foreground">{item.ingredient_name}</td>
+                      <td className="py-2 text-right font-mono">{Number(item.quantity)} {item.unit}</td>
+                      <td className="py-2 text-right font-mono">₹{Number(item.unit_cost).toLocaleString()}</td>
+                      <td className="py-2 text-right font-mono text-card-foreground">₹{Number(item.total_cost).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-3 font-mono">
-              Ordered: {new Date(order.orderedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-              {order.receivedAt && ` • Received: ${new Date(order.receivedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+
+            <p className="mt-3 text-[10px] font-mono text-muted-foreground">
+              {order.expected_date
+                ? `Expected: ${new Date(order.expected_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                : "Expected date not set"}
+              {order.received_date && ` • Received: ${new Date(order.received_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
             </p>
+            {order.notes && <p className="mt-2 text-xs text-muted-foreground">{order.notes}</p>}
           </div>
         ))}
+
+        {filteredOrders.length === 0 && (
+          <div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
+            No purchase orders found for this filter.
+          </div>
+        )}
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Create purchase order</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="vendor-name">Vendor name</Label>
+              <Input id="vendor-name" value={vendorName} onChange={(event) => setVendorName(event.target.value)} placeholder="Fresh Farm Supplies" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="vendor-phone">Vendor phone</Label>
+              <Input id="vendor-phone" value={vendorPhone} onChange={(event) => setVendorPhone(event.target.value)} placeholder="9876543210" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="expected-date">Expected date</Label>
+              <Input id="expected-date" type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(value: PurchaseOrderStatus) => setStatus(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                  <SelectItem value="received">Received</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Invoice notes or delivery instructions" rows={3} />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Order items</h3>
+              <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                <Plus className="h-4 w-4" />
+                Add item
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {lines.map((line, index) => {
+                const selectedIngredient = ingredients.find((item) => item.id === line.ingredient_id);
+                const lineTotal = Number(line.quantity || 0) * Number(line.unit_cost || 0);
+
+                return (
+                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,2fr)_120px_120px_auto]">
+                    <div className="space-y-2">
+                      <Label>Ingredient</Label>
+                      <Select value={line.ingredient_id} onValueChange={(value) => updateLine(index, { ingredient_id: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select ingredient" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ingredients.map((ingredient) => (
+                            <SelectItem key={ingredient.id} value={ingredient.id}>
+                              {ingredient.name} ({ingredient.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Qty</Label>
+                      <Input type="number" min="0" step="0.01" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Rate</Label>
+                      <Input type="number" min="0" step="0.01" value={line.unit_cost} onChange={(event) => updateLine(index, { unit_cost: event.target.value })} />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="min-w-[88px] pb-2 text-right text-xs text-muted-foreground">
+                        <div>Total</div>
+                        <div className="font-mono text-sm text-foreground">₹{lineTotal.toLocaleString()}</div>
+                        {selectedIngredient && <div>{selectedIngredient.unit}</div>}
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} disabled={lines.length === 1}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <span className="text-sm font-medium text-muted-foreground">Order total</span>
+            <span className="font-mono text-lg font-bold text-foreground">₹{orderTotal.toLocaleString()}</span>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleCreatePurchaseOrder} disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save purchase order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
