@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Search, Loader2, RotateCcw, Wrench } from "lucide-react";
+import { Search, Loader2, RotateCcw, Wrench, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import ReopenBillDialog from "@/components/checkout/ReopenBillDialog";
 import AdjustBillDialog from "@/components/checkout/AdjustBillDialog";
+import OrderWastageDialog from "@/components/checkout/OrderWastageDialog";
 
 const statusStyles: Record<string, string> = {
   completed: "bg-emerald-500/10 text-emerald-600",
@@ -22,6 +23,7 @@ const OrderHistoryPage = () => {
 
   const [reopenOrder, setReopenOrder] = useState<any>(null);
   const [adjustOrder, setAdjustOrder] = useState<any>(null);
+  const [wastageOrder, setWastageOrder] = useState<any>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -118,6 +120,11 @@ const OrderHistoryPage = () => {
                             <Wrench className="h-3 w-3" /> Adjust
                           </Button>
                         )}
+                        {(order.status === "completed" || order.status === "cancelled") && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setWastageOrder(order)}>
+                            <Trash2 className="h-3 w-3" /> Wastage
+                          </Button>
+                        )}
                       </div>
                     </td>
                   )}
@@ -145,6 +152,14 @@ const OrderHistoryPage = () => {
           onClose={() => setAdjustOrder(null)}
           order={adjustOrder}
           onSettled={fetchOrders}
+        />
+      )}
+      {wastageOrder && (
+        <OrderWastageDialog
+          open={!!wastageOrder}
+          orderId={wastageOrder.id}
+          orderNumber={wastageOrder.order_number}
+          onClose={() => setWastageOrder(null)}
         />
       )}
     </div>

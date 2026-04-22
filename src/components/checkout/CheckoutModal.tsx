@@ -24,9 +24,11 @@ import AddItemsDialog from "./AddItemsDialog";
 import CancelOrderDialog from "./CancelOrderDialog";
 import NCReasonDialog from "./NCReasonDialog";
 import RefundItemDialog from "./RefundItemDialog";
+import { logWastageForPreparedItem } from "@/lib/wastageHelpers";
 
 export interface OrderItem {
   id?: string;
+  menu_item_id?: string | null;
   item_name: string;
   quantity: number;
   unit_price: number;
@@ -134,7 +136,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     return { activeSubtotal, discountAmt, discountedSubtotal, gst, serviceCharge, grandTotal };
   }, [items, discountType, discountValue, serviceChargeEnabled, order, TAX_PCT, SERVICE_CHARGE_PCT]);
 
-  const handleVoidConfirm = async (reason: string, _pin: string) => {
+  const handleVoidConfirm = async (reason: string, _pin: string, wasPrepared: boolean) => {
     if (!voidingItem || !order) return;
     if (_pin.length < 4) {
       toast({ title: "Invalid PIN", description: "Manager PIN must be at least 4 digits", variant: "destructive" });
@@ -147,13 +149,28 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         voided_by: user?.id,
       }).eq("id", voidingItem.id);
     }
+    let wastedCount = 0;
+    if (wasPrepared) {
+      wastedCount = await logWastageForPreparedItem({
+        menuItemId: voidingItem.menu_item_id,
+        itemQuantity: voidingItem.quantity,
+        itemName: voidingItem.item_name,
+        orderNumber: order.order_number,
+        reason: "cancelled",
+        reasonDetail: reason,
+        loggedBy: user?.id,
+      });
+    }
     setLocalItems(prev => {
       const current = prev.length > 0 ? prev : order.items;
       return current.map(i =>
         i.item_name === voidingItem.item_name && !i.is_void ? { ...i, is_void: true } : i
       );
     });
-    toast({ title: "Item Voided", description: `${voidingItem.item_name} removed from bill` });
+    toast({
+      title: "Item Cancelled",
+      description: `${voidingItem.item_name} removed${wastedCount > 0 ? ` · ${wastedCount} ingredient(s) logged to wastage` : ""}`,
+    });
     setVoidingItem(null);
   };
 
@@ -172,7 +189,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     setNcItem(null);
   };
 
-  const handleRefundConfirm = async (reason: string) => {
+  const handleRefundConfirm = async (reason: string, wasPrepared: boolean) => {
     if (!refundItem || !order) return;
     if (refundItem.id) {
       await supabase.from("order_items").update({
@@ -182,6 +199,18 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         refunded_at: new Date().toISOString(),
       }).eq("id", refundItem.id);
     }
+    let wastedCount = 0;
+    if (wasPrepared) {
+      wastedCount = await logWastageForPreparedItem({
+        menuItemId: refundItem.menu_item_id,
+        itemQuantity: refundItem.quantity,
+        itemName: refundItem.item_name,
+        orderNumber: order.order_number,
+        reason: "refunded",
+        reasonDetail: reason,
+        loggedBy: user?.id,
+      });
+    }
     setLocalItems(prev => {
       const current = prev.length > 0 ? prev : order.items;
       return current.map(i =>
@@ -189,7 +218,10 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
           ? { ...i, is_refunded: true, refund_reason: reason } : i
       );
     });
-    toast({ title: "Item refunded", description: `${refundItem.item_name}: ${reason}` });
+    toast({
+      title: "Item refunded",
+      description: `${refundItem.item_name}: ${reason}${wastedCount > 0 ? ` · ${wastedCount} ingredient(s) logged to wastage` : ""}`,
+    });
     setRefundItem(null);
   };
 
@@ -336,7 +368,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                     {item.quantity}× {item.item_name}
                     {item.is_nc && <span className="ml-1 text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">NC</span>}
                     {item.is_refunded && <span className="ml-1 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">REFUNDED</span>}
-                    {item.is_void && <span className="ml-1 text-[10px] font-semibold text-destructive">VOID</span>}
+                    {item.is_void && <span className="ml-1 text-[10px] font-semibold text-destructive">CANCELLED</span>}
                   </span>
                   <span className="font-mono">{(item.is_nc || item.is_refunded) ? "₹0" : `₹${item.total_price}`}</span>
                   {isManager && !item.is_void && (
@@ -353,9 +385,9 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                           <Undo2 className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      <button onClick={() => setVoidingItem(item)} title="Void item"
+                      <button onClick={() => setVoidingItem(item)} title="Cancel item"
                         className="p-1 rounded hover:bg-destructive/10 text-destructive">
-                        <Ban className="h-3.5 w-3.5" />
+                        <XCircle className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   )}

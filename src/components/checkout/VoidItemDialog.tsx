@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Ban, Lock } from "lucide-react";
+import { XCircle, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const VOID_REASONS = [
+const CANCEL_REASONS = [
   "Cold Food",
   "Wrong Item",
   "Customer Changed Mind",
@@ -30,18 +31,20 @@ interface VoidItemDialogProps {
   open: boolean;
   onClose: () => void;
   itemName: string;
-  onConfirm: (reason: string, pin: string) => void;
+  onConfirm: (reason: string, pin: string, wasPrepared: boolean) => void;
 }
 
 const VoidItemDialog = ({ open, onClose, itemName, onConfirm }: VoidItemDialogProps) => {
   const [reason, setReason] = useState("");
   const [pin, setPin] = useState("");
+  const [wasPrepared, setWasPrepared] = useState(false);
 
   const handleConfirm = () => {
     if (!reason || !pin) return;
-    onConfirm(reason, pin);
+    onConfirm(reason, pin, wasPrepared);
     setReason("");
     setPin("");
+    setWasPrepared(false);
   };
 
   return (
@@ -49,13 +52,13 @@ const VoidItemDialog = ({ open, onClose, itemName, onConfirm }: VoidItemDialogPr
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
-            <Ban className="h-5 w-5" />
-            Void Item
+            <XCircle className="h-5 w-5" />
+            Cancel Item
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="bg-destructive/10 rounded-lg p-3 text-sm">
-            <span className="text-muted-foreground">Voiding:</span>{" "}
+            <span className="text-muted-foreground">Cancelling:</span>{" "}
             <span className="font-semibold text-foreground">{itemName}</span>
           </div>
 
@@ -66,7 +69,7 @@ const VoidItemDialog = ({ open, onClose, itemName, onConfirm }: VoidItemDialogPr
                 <SelectValue placeholder="Select reason..." />
               </SelectTrigger>
               <SelectContent>
-                {VOID_REASONS.map((r) => (
+                {CANCEL_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
                 ))}
               </SelectContent>
@@ -86,10 +89,25 @@ const VoidItemDialog = ({ open, onClose, itemName, onConfirm }: VoidItemDialogPr
             />
           </div>
 
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+            <Checkbox
+              id="cancel-prepared"
+              checked={wasPrepared}
+              onCheckedChange={(v) => setWasPrepared(!!v)}
+              className="mt-0.5"
+            />
+            <label htmlFor="cancel-prepared" className="text-xs text-foreground cursor-pointer leading-snug">
+              <span className="font-semibold">Food was already prepared</span>
+              <span className="block text-muted-foreground mt-0.5">
+                If checked, ingredients will be logged to the wastage report.
+              </span>
+            </label>
+          </div>
+
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1">Go Back</Button>
             <Button variant="destructive" onClick={handleConfirm} disabled={!reason || !pin} className="flex-1">
-              Confirm Void
+              Confirm Cancel
             </Button>
           </div>
         </div>

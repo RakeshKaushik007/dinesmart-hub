@@ -40,7 +40,7 @@ const ActiveOrdersPage = () => {
     const tableIds = ordersData.map(o => o.table_id).filter(Boolean) as string[];
 
     const [{ data: itemsData }, { data: tablesData }] = await Promise.all([
-      supabase.from("order_items").select("id, order_id, item_name, quantity, unit_price, total_price, is_void, is_nc").in("order_id", orderIds),
+      supabase.from("order_items").select("id, order_id, menu_item_id, item_name, quantity, unit_price, total_price, is_void, is_nc, is_refunded").in("order_id", orderIds),
       tableIds.length > 0
         ? supabase.from("restaurant_tables").select("id, table_number").in("id", tableIds)
         : Promise.resolve({ data: [] }),
@@ -53,12 +53,14 @@ const ActiveOrdersPage = () => {
       ...o,
       items: (itemsData || []).filter(i => i.order_id === o.id).map(i => ({
         id: i.id,
+        menu_item_id: i.menu_item_id,
         item_name: i.item_name,
         quantity: i.quantity,
         unit_price: i.unit_price,
         total_price: i.total_price,
         is_void: i.is_void ?? false,
         is_nc: i.is_nc ?? false,
+        is_refunded: i.is_refunded ?? false,
       })),
       table_number: o.table_id ? tableMap[o.table_id] : undefined,
     }));
