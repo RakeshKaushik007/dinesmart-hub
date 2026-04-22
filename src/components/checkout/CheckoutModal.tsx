@@ -368,7 +368,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                     {item.quantity}× {item.item_name}
                     {item.is_nc && <span className="ml-1 text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">NC</span>}
                     {item.is_refunded && <span className="ml-1 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">REFUNDED</span>}
-                    {item.is_void && <span className="ml-1 text-[10px] font-semibold text-destructive">VOID</span>}
+                    {item.is_void && <span className="ml-1 text-[10px] font-semibold text-destructive">CANCELLED</span>}
                   </span>
                   <span className="font-mono">{(item.is_nc || item.is_refunded) ? "₹0" : `₹${item.total_price}`}</span>
                   {isManager && !item.is_void && (
@@ -385,9 +385,9 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                           <Undo2 className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      <button onClick={() => setVoidingItem(item)} title="Void item"
+                      <button onClick={() => setVoidingItem(item)} title="Cancel item"
                         className="p-1 rounded hover:bg-destructive/10 text-destructive">
-                        <Ban className="h-3.5 w-3.5" />
+                        <XCircle className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   )}
