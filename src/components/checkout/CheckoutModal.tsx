@@ -136,7 +136,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     return { activeSubtotal, discountAmt, discountedSubtotal, gst, serviceCharge, grandTotal };
   }, [items, discountType, discountValue, serviceChargeEnabled, order, TAX_PCT, SERVICE_CHARGE_PCT]);
 
-  const handleVoidConfirm = async (reason: string, _pin: string) => {
+  const handleVoidConfirm = async (reason: string, _pin: string, wasPrepared: boolean) => {
     if (!voidingItem || !order) return;
     if (_pin.length < 4) {
       toast({ title: "Invalid PIN", description: "Manager PIN must be at least 4 digits", variant: "destructive" });
@@ -149,13 +149,28 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         voided_by: user?.id,
       }).eq("id", voidingItem.id);
     }
+    let wastedCount = 0;
+    if (wasPrepared) {
+      wastedCount = await logWastageForPreparedItem({
+        menuItemId: voidingItem.menu_item_id,
+        itemQuantity: voidingItem.quantity,
+        itemName: voidingItem.item_name,
+        orderNumber: order.order_number,
+        reason: "cancelled",
+        reasonDetail: reason,
+        loggedBy: user?.id,
+      });
+    }
     setLocalItems(prev => {
       const current = prev.length > 0 ? prev : order.items;
       return current.map(i =>
         i.item_name === voidingItem.item_name && !i.is_void ? { ...i, is_void: true } : i
       );
     });
-    toast({ title: "Item Voided", description: `${voidingItem.item_name} removed from bill` });
+    toast({
+      title: "Item Cancelled",
+      description: `${voidingItem.item_name} removed${wastedCount > 0 ? ` · ${wastedCount} ingredient(s) logged to wastage` : ""}`,
+    });
     setVoidingItem(null);
   };
 
@@ -174,7 +189,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     setNcItem(null);
   };
 
-  const handleRefundConfirm = async (reason: string) => {
+  const handleRefundConfirm = async (reason: string, wasPrepared: boolean) => {
     if (!refundItem || !order) return;
     if (refundItem.id) {
       await supabase.from("order_items").update({
@@ -184,6 +199,18 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         refunded_at: new Date().toISOString(),
       }).eq("id", refundItem.id);
     }
+    let wastedCount = 0;
+    if (wasPrepared) {
+      wastedCount = await logWastageForPreparedItem({
+        menuItemId: refundItem.menu_item_id,
+        itemQuantity: refundItem.quantity,
+        itemName: refundItem.item_name,
+        orderNumber: order.order_number,
+        reason: "refunded",
+        reasonDetail: reason,
+        loggedBy: user?.id,
+      });
+    }
     setLocalItems(prev => {
       const current = prev.length > 0 ? prev : order.items;
       return current.map(i =>
@@ -191,7 +218,10 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
           ? { ...i, is_refunded: true, refund_reason: reason } : i
       );
     });
-    toast({ title: "Item refunded", description: `${refundItem.item_name}: ${reason}` });
+    toast({
+      title: "Item refunded",
+      description: `${refundItem.item_name}: ${reason}${wastedCount > 0 ? ` · ${wastedCount} ingredient(s) logged to wastage` : ""}`,
+    });
     setRefundItem(null);
   };
 
