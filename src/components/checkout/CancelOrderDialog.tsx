@@ -2,7 +2,10 @@ import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { logWastageForPreparedItem } from "@/lib/wastageHelpers";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -33,7 +36,9 @@ const CancelOrderDialog = ({ open, orderId, orderNumber, tableId, onClose, onCan
   const [reason, setReason] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [wasPrepared, setWasPrepared] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleConfirm = async () => {
     const finalReason = reason === "Other" ? customReason.trim() : reason;
@@ -56,22 +61,55 @@ const CancelOrderDialog = ({ open, orderId, orderNumber, tableId, onClose, onCan
       return;
     }
 
+    // If food was prepared, log wastage for every order item
+    let totalWasteLines = 0;
+    if (wasPrepared) {
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("menu_item_id, quantity, item_name, is_void, is_refunded")
+        .eq("order_id", orderId);
+      const { data: ord } = await supabase
+        .from("orders")
+        .select("order_number, branch_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      const orderNum = ord?.order_number ?? orderNumber;
+      for (const it of items || []) {
+        if (it.is_void || it.is_refunded) continue;
+        const lines = await logWastageForPreparedItem({
+          menuItemId: it.menu_item_id,
+          itemQuantity: it.quantity,
+          itemName: it.item_name,
+          orderNumber: orderNum,
+          reason: "cancelled",
+          reasonDetail: finalReason,
+          loggedBy: user?.id,
+          branchId: ord?.branch_id,
+        });
+        totalWasteLines += lines;
+      }
+    }
+
     // Release table if applicable
     if (tableId) {
       await supabase.from("restaurant_tables").update({ status: "available" }).eq("id", tableId);
       await supabase.from("table_sessions").update({ cleared_at: new Date().toISOString() }).eq("table_id", tableId).is("cleared_at", null);
     }
 
-    toast({ title: "Order Cancelled", description: `Order #${orderNumber} has been cancelled` });
+    toast({
+      title: "Order Cancelled",
+      description: `Order #${orderNumber} cancelled${totalWasteLines > 0 ? ` · ${totalWasteLines} ingredient line(s) logged to wastage` : ""}`,
+    });
     setCancelling(false);
     setReason("");
     setCustomReason("");
+    setWasPrepared(false);
     onCancelled();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => { setReason(""); setCustomReason(""); onClose(); }}>
+    <Dialog open={open} onOpenChange={() => { setReason(""); setCustomReason(""); setWasPrepared(false); onClose(); }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -107,6 +145,21 @@ const CancelOrderDialog = ({ open, orderId, orderNumber, tableId, onClose, onCan
               rows={3}
             />
           )}
+
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+            <Checkbox
+              id="cancelorder-prepared"
+              checked={wasPrepared}
+              onCheckedChange={(v) => setWasPrepared(!!v)}
+              className="mt-0.5"
+            />
+            <label htmlFor="cancelorder-prepared" className="text-xs text-foreground cursor-pointer leading-snug">
+              <span className="font-semibold">Food was already prepared</span>
+              <span className="block text-muted-foreground mt-0.5">
+                Ingredients for all non-cancelled items will be logged to the wastage report.
+              </span>
+            </label>
+          </div>
         </div>
 
         <DialogFooter>
