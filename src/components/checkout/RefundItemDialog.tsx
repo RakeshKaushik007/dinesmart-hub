@@ -3,6 +3,7 @@ import { Undo2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -27,13 +28,14 @@ interface Props {
   itemName: string;
   amount: number;
   onClose: () => void;
-  onConfirm: (reason: string) => Promise<void> | void;
+  onConfirm: (reason: string, wasPrepared: boolean) => Promise<void> | void;
 }
 
 const RefundItemDialog = ({ open, itemName, amount, onClose, onConfirm }: Props) => {
   const [reason, setReason] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [wasPrepared, setWasPrepared] = useState(true);
 
   const finalReason = reason === "Other" ? customReason.trim() : reason;
   const canSubmit = finalReason.length > 0;
@@ -41,16 +43,18 @@ const RefundItemDialog = ({ open, itemName, amount, onClose, onConfirm }: Props)
   const handleClose = () => {
     setReason("");
     setCustomReason("");
+    setWasPrepared(true);
     onClose();
   };
 
   const handleConfirm = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
-    await onConfirm(finalReason);
+    await onConfirm(finalReason, wasPrepared);
     setSubmitting(false);
     setReason("");
     setCustomReason("");
+    setWasPrepared(true);
   };
 
   return (
@@ -91,6 +95,20 @@ const RefundItemDialog = ({ open, itemName, amount, onClose, onConfirm }: Props)
               />
             </div>
           )}
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+            <Checkbox
+              id="refund-prepared"
+              checked={wasPrepared}
+              onCheckedChange={(v) => setWasPrepared(!!v)}
+              className="mt-0.5"
+            />
+            <label htmlFor="refund-prepared" className="text-xs text-foreground cursor-pointer leading-snug">
+              <span className="font-semibold">Food was already prepared</span>
+              <span className="block text-muted-foreground mt-0.5">
+                If checked, ingredients will be logged to the wastage report.
+              </span>
+            </label>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
