@@ -24,9 +24,11 @@ import AddItemsDialog from "./AddItemsDialog";
 import CancelOrderDialog from "./CancelOrderDialog";
 import NCReasonDialog from "./NCReasonDialog";
 import RefundItemDialog from "./RefundItemDialog";
+import { logWastageForPreparedItem } from "@/lib/wastageHelpers";
 
 export interface OrderItem {
   id?: string;
+  menu_item_id?: string | null;
   item_name: string;
   quantity: number;
   unit_price: number;
