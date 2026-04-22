@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, Plus, Loader2 } from "lucide-react";
 import StockBadge from "@/components/inventory/StockBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,14 +19,37 @@ const IngredientsPage = () => {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<StockStatus | "all">("all");
 
-  useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase.from("ingredients").select("*").order("name");
-      setIngredients(data || []);
-      setLoading(false);
-    };
-    fetch();
+  const fetchIngredients = useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    const { data } = await supabase.from("ingredients").select("*").order("name");
+    setIngredients(data || []);
+    if (showLoader) setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchIngredients(true);
+
+    const handleFocus = () => fetchIngredients();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchIngredients();
+      }
+    };
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchIngredients();
+      }
+    }, 10000);
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchIngredients]);
 
   const categories = ["All", ...new Set(ingredients.map((i) => i.category).filter(Boolean))];
 
