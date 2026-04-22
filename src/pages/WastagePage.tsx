@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const reasonStyles: Record<string, string> = {
   expired: "bg-destructive/10 text-destructive",
@@ -13,18 +21,78 @@ const reasonStyles: Record<string, string> = {
 const WastagePage = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ingredients, setIngredients] = useState<any[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ ingredient_id: "", quantity: "", reason: "expired", notes: "" });
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const fetchLogs = async () => {
+    const { data } = await supabase
+      .from("wastage_logs")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setLogs(data || []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("wastage_logs")
-        .select("*")
-        .order("created_at", { ascending: false });
-      setLogs(data || []);
-      setLoading(false);
-    };
-    fetch();
+    fetchLogs();
+    supabase.from("ingredients").select("id,name,unit,cost_per_unit,category,branch_id").order("name")
+      .then(({ data }) => setIngredients(data || []));
   }, []);
+
+  const handleSubmit = async () => {
+    if (!form.ingredient_id || !form.quantity || Number(form.quantity) <= 0) {
+      toast({ title: "Missing fields", description: "Select an ingredient and enter a valid quantity.", variant: "destructive" });
+      return;
+    }
+    const ing = ingredients.find((i) => i.id === form.ingredient_id);
+    if (!ing) return;
+    setSubmitting(true);
+    const qty = Number(form.quantity);
+    const cost = qty * Number(ing.cost_per_unit || 0);
+
+    const { error: logErr } = await supabase.from("wastage_logs").insert({
+      ingredient_id: ing.id,
+      ingredient_name: ing.name,
+      category: ing.category,
+      quantity: qty,
+      unit: ing.unit,
+      cost,
+      reason: form.reason,
+      notes: form.notes || null,
+      branch_id: ing.branch_id,
+      logged_by: user?.id || null,
+    });
+
+    if (logErr) {
+      toast({ title: "Failed to log wastage", description: logErr.message, variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+
+    // Deduct from inventory
+    const { error: updErr } = await supabase
+      .from("ingredients")
+      .update({ current_stock: Math.max(0, Number(ing.current_stock || 0) - qty), updated_at: new Date().toISOString() })
+      .eq("id", ing.id);
+
+    if (updErr) {
+      toast({ title: "Logged, but stock not updated", description: updErr.message, variant: "destructive" });
+    } else {
+      toast({ title: "Wastage logged", description: `${qty} ${ing.unit} of ${ing.name} deducted from stock.` });
+    }
+
+    setForm({ ingredient_id: "", quantity: "", reason: "expired", notes: "" });
+    setDialogOpen(false);
+    setSubmitting(false);
+    fetchLogs();
+    // refresh ingredients to reflect new stock
+    const { data } = await supabase.from("ingredients").select("id,name,unit,cost_per_unit,category,branch_id,current_stock").order("name");
+    setIngredients(data || []);
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -43,7 +111,10 @@ const WastagePage = () => {
           <h1 className="text-2xl font-bold text-foreground">Wastage & Discrepancy Logs</h1>
           <p className="text-sm text-muted-foreground mt-1">Track waste, spoilage, and stock mismatches</p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+        <button
+          onClick={() => setDialogOpen(true)}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
           <Plus className="h-4 w-4" />
           Log Wastage
         </button>
@@ -102,6 +173,55 @@ const WastagePage = () => {
         </div>
         {logs.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">No wastage logs recorded.</div>}
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log Wastage</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Ingredient</Label>
+              <Select value={form.ingredient_id} onValueChange={(v) => setForm({ ...form, ingredient_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select ingredient" /></SelectTrigger>
+                <SelectContent>
+                  {ingredients.map((i) => (
+                    <SelectItem key={i.id} value={i.id}>{i.name} ({i.unit})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantity</Label>
+              <Input type="number" min="0" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Select value={form.reason} onValueChange={(v) => setForm({ ...form, reason: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expired">Expired</SelectItem>
+                  <SelectItem value="spoiled">Spoiled</SelectItem>
+                  <SelectItem value="spilled">Spilled</SelectItem>
+                  <SelectItem value="over_cooking">Over cooking</SelectItem>
+                  <SelectItem value="discrepancy">Discrepancy</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Log & Deduct Stock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
