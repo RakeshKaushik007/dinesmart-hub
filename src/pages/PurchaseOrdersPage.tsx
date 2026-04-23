@@ -181,7 +181,7 @@ const PurchaseOrdersPage = () => {
     return sum + qty * rate;
   }, 0);
 
-  const handleCreatePurchaseOrder = async () => {
+  const handleCreatePurchaseOrder = async (asDraft = false) => {
     const trimmedVendorName = vendorName.trim();
     const preparedLines = lines
       .map((line) => {
@@ -219,11 +219,11 @@ const PurchaseOrdersPage = () => {
       .insert({
         vendor_name: trimmedVendorName,
         vendor_phone: vendorPhone.trim() || null,
-        status: "received",
+        status: asDraft ? "draft" : "received",
         total_amount: totalAmount,
         created_by: user?.id ?? null,
         branch_id: branchId,
-        received_date: new Date().toISOString().slice(0, 10),
+        received_date: asDraft ? null : new Date().toISOString().slice(0, 10),
       })
       .select("id")
       .single();
@@ -240,7 +240,7 @@ const PurchaseOrdersPage = () => {
         ingredient_id: line.ingredient!.id,
         ingredient_name: line.ingredient!.name,
         quantity: line.quantity,
-        received_quantity: line.quantity,
+        received_quantity: asDraft ? 0 : line.quantity,
         unit: line.ingredient!.unit,
         unit_cost: line.unitCost,
         total_cost: line.quantity * line.unitCost,
@@ -255,16 +255,19 @@ const PurchaseOrdersPage = () => {
       return;
     }
 
-    await applyStockIn(order.id, preparedLines.map((line) => ({
-      ingredient_id: line.ingredient!.id,
-      ingredient_name: line.ingredient!.name,
-      quantity: line.quantity,
-      unit: line.ingredient!.unit,
-      unit_cost: line.unitCost,
-      expiry_date: line.expiry_date,
-    })));
-
-    toast({ title: "Purchase order received", description: "Stock has been added to your inventory." });
+    if (!asDraft) {
+      await applyStockIn(order.id, preparedLines.map((line) => ({
+        ingredient_id: line.ingredient!.id,
+        ingredient_name: line.ingredient!.name,
+        quantity: line.quantity,
+        unit: line.ingredient!.unit,
+        unit_cost: line.unitCost,
+        expiry_date: line.expiry_date,
+      })));
+      toast({ title: "Purchase order received", description: "Stock has been added to your inventory." });
+    } else {
+      toast({ title: "Draft saved", description: "Mark it as received later to update stock." });
+    }
     resetForm();
     setDialogOpen(false);
     setSubmitting(false);
