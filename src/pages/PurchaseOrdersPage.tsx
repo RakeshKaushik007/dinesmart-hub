@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Loader2, Plus, Trash2, Truck } from "lucide-react";
+import { FileText, Loader2, PackageCheck, Plus, Trash2, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -74,10 +74,10 @@ const PurchaseOrdersPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [vendorName, setVendorName] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
-  const [expectedDate, setExpectedDate] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<PurchaseOrderStatus>("draft");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
+  const [receivingId, setReceivingId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, roles } = useAuth();
 
