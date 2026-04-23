@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Loader2, Pencil } from "lucide-react";
+import { Search, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import StockBadge from "@/components/inventory/StockBadge";
 import { supabase } from "@/integrations/supabase/client";
 import type { StockStatus } from "@/data/mockInventory";
@@ -7,7 +7,16 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -32,12 +41,10 @@ const IngredientsPage = () => {
     name: "",
     category: "",
     unit: "kg",
-    current_stock: "",
     min_threshold: "",
-    cost_per_unit: "",
-    expiry_date: "",
-    notes: "",
   });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
   const { roles } = useAuth();
   const branchId = roles.find((r) => r.branch_id)?.branch_id ?? null;
@@ -80,11 +87,7 @@ const IngredientsPage = () => {
       name: "",
       category: "",
       unit: "kg",
-      current_stock: "",
       min_threshold: "",
-      cost_per_unit: "",
-      expiry_date: "",
-      notes: "",
     });
   };
 
@@ -99,11 +102,7 @@ const IngredientsPage = () => {
       name: item.name ?? "",
       category: item.category ?? "",
       unit: item.unit ?? "kg",
-      current_stock: String(item.current_stock ?? ""),
       min_threshold: String(item.min_threshold ?? ""),
-      cost_per_unit: String(item.cost_per_unit ?? ""),
-      expiry_date: item.expiry_date ?? "",
-      notes: "",
     });
     setDialogOpen(true);
   };
@@ -124,30 +123,42 @@ const IngredientsPage = () => {
       toast({ title: "Name required", description: "Enter an ingredient name.", variant: "destructive" });
       return;
     }
-    const stock = Number(form.current_stock || 0);
     const min = Number(form.min_threshold || 0);
-    const cost = Number(form.cost_per_unit || 0);
-    if (stock < 0 || min < 0 || cost < 0) {
-      toast({ title: "Invalid values", description: "Stock, threshold and cost must be zero or positive.", variant: "destructive" });
+    if (min < 0) {
+      toast({ title: "Invalid values", description: "Threshold must be zero or positive.", variant: "destructive" });
       return;
     }
 
     setSubmitting(true);
-    const payload = {
-      name,
-      category: form.category.trim() || null,
-      unit: form.unit.trim() || "kg",
-      current_stock: stock,
-      min_threshold: min,
-      cost_per_unit: cost,
-      expiry_date: form.expiry_date || null,
-      status: computeStatus(stock, min, form.expiry_date || null),
-      branch_id: branchId,
-    };
-
-    const { error } = editingId
-      ? await supabase.from("ingredients").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingId)
-      : await supabase.from("ingredients").insert(payload);
+    let error;
+    if (editingId) {
+      // Editing: only update name/category/unit/threshold; recompute status from existing stock+expiry
+      const existing = ingredients.find((i) => i.id === editingId);
+      const stock = Number(existing?.current_stock ?? 0);
+      const expiry = existing?.expiry_date ?? null;
+      const updatePayload = {
+        name,
+        category: form.category.trim() || null,
+        unit: form.unit.trim() || "kg",
+        min_threshold: min,
+        status: computeStatus(stock, min, expiry),
+        updated_at: new Date().toISOString(),
+      };
+      ({ error } = await supabase.from("ingredients").update(updatePayload).eq("id", editingId));
+    } else {
+      const insertPayload = {
+        name,
+        category: form.category.trim() || null,
+        unit: form.unit.trim() || "kg",
+        current_stock: 0,
+        min_threshold: min,
+        cost_per_unit: 0,
+        expiry_date: null,
+        status: computeStatus(0, min, null),
+        branch_id: branchId,
+      };
+      ({ error } = await supabase.from("ingredients").insert(insertPayload));
+    }
 
     if (error) {
       toast({ title: editingId ? "Could not update ingredient" : "Could not add ingredient", description: error.message, variant: "destructive" });
@@ -160,6 +171,20 @@ const IngredientsPage = () => {
     resetForm();
     setSubmitting(false);
     fetchIngredients();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    const { error } = await supabase.from("ingredients").delete().eq("id", deleteId);
+    if (error) {
+      toast({ title: "Could not remove ingredient", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Ingredient removed", description: "It has been deleted from stock and alerts." });
+      fetchIngredients();
+    }
+    setDeleting(false);
+    setDeleteId(null);
   };
 
   const categories = ["All", ...new Set(ingredients.map((i) => i.category).filter(Boolean))];
@@ -235,9 +260,14 @@ const IngredientsPage = () => {
                 </td>
                 <td className="px-5 py-3.5"><StockBadge status={item.status as StockStatus} /></td>
                 <td className="px-5 py-3.5 text-right">
-                  <button onClick={() => openEditDialog(item)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                    <Pencil className="h-3.5 w-3.5" /> Edit
-                  </button>
+                  <div className="inline-flex items-center gap-1">
+                    <button onClick={() => openEditDialog(item)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </button>
+                    <button onClick={() => setDeleteId(item.id)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" /> Remove
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -264,21 +294,10 @@ const IngredientsPage = () => {
               <Label htmlFor="ing-unit">Unit</Label>
               <Input id="ing-unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg, L, pcs" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ing-stock">Current stock</Label>
-              <Input id="ing-stock" type="number" min="0" step="0.01" value={form.current_stock} onChange={(e) => setForm({ ...form, current_stock: e.target.value })} />
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="ing-min">Min threshold</Label>
               <Input id="ing-min" type="number" min="0" step="0.01" value={form.min_threshold} onChange={(e) => setForm({ ...form, min_threshold: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ing-cost">Cost per unit (₹)</Label>
-              <Input id="ing-cost" type="number" min="0" step="0.01" value={form.cost_per_unit} onChange={(e) => setForm({ ...form, cost_per_unit: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ing-expiry">Expiry date</Label>
-              <Input id="ing-expiry" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+              <p className="text-xs text-muted-foreground">Stock, cost & expiry are updated automatically when a purchase order is received.</p>
             </div>
           </div>
           <DialogFooter>
@@ -290,6 +309,24 @@ const IngredientsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this ingredient?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the ingredient from your stock and clear its alerts. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

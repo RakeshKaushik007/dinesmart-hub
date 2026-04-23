@@ -20,6 +20,7 @@ interface IngredientOption {
   name: string;
   unit: string;
   cost_per_unit: number;
+  category: string | null;
 }
 
 interface PurchaseOrderItemRow {
@@ -81,6 +82,7 @@ const PurchaseOrdersPage = () => {
   const [vendorPhone, setVendorPhone] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
   const [receivingId, setReceivingId] = useState<string | null>(null);
+  const [lineCategoryFilter, setLineCategoryFilter] = useState<Record<number, string>>({});
   const { toast } = useToast();
   const { user, roles } = useAuth();
 
@@ -116,7 +118,7 @@ const PurchaseOrdersPage = () => {
           )
         `)
         .order("created_at", { ascending: false }),
-      supabase.from("ingredients").select("id, name, unit, cost_per_unit").order("name"),
+      supabase.from("ingredients").select("id, name, unit, cost_per_unit, category").order("name"),
     ]);
 
     if (ordersRes.error) {
@@ -134,6 +136,7 @@ const PurchaseOrdersPage = () => {
           name: item.name,
           unit: item.unit,
           cost_per_unit: Number(item.cost_per_unit),
+          category: item.category ?? null,
         })),
       );
     }
@@ -149,6 +152,7 @@ const PurchaseOrdersPage = () => {
     setVendorName("");
     setVendorPhone("");
     setLines([{ ...emptyLine }]);
+    setLineCategoryFilter({});
   };
 
   const updateLine = (index: number, patch: Partial<DraftLine>) => {
@@ -376,7 +380,7 @@ const PurchaseOrdersPage = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {["all", "draft", "sent", "partial", "received", "cancelled"].map((value) => (
+        {["all", "draft"].map((value) => (
           <button
             key={value}
             onClick={() => setFilter(value)}
@@ -510,9 +514,43 @@ const PurchaseOrdersPage = () => {
               {lines.map((line, index) => {
                 const selectedIngredient = ingredients.find((item) => item.id === line.ingredient_id);
                 const lineTotal = Number(line.quantity || 0) * Number(line.unit_cost || 0);
+                const allCategories = Array.from(
+                  new Set(ingredients.map((i) => i.category).filter((c): c is string => !!c)),
+                ).sort();
+                const selectedCategory = lineCategoryFilter[index] ?? "all";
+                const filteredIngredients =
+                  selectedCategory === "all"
+                    ? ingredients
+                    : ingredients.filter((i) => i.category === selectedCategory);
 
                 return (
-                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,2fr)_100px_100px_160px_auto]">
+                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_90px_90px_150px_auto]">
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select
+                        value={selectedCategory}
+                        onValueChange={(value) => {
+                          setLineCategoryFilter((prev) => ({ ...prev, [index]: value }));
+                          // Clear ingredient if it no longer matches
+                          const current = ingredients.find((i) => i.id === line.ingredient_id);
+                          if (value !== "all" && current && current.category !== value) {
+                            updateLine(index, { ingredient_id: "" });
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All categories</SelectItem>
+                          {allCategories.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-2">
                       <Label>Ingredient</Label>
                       <Select value={line.ingredient_id} onValueChange={(value) => updateLine(index, { ingredient_id: value })}>
@@ -520,11 +558,17 @@ const PurchaseOrdersPage = () => {
                           <SelectValue placeholder="Select ingredient" />
                         </SelectTrigger>
                         <SelectContent>
-                          {ingredients.map((ingredient) => (
-                            <SelectItem key={ingredient.id} value={ingredient.id}>
-                              {ingredient.name} ({ingredient.unit})
-                            </SelectItem>
-                          ))}
+                          {filteredIngredients.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                              No ingredients in this category. Add one in the Ingredients page first.
+                            </div>
+                          ) : (
+                            filteredIngredients.map((ingredient) => (
+                              <SelectItem key={ingredient.id} value={ingredient.id}>
+                                {ingredient.name} ({ingredient.unit})
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
