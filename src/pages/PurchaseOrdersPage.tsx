@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Loader2, PackageCheck, Plus, Trash2, Truck } from "lucide-react";
+import { CalendarIcon, FileText, Loader2, PackageCheck, Plus, Trash2, Truck } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,7 @@ interface PurchaseOrderItemRow {
   unit: string;
   unit_cost: number;
   total_cost: number;
+  expiry_date: string | null;
 }
 
 interface PurchaseOrderRow {
@@ -49,6 +52,7 @@ interface DraftLine {
   ingredient_id: string;
   quantity: string;
   unit_cost: string;
+  expiry_date: string | null;
 }
 
 const statusStyles: Record<PurchaseOrderStatus, string> = {
@@ -63,6 +67,7 @@ const emptyLine: DraftLine = {
   ingredient_id: "",
   quantity: "",
   unit_cost: "",
+  expiry_date: null,
 };
 
 const PurchaseOrdersPage = () => {
@@ -74,8 +79,6 @@ const PurchaseOrdersPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [vendorName, setVendorName] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
-  const [notes, setNotes] = useState("");
-  const [status, setStatus] = useState<PurchaseOrderStatus>("draft");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
   const [receivingId, setReceivingId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -108,7 +111,8 @@ const PurchaseOrdersPage = () => {
             received_quantity,
             unit,
             unit_cost,
-            total_cost
+            total_cost,
+            expiry_date
           )
         `)
         .order("created_at", { ascending: false }),
@@ -144,8 +148,6 @@ const PurchaseOrdersPage = () => {
   const resetForm = () => {
     setVendorName("");
     setVendorPhone("");
-    setNotes("");
-    setStatus("draft");
     setLines([{ ...emptyLine }]);
   };
 
@@ -184,6 +186,7 @@ const PurchaseOrdersPage = () => {
           ingredient,
           quantity: Number(line.quantity || 0),
           unitCost: Number(line.unit_cost || 0),
+          expiry_date: line.expiry_date,
         };
       })
       .filter((line) => line.ingredient && line.quantity > 0);
@@ -212,12 +215,11 @@ const PurchaseOrdersPage = () => {
       .insert({
         vendor_name: trimmedVendorName,
         vendor_phone: vendorPhone.trim() || null,
-        notes: notes.trim() || null,
-        status,
+        status: "received",
         total_amount: totalAmount,
         created_by: user?.id ?? null,
         branch_id: branchId,
-        received_date: status === "received" ? new Date().toISOString().slice(0, 10) : null,
+        received_date: new Date().toISOString().slice(0, 10),
       })
       .select("id")
       .single();
@@ -234,10 +236,11 @@ const PurchaseOrdersPage = () => {
         ingredient_id: line.ingredient!.id,
         ingredient_name: line.ingredient!.name,
         quantity: line.quantity,
-        received_quantity: status === "received" ? line.quantity : 0,
+        received_quantity: line.quantity,
         unit: line.ingredient!.unit,
         unit_cost: line.unitCost,
         total_cost: line.quantity * line.unitCost,
+        expiry_date: line.expiry_date,
       })),
     );
 
@@ -248,17 +251,16 @@ const PurchaseOrdersPage = () => {
       return;
     }
 
-    if (status === "received") {
-      await applyStockIn(order.id, preparedLines.map((line) => ({
-        ingredient_id: line.ingredient!.id,
-        ingredient_name: line.ingredient!.name,
-        quantity: line.quantity,
-        unit: line.ingredient!.unit,
-        unit_cost: line.unitCost,
-      })));
-    }
+    await applyStockIn(order.id, preparedLines.map((line) => ({
+      ingredient_id: line.ingredient!.id,
+      ingredient_name: line.ingredient!.name,
+      quantity: line.quantity,
+      unit: line.ingredient!.unit,
+      unit_cost: line.unitCost,
+      expiry_date: line.expiry_date,
+    })));
 
-    toast({ title: "Purchase order created", description: "The new purchase order is now saved in your dashboard." });
+    toast({ title: "Purchase order received", description: "Stock has been added to your inventory." });
     resetForm();
     setDialogOpen(false);
     setSubmitting(false);
@@ -267,7 +269,7 @@ const PurchaseOrdersPage = () => {
 
   const applyStockIn = async (
     purchaseOrderId: string,
-    items: { ingredient_id: string; ingredient_name: string; quantity: number; unit: string; unit_cost: number }[],
+    items: { ingredient_id: string; ingredient_name: string; quantity: number; unit: string; unit_cost: number; expiry_date?: string | null }[],
   ) => {
     for (const item of items) {
       const { data: ing } = await supabase
@@ -278,23 +280,29 @@ const PurchaseOrdersPage = () => {
       if (!ing) continue;
       const newStock = Number(ing.current_stock || 0) + item.quantity;
       const minThreshold = Number(ing.min_threshold || 0);
+      const effectiveExpiry = item.expiry_date ?? ing.expiry_date;
       const newStatus =
         newStock <= 0
           ? "out"
           : newStock <= minThreshold
             ? "low"
-            : ing.expiry_date && new Date(ing.expiry_date) <= new Date(Date.now() + 7 * 86400000)
+            : effectiveExpiry && new Date(effectiveExpiry) <= new Date(Date.now() + 7 * 86400000)
               ? "expiring"
               : "good";
-      await supabase
-        .from("ingredients")
-        .update({
-          current_stock: newStock,
-          status: newStatus,
-          last_restocked: new Date().toISOString(),
-          cost_per_unit: item.unit_cost > 0 ? item.unit_cost : undefined,
-        })
-        .eq("id", ing.id);
+      const updatePayload: {
+        current_stock: number;
+        status: string;
+        last_restocked: string;
+        cost_per_unit?: number;
+        expiry_date?: string;
+      } = {
+        current_stock: newStock,
+        status: newStatus,
+        last_restocked: new Date().toISOString(),
+      };
+      if (item.unit_cost > 0) updatePayload.cost_per_unit = item.unit_cost;
+      if (item.expiry_date) updatePayload.expiry_date = item.expiry_date;
+      await supabase.from("ingredients").update(updatePayload).eq("id", ing.id);
       await supabase.from("stock_transactions").insert({
         ingredient_id: ing.id,
         type: "in",
@@ -320,6 +328,7 @@ const PurchaseOrdersPage = () => {
       quantity: Number(item.quantity || 0),
       unit: item.unit,
       unit_cost: Number(item.unit_cost || 0),
+      expiry_date: item.expiry_date,
     })).filter((item) => item.ingredient_id && item.quantity > 0);
 
     if (items.length === 0) {
@@ -416,6 +425,7 @@ const PurchaseOrdersPage = () => {
                     <th className="py-2 text-left font-medium">Item</th>
                     <th className="py-2 text-right font-medium">Qty</th>
                     <th className="py-2 text-right font-medium">Rate</th>
+                    <th className="py-2 text-right font-medium">Expiry</th>
                     <th className="py-2 text-right font-medium">Amount</th>
                   </tr>
                 </thead>
@@ -425,6 +435,11 @@ const PurchaseOrdersPage = () => {
                       <td className="py-2 text-card-foreground">{item.ingredient_name}</td>
                       <td className="py-2 text-right font-mono">{Number(item.quantity)} {item.unit}</td>
                       <td className="py-2 text-right font-mono">₹{Number(item.unit_cost).toLocaleString()}</td>
+                      <td className="py-2 text-right font-mono text-muted-foreground">
+                        {item.expiry_date
+                          ? new Date(item.expiry_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          : "—"}
+                      </td>
                       <td className="py-2 text-right font-mono text-card-foreground">₹{Number(item.total_cost).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -437,7 +452,6 @@ const PurchaseOrdersPage = () => {
                 ? `Received: ${new Date(order.received_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
                 : "Not received yet"}
             </p>
-            {order.notes && <p className="mt-2 text-xs text-muted-foreground">{order.notes}</p>}
 
             {order.status !== "received" && order.status !== "cancelled" && (
               <div className="mt-4 flex justify-end">
@@ -481,25 +495,6 @@ const PurchaseOrdersPage = () => {
               <Label htmlFor="vendor-phone">Vendor phone</Label>
               <Input id="vendor-phone" value={vendorPhone} onChange={(event) => setVendorPhone(event.target.value)} placeholder="9876543210" />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={(value: PurchaseOrderStatus) => setStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="received">Received</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Invoice notes or delivery instructions" rows={3} />
-            </div>
           </div>
 
           <div className="space-y-3">
@@ -517,7 +512,7 @@ const PurchaseOrdersPage = () => {
                 const lineTotal = Number(line.quantity || 0) * Number(line.unit_cost || 0);
 
                 return (
-                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,2fr)_120px_120px_auto]">
+                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,2fr)_100px_100px_160px_auto]">
                     <div className="space-y-2">
                       <Label>Ingredient</Label>
                       <Select value={line.ingredient_id} onValueChange={(value) => updateLine(index, { ingredient_id: value })}>
@@ -540,6 +535,37 @@ const PurchaseOrdersPage = () => {
                     <div className="space-y-2">
                       <Label>Rate</Label>
                       <Input type="number" min="0" step="0.01" value={line.unit_cost} onChange={(event) => updateLine(index, { unit_cost: event.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Expiry</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !line.expiry_date && "text-muted-foreground",
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {line.expiry_date ? format(new Date(line.expiry_date), "PP") : <span>Pick date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={line.expiry_date ? new Date(line.expiry_date) : undefined}
+                            onSelect={(date) =>
+                              updateLine(index, {
+                                expiry_date: date ? format(date, "yyyy-MM-dd") : null,
+                              })
+                            }
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="flex items-end gap-2">
                       <div className="min-w-[88px] pb-2 text-right text-xs text-muted-foreground">
