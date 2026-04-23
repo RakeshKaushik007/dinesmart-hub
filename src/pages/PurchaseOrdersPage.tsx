@@ -248,11 +248,99 @@ const PurchaseOrdersPage = () => {
       return;
     }
 
+    if (status === "received") {
+      await applyStockIn(order.id, preparedLines.map((line) => ({
+        ingredient_id: line.ingredient!.id,
+        ingredient_name: line.ingredient!.name,
+        quantity: line.quantity,
+        unit: line.ingredient!.unit,
+        unit_cost: line.unitCost,
+      })));
+    }
+
     toast({ title: "Purchase order created", description: "The new purchase order is now saved in your dashboard." });
     resetForm();
     setDialogOpen(false);
     setSubmitting(false);
     fetchData(false);
+  };
+
+  const applyStockIn = async (
+    purchaseOrderId: string,
+    items: { ingredient_id: string; ingredient_name: string; quantity: number; unit: string; unit_cost: number }[],
+  ) => {
+    for (const item of items) {
+      const { data: ing } = await supabase
+        .from("ingredients")
+        .select("id, current_stock, min_threshold, expiry_date")
+        .eq("id", item.ingredient_id)
+        .maybeSingle();
+      if (!ing) continue;
+      const newStock = Number(ing.current_stock || 0) + item.quantity;
+      const minThreshold = Number(ing.min_threshold || 0);
+      const newStatus =
+        newStock <= 0
+          ? "out"
+          : newStock <= minThreshold
+            ? "low"
+            : ing.expiry_date && new Date(ing.expiry_date) <= new Date(Date.now() + 7 * 86400000)
+              ? "expiring"
+              : "good";
+      await supabase
+        .from("ingredients")
+        .update({
+          current_stock: newStock,
+          status: newStatus,
+          last_restocked: new Date().toISOString(),
+          cost_per_unit: item.unit_cost > 0 ? item.unit_cost : undefined,
+        })
+        .eq("id", ing.id);
+      await supabase.from("stock_transactions").insert({
+        ingredient_id: ing.id,
+        type: "in",
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_cost: item.unit_cost,
+        total_cost: item.quantity * item.unit_cost,
+        reference_id: purchaseOrderId,
+        reference_type: "purchase_order",
+        branch_id: branchId,
+        created_by: user?.id ?? null,
+        notes: `Restock: ${item.ingredient_name} +${item.quantity} ${item.unit}`,
+      });
+    }
+  };
+
+  const handleMarkReceived = async (order: PurchaseOrderRow) => {
+    if (order.status === "received") return;
+    setReceivingId(order.id);
+    const items = (order.purchase_order_items || []).map((item) => ({
+      ingredient_id: item.ingredient_id || "",
+      ingredient_name: item.ingredient_name,
+      quantity: Number(item.quantity || 0),
+      unit: item.unit,
+      unit_cost: Number(item.unit_cost || 0),
+    })).filter((item) => item.ingredient_id && item.quantity > 0);
+
+    if (items.length === 0) {
+      toast({ title: "No valid items to receive", variant: "destructive" });
+      setReceivingId(null);
+      return;
+    }
+
+    await applyStockIn(order.id, items);
+    const { error } = await supabase
+      .from("purchase_orders")
+      .update({ status: "received", received_date: new Date().toISOString().slice(0, 10) })
+      .eq("id", order.id);
+
+    if (error) {
+      toast({ title: "Could not mark as received", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Stock updated", description: `Ingredients added to inventory from PO-${String(order.po_number).padStart(3, "0")}.` });
+      fetchData(false);
+    }
+    setReceivingId(null);
   };
 
   const filteredOrders = filter === "all" ? orders : orders.filter((order) => order.status === filter);
