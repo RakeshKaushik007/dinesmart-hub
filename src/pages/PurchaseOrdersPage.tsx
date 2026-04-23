@@ -144,7 +144,6 @@ const PurchaseOrdersPage = () => {
   const resetForm = () => {
     setVendorName("");
     setVendorPhone("");
-    setExpectedDate("");
     setNotes("");
     setStatus("draft");
     setLines([{ ...emptyLine }]);
@@ -213,12 +212,12 @@ const PurchaseOrdersPage = () => {
       .insert({
         vendor_name: trimmedVendorName,
         vendor_phone: vendorPhone.trim() || null,
-        expected_date: expectedDate || null,
         notes: notes.trim() || null,
         status,
         total_amount: totalAmount,
         created_by: user?.id ?? null,
         branch_id: branchId,
+        received_date: status === "received" ? new Date().toISOString().slice(0, 10) : null,
       })
       .select("id")
       .single();
