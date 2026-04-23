@@ -123,30 +123,42 @@ const IngredientsPage = () => {
       toast({ title: "Name required", description: "Enter an ingredient name.", variant: "destructive" });
       return;
     }
-    const stock = Number(form.current_stock || 0);
     const min = Number(form.min_threshold || 0);
-    const cost = Number(form.cost_per_unit || 0);
-    if (stock < 0 || min < 0 || cost < 0) {
-      toast({ title: "Invalid values", description: "Stock, threshold and cost must be zero or positive.", variant: "destructive" });
+    if (min < 0) {
+      toast({ title: "Invalid values", description: "Threshold must be zero or positive.", variant: "destructive" });
       return;
     }
 
     setSubmitting(true);
-    const payload = {
-      name,
-      category: form.category.trim() || null,
-      unit: form.unit.trim() || "kg",
-      current_stock: stock,
-      min_threshold: min,
-      cost_per_unit: cost,
-      expiry_date: form.expiry_date || null,
-      status: computeStatus(stock, min, form.expiry_date || null),
-      branch_id: branchId,
-    };
-
-    const { error } = editingId
-      ? await supabase.from("ingredients").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingId)
-      : await supabase.from("ingredients").insert(payload);
+    let error;
+    if (editingId) {
+      // Editing: only update name/category/unit/threshold; recompute status from existing stock+expiry
+      const existing = ingredients.find((i) => i.id === editingId);
+      const stock = Number(existing?.current_stock ?? 0);
+      const expiry = existing?.expiry_date ?? null;
+      const updatePayload = {
+        name,
+        category: form.category.trim() || null,
+        unit: form.unit.trim() || "kg",
+        min_threshold: min,
+        status: computeStatus(stock, min, expiry),
+        updated_at: new Date().toISOString(),
+      };
+      ({ error } = await supabase.from("ingredients").update(updatePayload).eq("id", editingId));
+    } else {
+      const insertPayload = {
+        name,
+        category: form.category.trim() || null,
+        unit: form.unit.trim() || "kg",
+        current_stock: 0,
+        min_threshold: min,
+        cost_per_unit: 0,
+        expiry_date: null,
+        status: computeStatus(0, min, null),
+        branch_id: branchId,
+      };
+      ({ error } = await supabase.from("ingredients").insert(insertPayload));
+    }
 
     if (error) {
       toast({ title: editingId ? "Could not update ingredient" : "Could not add ingredient", description: error.message, variant: "destructive" });
@@ -159,6 +171,20 @@ const IngredientsPage = () => {
     resetForm();
     setSubmitting(false);
     fetchIngredients();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    const { error } = await supabase.from("ingredients").delete().eq("id", deleteId);
+    if (error) {
+      toast({ title: "Could not remove ingredient", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Ingredient removed", description: "It has been deleted from stock and alerts." });
+      fetchIngredients();
+    }
+    setDeleting(false);
+    setDeleteId(null);
   };
 
   const categories = ["All", ...new Set(ingredients.map((i) => i.category).filter(Boolean))];
