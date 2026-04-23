@@ -5,6 +5,7 @@ const statusConfig: Record<StockStatus, { label: string; className: string }> = 
   low: { label: "Low Stock", className: "bg-stock-low/10 text-stock-low" },
   out: { label: "Out of Stock", className: "bg-stock-out/10 text-stock-out" },
   expiring: { label: "Expiring Soon", className: "bg-stock-expiring/10 text-stock-expiring" },
+  expired: { label: "Expired", className: "bg-destructive/15 text-destructive" },
 };
 
 const StockBadge = ({ status }: { status: StockStatus }) => {

@@ -1,4 +1,4 @@
-export type StockStatus = "good" | "low" | "out" | "expiring";
+export type StockStatus = "good" | "low" | "out" | "expiring" | "expired";
 
 export interface Ingredient {
   id: string;

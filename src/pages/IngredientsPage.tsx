@@ -26,6 +26,7 @@ const statusFilters: { label: string; value: StockStatus | "all" }[] = [
   { label: "Low", value: "low" },
   { label: "Out", value: "out" },
   { label: "Expiring", value: "expiring" },
+  { label: "Expired", value: "expired" },
 ];
 
 const IngredientsPage = () => {
@@ -108,12 +109,20 @@ const IngredientsPage = () => {
   };
 
   const computeStatus = (stock: number, min: number, expiry: string | null): StockStatus => {
+    if (expiry) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const exp = new Date(expiry);
+      exp.setHours(0, 0, 0, 0);
+      const days = (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      if (days < 0) return "expired";
+      if (stock <= 0) return "out";
+      if (stock <= min) return "low";
+      if (days <= 7) return "expiring";
+      return "good";
+    }
     if (stock <= 0) return "out";
     if (stock <= min) return "low";
-    if (expiry) {
-      const days = (new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-      if (days <= 7) return "expiring";
-    }
     return "good";
   };
 

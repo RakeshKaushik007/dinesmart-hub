@@ -288,14 +288,18 @@ const PurchaseOrdersPage = () => {
       const newStock = Number(ing.current_stock || 0) + item.quantity;
       const minThreshold = Number(ing.min_threshold || 0);
       const effectiveExpiry = item.expiry_date ?? ing.expiry_date;
-      const newStatus =
-        newStock <= 0
-          ? "out"
-          : newStock <= minThreshold
-            ? "low"
-            : effectiveExpiry && new Date(effectiveExpiry) <= new Date(Date.now() + 7 * 86400000)
-              ? "expiring"
-              : "good";
+      let newStatus: string;
+      if (effectiveExpiry && new Date(effectiveExpiry) < new Date(new Date().setHours(0, 0, 0, 0))) {
+        newStatus = "expired";
+      } else if (newStock <= 0) {
+        newStatus = "out";
+      } else if (newStock <= minThreshold) {
+        newStatus = "low";
+      } else if (effectiveExpiry && new Date(effectiveExpiry) <= new Date(Date.now() + 7 * 86400000)) {
+        newStatus = "expiring";
+      } else {
+        newStatus = "good";
+      }
       const updatePayload: {
         current_stock: number;
         status: string;
