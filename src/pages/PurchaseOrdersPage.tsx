@@ -79,8 +79,6 @@ const PurchaseOrdersPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [vendorName, setVendorName] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
-  const [notes, setNotes] = useState("");
-  const [status, setStatus] = useState<PurchaseOrderStatus>("draft");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
   const [receivingId, setReceivingId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -150,8 +148,6 @@ const PurchaseOrdersPage = () => {
   const resetForm = () => {
     setVendorName("");
     setVendorPhone("");
-    setNotes("");
-    setStatus("draft");
     setLines([{ ...emptyLine }]);
   };
 
