@@ -490,25 +490,6 @@ const PurchaseOrdersPage = () => {
               <Label htmlFor="vendor-phone">Vendor phone</Label>
               <Input id="vendor-phone" value={vendorPhone} onChange={(event) => setVendorPhone(event.target.value)} placeholder="9876543210" />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={(value: PurchaseOrderStatus) => setStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="received">Received</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Invoice notes or delivery instructions" rows={3} />
-            </div>
           </div>
 
           <div className="space-y-3">
@@ -526,7 +507,7 @@ const PurchaseOrdersPage = () => {
                 const lineTotal = Number(line.quantity || 0) * Number(line.unit_cost || 0);
 
                 return (
-                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,2fr)_120px_120px_auto]">
+                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,2fr)_100px_100px_160px_auto]">
                     <div className="space-y-2">
                       <Label>Ingredient</Label>
                       <Select value={line.ingredient_id} onValueChange={(value) => updateLine(index, { ingredient_id: value })}>
@@ -549,6 +530,37 @@ const PurchaseOrdersPage = () => {
                     <div className="space-y-2">
                       <Label>Rate</Label>
                       <Input type="number" min="0" step="0.01" value={line.unit_cost} onChange={(event) => updateLine(index, { unit_cost: event.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Expiry</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !line.expiry_date && "text-muted-foreground",
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {line.expiry_date ? format(new Date(line.expiry_date), "PP") : <span>Pick date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={line.expiry_date ? new Date(line.expiry_date) : undefined}
+                            onSelect={(date) =>
+                              updateLine(index, {
+                                expiry_date: date ? format(date, "yyyy-MM-dd") : null,
+                              })
+                            }
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="flex items-end gap-2">
                       <div className="min-w-[88px] pb-2 text-right text-xs text-muted-foreground">
