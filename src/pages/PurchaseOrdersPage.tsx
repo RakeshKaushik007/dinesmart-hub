@@ -639,9 +639,13 @@ const PurchaseOrdersPage = () => {
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleCreatePurchaseOrder} disabled={submitting}>
+            <Button type="button" variant="outline" onClick={() => handleCreatePurchaseOrder(true)} disabled={submitting}>
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Save purchase order
+              Save as draft
+            </Button>
+            <Button type="button" onClick={() => handleCreatePurchaseOrder(false)} disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save & receive stock
             </Button>
           </DialogFooter>
         </DialogContent>
