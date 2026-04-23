@@ -551,6 +551,7 @@ export type Database = {
       purchase_order_items: {
         Row: {
           created_at: string
+          expiry_date: string | null
           id: string
           ingredient_id: string | null
           ingredient_name: string
@@ -563,6 +564,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expiry_date?: string | null
           id?: string
           ingredient_id?: string | null
           ingredient_name: string
@@ -575,6 +577,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expiry_date?: string | null
           id?: string
           ingredient_id?: string | null
           ingredient_name?: string

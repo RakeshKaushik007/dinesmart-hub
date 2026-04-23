@@ -1,0 +1,1 @@
+ALTER TABLE public.purchase_order_items ADD COLUMN expiry_date date;
