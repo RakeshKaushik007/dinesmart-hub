@@ -260,9 +260,14 @@ const IngredientsPage = () => {
                 </td>
                 <td className="px-5 py-3.5"><StockBadge status={item.status as StockStatus} /></td>
                 <td className="px-5 py-3.5 text-right">
-                  <button onClick={() => openEditDialog(item)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                    <Pencil className="h-3.5 w-3.5" /> Edit
-                  </button>
+                  <div className="inline-flex items-center gap-1">
+                    <button onClick={() => openEditDialog(item)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </button>
+                    <button onClick={() => setDeleteId(item.id)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" /> Remove
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -289,21 +294,10 @@ const IngredientsPage = () => {
               <Label htmlFor="ing-unit">Unit</Label>
               <Input id="ing-unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg, L, pcs" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ing-stock">Current stock</Label>
-              <Input id="ing-stock" type="number" min="0" step="0.01" value={form.current_stock} onChange={(e) => setForm({ ...form, current_stock: e.target.value })} />
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="ing-min">Min threshold</Label>
               <Input id="ing-min" type="number" min="0" step="0.01" value={form.min_threshold} onChange={(e) => setForm({ ...form, min_threshold: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ing-cost">Cost per unit (₹)</Label>
-              <Input id="ing-cost" type="number" min="0" step="0.01" value={form.cost_per_unit} onChange={(e) => setForm({ ...form, cost_per_unit: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ing-expiry">Expiry date</Label>
-              <Input id="ing-expiry" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+              <p className="text-xs text-muted-foreground">Stock, cost & expiry are updated automatically when a purchase order is received.</p>
             </div>
           </div>
           <DialogFooter>
@@ -315,6 +309,24 @@ const IngredientsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this ingredient?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the ingredient from your stock and clear its alerts. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
