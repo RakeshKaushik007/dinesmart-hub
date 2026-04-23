@@ -269,7 +269,7 @@ const PurchaseOrdersPage = () => {
 
   const applyStockIn = async (
     purchaseOrderId: string,
-    items: { ingredient_id: string; ingredient_name: string; quantity: number; unit: string; unit_cost: number }[],
+    items: { ingredient_id: string; ingredient_name: string; quantity: number; unit: string; unit_cost: number; expiry_date?: string | null }[],
   ) => {
     for (const item of items) {
       const { data: ing } = await supabase
@@ -280,23 +280,23 @@ const PurchaseOrdersPage = () => {
       if (!ing) continue;
       const newStock = Number(ing.current_stock || 0) + item.quantity;
       const minThreshold = Number(ing.min_threshold || 0);
+      const effectiveExpiry = item.expiry_date ?? ing.expiry_date;
       const newStatus =
         newStock <= 0
           ? "out"
           : newStock <= minThreshold
             ? "low"
-            : ing.expiry_date && new Date(ing.expiry_date) <= new Date(Date.now() + 7 * 86400000)
+            : effectiveExpiry && new Date(effectiveExpiry) <= new Date(Date.now() + 7 * 86400000)
               ? "expiring"
               : "good";
-      await supabase
-        .from("ingredients")
-        .update({
-          current_stock: newStock,
-          status: newStatus,
-          last_restocked: new Date().toISOString(),
-          cost_per_unit: item.unit_cost > 0 ? item.unit_cost : undefined,
-        })
-        .eq("id", ing.id);
+      const updatePayload: Record<string, unknown> = {
+        current_stock: newStock,
+        status: newStatus,
+        last_restocked: new Date().toISOString(),
+      };
+      if (item.unit_cost > 0) updatePayload.cost_per_unit = item.unit_cost;
+      if (item.expiry_date) updatePayload.expiry_date = item.expiry_date;
+      await supabase.from("ingredients").update(updatePayload).eq("id", ing.id);
       await supabase.from("stock_transactions").insert({
         ingredient_id: ing.id,
         type: "in",
