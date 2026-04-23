@@ -377,10 +377,6 @@ const PurchaseOrdersPage = () => {
               <Input id="vendor-phone" value={vendorPhone} onChange={(event) => setVendorPhone(event.target.value)} placeholder="9876543210" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="expected-date">Expected date</Label>
-              <Input id="expected-date" type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} />
-            </div>
-            <div className="space-y-2">
               <Label>Status</Label>
               <Select value={status} onValueChange={(value: PurchaseOrderStatus) => setStatus(value)}>
                 <SelectTrigger>
