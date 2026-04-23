@@ -113,7 +113,8 @@ const PurchaseOrdersPage = () => {
             received_quantity,
             unit,
             unit_cost,
-            total_cost
+            total_cost,
+            expiry_date
           )
         `)
         .order("created_at", { ascending: false }),
