@@ -20,6 +20,7 @@ interface IngredientOption {
   name: string;
   unit: string;
   cost_per_unit: number;
+  category: string | null;
 }
 
 interface PurchaseOrderItemRow {
@@ -81,6 +82,7 @@ const PurchaseOrdersPage = () => {
   const [vendorPhone, setVendorPhone] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
   const [receivingId, setReceivingId] = useState<string | null>(null);
+  const [lineCategoryFilter, setLineCategoryFilter] = useState<Record<number, string>>({});
   const { toast } = useToast();
   const { user, roles } = useAuth();
 
@@ -116,7 +118,7 @@ const PurchaseOrdersPage = () => {
           )
         `)
         .order("created_at", { ascending: false }),
-      supabase.from("ingredients").select("id, name, unit, cost_per_unit").order("name"),
+      supabase.from("ingredients").select("id, name, unit, cost_per_unit, category").order("name"),
     ]);
 
     if (ordersRes.error) {
@@ -134,6 +136,7 @@ const PurchaseOrdersPage = () => {
           name: item.name,
           unit: item.unit,
           cost_per_unit: Number(item.cost_per_unit),
+          category: item.category ?? null,
         })),
       );
     }
@@ -149,6 +152,7 @@ const PurchaseOrdersPage = () => {
     setVendorName("");
     setVendorPhone("");
     setLines([{ ...emptyLine }]);
+    setLineCategoryFilter({});
   };
 
   const updateLine = (index: number, patch: Partial<DraftLine>) => {
