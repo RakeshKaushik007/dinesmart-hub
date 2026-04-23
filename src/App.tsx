@@ -35,6 +35,7 @@ import MenuManagementPage from "@/pages/MenuManagementPage";
 import AuditLogPage from "@/pages/AuditLogPage";
 import DataImportPage from "@/pages/DataImportPage";
 import VoidNCLogPage from "@/pages/VoidNCLogPage";
+import IngredientConsumptionPage from "@/pages/IngredientConsumptionPage";
 import PaymentMethodsPage from "@/pages/PaymentMethodsPage";
 import PendingAggregatorSettlementPage from "@/pages/PendingAggregatorSettlementPage";
 import StaffPage from "@/pages/StaffPage";
@@ -86,6 +87,7 @@ const App = () => (
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
                 <Route path="/menu-management" element={<ProtectedRoute requiredRole="owner"><MenuManagementPage /></ProtectedRoute>} />
                 <Route path="/data-import" element={<ProtectedRoute requiredRole="owner"><DataImportPage /></ProtectedRoute>} />
+                <Route path="/ingredient-consumption" element={<ProtectedRoute requiredRole="owner"><IngredientConsumptionPage /></ProtectedRoute>} />
 
                 {/* Settings - all roles */}
                 <Route path="/settings" element={<SettingsPage />} />

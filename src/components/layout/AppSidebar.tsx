@@ -89,6 +89,7 @@ const navGroups: NavGroup[] = [
       { to: "/ingredients", icon: Package, label: "Stock & Alerts", minRole: "branch_manager" },
       { to: "/purchase-orders", icon: Truck, label: "Purchase Orders", minRole: "branch_manager" },
       { to: "/wastage", icon: Trash2, label: "Wastage Logs", minRole: "branch_manager" },
+      { to: "/ingredient-consumption", icon: TrendingUp, label: "Consumption Insights", minRole: "owner" },
     ],
   },
   {
