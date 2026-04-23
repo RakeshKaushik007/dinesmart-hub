@@ -425,6 +425,7 @@ const PurchaseOrdersPage = () => {
                     <th className="py-2 text-left font-medium">Item</th>
                     <th className="py-2 text-right font-medium">Qty</th>
                     <th className="py-2 text-right font-medium">Rate</th>
+                    <th className="py-2 text-right font-medium">Expiry</th>
                     <th className="py-2 text-right font-medium">Amount</th>
                   </tr>
                 </thead>
@@ -434,6 +435,11 @@ const PurchaseOrdersPage = () => {
                       <td className="py-2 text-card-foreground">{item.ingredient_name}</td>
                       <td className="py-2 text-right font-mono">{Number(item.quantity)} {item.unit}</td>
                       <td className="py-2 text-right font-mono">₹{Number(item.unit_cost).toLocaleString()}</td>
+                      <td className="py-2 text-right font-mono text-muted-foreground">
+                        {item.expiry_date
+                          ? new Date(item.expiry_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          : "—"}
+                      </td>
                       <td className="py-2 text-right font-mono text-card-foreground">₹{Number(item.total_cost).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -446,7 +452,6 @@ const PurchaseOrdersPage = () => {
                 ? `Received: ${new Date(order.received_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
                 : "Not received yet"}
             </p>
-            {order.notes && <p className="mt-2 text-xs text-muted-foreground">{order.notes}</p>}
 
             {order.status !== "received" && order.status !== "cancelled" && (
               <div className="mt-4 flex justify-end">
