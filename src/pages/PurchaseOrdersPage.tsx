@@ -433,12 +433,29 @@ const PurchaseOrdersPage = () => {
             </div>
 
             <p className="mt-3 text-[10px] font-mono text-muted-foreground">
-              {order.expected_date
-                ? `Expected: ${new Date(order.expected_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
-                : "Expected date not set"}
-              {order.received_date && ` • Received: ${new Date(order.received_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+              {order.received_date
+                ? `Received: ${new Date(order.received_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                : "Not received yet"}
             </p>
             {order.notes && <p className="mt-2 text-xs text-muted-foreground">{order.notes}</p>}
+
+            {order.status !== "received" && order.status !== "cancelled" && (
+              <div className="mt-4 flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleMarkReceived(order)}
+                  disabled={receivingId === order.id}
+                >
+                  {receivingId === order.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <PackageCheck className="h-4 w-4" />
+                  )}
+                  Mark as Received & Add to Stock
+                </Button>
+              </div>
+            )}
           </div>
         ))}
 
