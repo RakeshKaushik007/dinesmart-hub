@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Loader2, PackageCheck, Plus, Trash2, Truck } from "lucide-react";
+import { CalendarIcon, FileText, Loader2, PackageCheck, Plus, Trash2, Truck } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,7 @@ interface PurchaseOrderItemRow {
   unit: string;
   unit_cost: number;
   total_cost: number;
+  expiry_date: string | null;
 }
 
 interface PurchaseOrderRow {
@@ -49,6 +52,7 @@ interface DraftLine {
   ingredient_id: string;
   quantity: string;
   unit_cost: string;
+  expiry_date: string | null;
 }
 
 const statusStyles: Record<PurchaseOrderStatus, string> = {
@@ -63,6 +67,7 @@ const emptyLine: DraftLine = {
   ingredient_id: "",
   quantity: "",
   unit_cost: "",
+  expiry_date: null,
 };
 
 const PurchaseOrdersPage = () => {
