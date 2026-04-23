@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Loader2, Pencil } from "lucide-react";
+import { Search, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import StockBadge from "@/components/inventory/StockBadge";
 import { supabase } from "@/integrations/supabase/client";
 import type { StockStatus } from "@/data/mockInventory";
@@ -7,7 +7,16 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -32,12 +41,10 @@ const IngredientsPage = () => {
     name: "",
     category: "",
     unit: "kg",
-    current_stock: "",
     min_threshold: "",
-    cost_per_unit: "",
-    expiry_date: "",
-    notes: "",
   });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
   const { roles } = useAuth();
   const branchId = roles.find((r) => r.branch_id)?.branch_id ?? null;
@@ -80,11 +87,7 @@ const IngredientsPage = () => {
       name: "",
       category: "",
       unit: "kg",
-      current_stock: "",
       min_threshold: "",
-      cost_per_unit: "",
-      expiry_date: "",
-      notes: "",
     });
   };
 
@@ -99,11 +102,7 @@ const IngredientsPage = () => {
       name: item.name ?? "",
       category: item.category ?? "",
       unit: item.unit ?? "kg",
-      current_stock: String(item.current_stock ?? ""),
       min_threshold: String(item.min_threshold ?? ""),
-      cost_per_unit: String(item.cost_per_unit ?? ""),
-      expiry_date: item.expiry_date ?? "",
-      notes: "",
     });
     setDialogOpen(true);
   };
