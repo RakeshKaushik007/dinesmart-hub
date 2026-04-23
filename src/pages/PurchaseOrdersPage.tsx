@@ -328,6 +328,7 @@ const PurchaseOrdersPage = () => {
       quantity: Number(item.quantity || 0),
       unit: item.unit,
       unit_cost: Number(item.unit_cost || 0),
+      expiry_date: item.expiry_date,
     })).filter((item) => item.ingredient_id && item.quantity > 0);
 
     if (items.length === 0) {
