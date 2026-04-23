@@ -101,7 +101,7 @@ const navGroups: NavGroup[] = [
       { to: "/order-history", icon: Clock, label: "Order History", minRole: "branch_manager" },
       { to: "/pending-settlements", icon: Wallet, label: "Pending Settlements", minRole: "branch_manager" },
       { to: "/audit-log", icon: ClipboardList, label: "Audit Log", minRole: "branch_manager" },
-      { to: "/void-nc-log", icon: Ban, label: "Void / NC / Refund", minRole: "branch_manager" },
+      { to: "/void-nc-log", icon: Ban, label: "Cancelled Orders & NC", minRole: "branch_manager" },
     ],
   },
   {
