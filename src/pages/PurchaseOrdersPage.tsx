@@ -186,6 +186,7 @@ const PurchaseOrdersPage = () => {
           ingredient,
           quantity: Number(line.quantity || 0),
           unitCost: Number(line.unit_cost || 0),
+          expiry_date: line.expiry_date,
         };
       })
       .filter((line) => line.ingredient && line.quantity > 0);
@@ -214,12 +215,11 @@ const PurchaseOrdersPage = () => {
       .insert({
         vendor_name: trimmedVendorName,
         vendor_phone: vendorPhone.trim() || null,
-        notes: notes.trim() || null,
-        status,
+        status: "received",
         total_amount: totalAmount,
         created_by: user?.id ?? null,
         branch_id: branchId,
-        received_date: status === "received" ? new Date().toISOString().slice(0, 10) : null,
+        received_date: new Date().toISOString().slice(0, 10),
       })
       .select("id")
       .single();
@@ -236,10 +236,11 @@ const PurchaseOrdersPage = () => {
         ingredient_id: line.ingredient!.id,
         ingredient_name: line.ingredient!.name,
         quantity: line.quantity,
-        received_quantity: status === "received" ? line.quantity : 0,
+        received_quantity: line.quantity,
         unit: line.ingredient!.unit,
         unit_cost: line.unitCost,
         total_cost: line.quantity * line.unitCost,
+        expiry_date: line.expiry_date,
       })),
     );
 
@@ -250,17 +251,16 @@ const PurchaseOrdersPage = () => {
       return;
     }
 
-    if (status === "received") {
-      await applyStockIn(order.id, preparedLines.map((line) => ({
-        ingredient_id: line.ingredient!.id,
-        ingredient_name: line.ingredient!.name,
-        quantity: line.quantity,
-        unit: line.ingredient!.unit,
-        unit_cost: line.unitCost,
-      })));
-    }
+    await applyStockIn(order.id, preparedLines.map((line) => ({
+      ingredient_id: line.ingredient!.id,
+      ingredient_name: line.ingredient!.name,
+      quantity: line.quantity,
+      unit: line.ingredient!.unit,
+      unit_cost: line.unitCost,
+      expiry_date: line.expiry_date,
+    })));
 
-    toast({ title: "Purchase order created", description: "The new purchase order is now saved in your dashboard." });
+    toast({ title: "Purchase order received", description: "Stock has been added to your inventory." });
     resetForm();
     setDialogOpen(false);
     setSubmitting(false);
