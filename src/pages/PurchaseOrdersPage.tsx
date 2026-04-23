@@ -289,7 +289,13 @@ const PurchaseOrdersPage = () => {
             : effectiveExpiry && new Date(effectiveExpiry) <= new Date(Date.now() + 7 * 86400000)
               ? "expiring"
               : "good";
-      const updatePayload: Record<string, unknown> = {
+      const updatePayload: {
+        current_stock: number;
+        status: string;
+        last_restocked: string;
+        cost_per_unit?: number;
+        expiry_date?: string;
+      } = {
         current_stock: newStock,
         status: newStatus,
         last_restocked: new Date().toISOString(),
