@@ -177,7 +177,7 @@ const VoidNCLogPage = () => {
     if (kind === "void")
       return (
         <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">
-          <Ban className="h-3 w-3" /> VOID
+          <Ban className="h-3 w-3" /> CANCELLED
         </span>
       );
     if (kind === "nc")
@@ -198,10 +198,10 @@ const VoidNCLogPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Void / NC / Refund Audit Log
+            Cancelled Orders & Non-Chargeable Log
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Track all voided, non-chargeable, and refunded items
+            Track all cancelled, non-chargeable, and refunded items
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={exportCSV}>
@@ -212,7 +212,7 @@ const VoidNCLogPage = () => {
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Voided</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Cancelled</p>
           <p className="text-2xl font-bold text-destructive tabular-nums mt-1">
             {counts.void}
           </p>
@@ -260,7 +260,7 @@ const VoidNCLogPage = () => {
               onClick={() => setFilter(f)}
               className="capitalize"
             >
-              {f === "all" ? "All" : f === "void" ? "Voided" : f === "nc" ? "NC" : "Refunded"}
+              {f === "all" ? "All" : f === "void" ? "Cancelled" : f === "nc" ? "NC" : "Refunded"}
             </Button>
           ))}
         </div>

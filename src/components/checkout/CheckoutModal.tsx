@@ -161,12 +161,34 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
         loggedBy: user?.id,
       });
     }
-    setLocalItems(prev => {
-      const current = prev.length > 0 ? prev : order.items;
-      return current.map(i =>
-        i.item_name === voidingItem.item_name && !i.is_void ? { ...i, is_void: true } : i
-      );
-    });
+    const current = localItems.length > 0 ? localItems : order.items;
+    const updatedItems = current.map(i =>
+      i.item_name === voidingItem.item_name && !i.is_void ? { ...i, is_void: true } : i
+    );
+    setLocalItems(updatedItems);
+
+    // Auto-cancel whole order if no active items remain
+    const remainingActive = updatedItems.filter(i => !i.is_void);
+    if (remainingActive.length === 0) {
+      await supabase.from("orders").update({
+        status: "cancelled" as const,
+        cancellation_reason: `Auto-cancelled: last item cancelled (${reason})`,
+        cancelled_at: new Date().toISOString(),
+      }).eq("id", order.id);
+      if (order.table_id) {
+        await supabase.from("restaurant_tables").update({ status: "available" }).eq("id", order.table_id);
+        await supabase.from("table_sessions").update({ cleared_at: new Date().toISOString() }).eq("table_id", order.table_id).is("cleared_at", null);
+      }
+      toast({
+        title: "Order Cancelled",
+        description: `Order #${order.order_number} cancelled — last item was removed${wastedCount > 0 ? ` · ${wastedCount} ingredient(s) logged to wastage` : ""}`,
+      });
+      setVoidingItem(null);
+      resetState();
+      onSettled();
+      return;
+    }
+
     toast({
       title: "Item Cancelled",
       description: `${voidingItem.item_name} removed${wastedCount > 0 ? ` · ${wastedCount} ingredient(s) logged to wastage` : ""}`,
