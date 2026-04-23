@@ -380,7 +380,7 @@ const PurchaseOrdersPage = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {["all", "draft", "sent", "partial", "received", "cancelled"].map((value) => (
+        {["all", "draft"].map((value) => (
           <button
             key={value}
             onClick={() => setFilter(value)}
