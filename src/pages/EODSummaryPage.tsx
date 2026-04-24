@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { classifyPayment } from "@/hooks/usePaymentMethods";
+import { classifyPayment, BUILT_IN_PAYMENT_METHODS, type PaymentMethod } from "@/hooks/usePaymentMethods";
 
 interface Summary {
   date: string;
@@ -67,9 +67,11 @@ const EODSummaryPage = () => {
           (menu ?? []).forEach((m) => (costMap[m.id] = Number(m.cost_price) || 0));
         }
 
-        // Custom payment methods for classification
-        const { data: pms } = await supabase.from("payment_methods").select("code, type, is_active").eq("is_active", true);
-        const customPMs = (pms ?? []).map((p) => ({ id: p.code, code: p.code, name: p.code, icon: "Building2", type: p.type as any, is_active: true }));
+        // Active payment methods for nicer labels and classification
+        const { data: pms } = await supabase.from("payment_methods").select("id, code, name, type, is_active, icon").eq("is_active", true);
+        const customPMs: PaymentMethod[] = (pms ?? []) as PaymentMethod[];
+        const labelByCode: Record<string, string> = {};
+        [...BUILT_IN_PAYMENT_METHODS, ...customPMs].forEach((m) => (labelByCode[m.code] = m.name));
 
         // Wastage today
         const { data: wastage } = await supabase
@@ -94,12 +96,12 @@ const EODSummaryPage = () => {
         });
         const top = Object.values(dishCounts).sort((a, b) => b.count - a.count)[0];
 
-        // Payment breakdown — use classifyPayment to bucket aggregator codes
+        // Payment breakdown — show by friendly name; group unknowns under classification
         const paymentBreakdown: Record<string, number> = {};
         (orders ?? []).forEach((o) => {
-          const cls = classifyPayment(o.payment_mode ?? "pending", customPMs);
-          const key = cls.bucket; // 'cash' | 'upi' | 'card' | 'aggregator' | 'other' | 'pending'
-          paymentBreakdown[key] = (paymentBreakdown[key] ?? 0) + (Number(o.total) || 0);
+          const code = o.payment_mode ?? "pending";
+          const label = labelByCode[code] ?? (classifyPayment(code, customPMs) === "aggregator" ? "Aggregator" : code);
+          paymentBreakdown[label] = (paymentBreakdown[label] ?? 0) + (Number(o.total) || 0);
         });
 
         // Source breakdown
