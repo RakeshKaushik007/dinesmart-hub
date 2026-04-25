@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, FileText, Loader2, PackageCheck, Plus, Trash2, Truck } from "lucide-react";
+import { CalendarIcon, FileText, Loader2, PackageCheck, Plus, Trash, Trash2, Truck } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -53,6 +63,7 @@ interface DraftLine {
   ingredient_id: string;
   quantity: string;
   unit_cost: string;
+  total_cost: string;
   expiry_date: string | null;
 }
 
@@ -68,6 +79,7 @@ const emptyLine: DraftLine = {
   ingredient_id: "",
   quantity: "",
   unit_cost: "",
+  total_cost: "",
   expiry_date: null,
 };
 
@@ -82,6 +94,8 @@ const PurchaseOrdersPage = () => {
   const [vendorPhone, setVendorPhone] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
   const [receivingId, setReceivingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PurchaseOrderRow | null>(null);
   const [lineCategoryFilter, setLineCategoryFilter] = useState<Record<number, string>>({});
   const { toast } = useToast();
   const { user, roles } = useAuth();
@@ -165,6 +179,30 @@ const PurchaseOrdersPage = () => {
           const ingredient = ingredients.find((item) => item.id === patch.ingredient_id);
           if (ingredient) {
             nextLine.unit_cost = ingredient.cost_per_unit.toString();
+            const q = Number(nextLine.quantity || 0);
+            nextLine.total_cost = q > 0 ? (q * ingredient.cost_per_unit).toFixed(2) : "";
+          }
+        }
+        // If user edits total_cost, derive unit_cost from qty
+        if (patch.total_cost !== undefined) {
+          const q = Number(nextLine.quantity || 0);
+          const t = Number(patch.total_cost || 0);
+          nextLine.unit_cost = q > 0 ? (t / q).toFixed(4) : "";
+        }
+        // If user edits unit_cost directly, recompute total_cost
+        else if (patch.unit_cost !== undefined) {
+          const q = Number(nextLine.quantity || 0);
+          const u = Number(patch.unit_cost || 0);
+          nextLine.total_cost = q > 0 ? (q * u).toFixed(2) : "";
+        }
+        // If qty changes, recompute total from current unit_cost
+        else if (patch.quantity !== undefined) {
+          const q = Number(patch.quantity || 0);
+          const u = Number(nextLine.unit_cost || 0);
+          nextLine.total_cost = q > 0 && u > 0 ? (q * u).toFixed(2) : nextLine.total_cost;
+          // Or if total was set & unit empty, recompute unit
+          if (q > 0 && Number(nextLine.total_cost || 0) > 0 && !patch.unit_cost) {
+            nextLine.unit_cost = (Number(nextLine.total_cost) / q).toFixed(4);
           }
         }
         return nextLine;
@@ -281,11 +319,13 @@ const PurchaseOrdersPage = () => {
     for (const item of items) {
       const { data: ing } = await supabase
         .from("ingredients")
-        .select("id, current_stock, min_threshold, expiry_date")
+        .select("id, current_stock, min_threshold, expiry_date, cost_per_unit")
         .eq("id", item.ingredient_id)
         .maybeSingle();
       if (!ing) continue;
-      const newStock = Number(ing.current_stock || 0) + item.quantity;
+      const currentStock = Number(ing.current_stock || 0);
+      const currentCost = Number(ing.cost_per_unit || 0);
+      const newStock = currentStock + item.quantity;
       const minThreshold = Number(ing.min_threshold || 0);
       const effectiveExpiry = item.expiry_date ?? ing.expiry_date;
       let newStatus: string;
@@ -311,7 +351,13 @@ const PurchaseOrdersPage = () => {
         status: newStatus,
         last_restocked: new Date().toISOString(),
       };
-      if (item.unit_cost > 0) updatePayload.cost_per_unit = item.unit_cost;
+      // Weighted-average cost: blend existing stock cost with incoming stock cost
+      if (item.unit_cost > 0 && newStock > 0) {
+        const blended = (currentStock * currentCost + item.quantity * item.unit_cost) / newStock;
+        updatePayload.cost_per_unit = Number(blended.toFixed(4));
+      } else if (item.unit_cost > 0) {
+        updatePayload.cost_per_unit = item.unit_cost;
+      }
       if (item.expiry_date) updatePayload.expiry_date = item.expiry_date;
       await supabase.from("ingredients").update(updatePayload).eq("id", ing.id);
       await supabase.from("stock_transactions").insert({
@@ -327,6 +373,84 @@ const PurchaseOrdersPage = () => {
         created_by: user?.id ?? null,
         notes: `Restock: ${item.ingredient_name} +${item.quantity} ${item.unit}`,
       });
+    }
+  };
+
+  const handleDeletePurchaseOrder = async (order: PurchaseOrderRow) => {
+    setDeletingId(order.id);
+    try {
+      // Only reverse stock if the PO had been received (stock was added)
+      if (order.status === "received" || order.status === "partial") {
+        for (const item of order.purchase_order_items || []) {
+          if (!item.ingredient_id) continue;
+          const qty = Number(item.quantity || 0);
+          if (qty <= 0) continue;
+          const { data: ing } = await supabase
+            .from("ingredients")
+            .select("id, current_stock, min_threshold, expiry_date, cost_per_unit")
+            .eq("id", item.ingredient_id)
+            .maybeSingle();
+          if (!ing) continue;
+          const currentStock = Number(ing.current_stock || 0);
+          const currentCost = Number(ing.cost_per_unit || 0);
+          const incomingCost = Number(item.unit_cost || 0);
+          const newStock = Math.max(0, currentStock - qty);
+          // Reverse weighted-average: (currentStock*currentCost - qty*incomingCost) / newStock
+          let newCost = currentCost;
+          if (newStock > 0 && currentStock > 0) {
+            const numerator = currentStock * currentCost - qty * incomingCost;
+            newCost = numerator > 0 ? Number((numerator / newStock).toFixed(4)) : currentCost;
+          }
+          const minThreshold = Number(ing.min_threshold || 0);
+          let newStatus: string;
+          if (ing.expiry_date && new Date(ing.expiry_date) < new Date(new Date().setHours(0, 0, 0, 0))) {
+            newStatus = "expired";
+          } else if (newStock <= 0) {
+            newStatus = "out";
+          } else if (newStock <= minThreshold) {
+            newStatus = "low";
+          } else if (ing.expiry_date && new Date(ing.expiry_date) <= new Date(Date.now() + 7 * 86400000)) {
+            newStatus = "expiring";
+          } else {
+            newStatus = "good";
+          }
+          await supabase
+            .from("ingredients")
+            .update({ current_stock: newStock, cost_per_unit: newCost, status: newStatus })
+            .eq("id", ing.id);
+          await supabase.from("stock_transactions").insert({
+            ingredient_id: ing.id,
+            type: "out",
+            quantity: qty,
+            unit: item.unit,
+            unit_cost: incomingCost,
+            total_cost: qty * incomingCost,
+            reference_id: order.id,
+            reference_type: "purchase_order_deletion",
+            branch_id: branchId,
+            created_by: user?.id ?? null,
+            notes: `Reversed: PO-${String(order.po_number).padStart(3, "0")} deleted (${item.ingredient_name} -${qty} ${item.unit})`,
+          });
+        }
+      }
+
+      await supabase.from("purchase_order_items").delete().eq("purchase_order_id", order.id);
+      const { error } = await supabase.from("purchase_orders").delete().eq("id", order.id);
+      if (error) {
+        toast({ title: "Could not delete purchase order", description: error.message, variant: "destructive" });
+      } else {
+        toast({
+          title: "Purchase order deleted",
+          description:
+            order.status === "received" || order.status === "partial"
+              ? "Stock has been reversed from inventory."
+              : "Draft removed.",
+        });
+        fetchData(false);
+      }
+    } finally {
+      setDeletingId(null);
+      setDeleteTarget(null);
     }
   };
 
@@ -481,6 +605,23 @@ const PurchaseOrdersPage = () => {
                 </Button>
               </div>
             )}
+
+            <div className="mt-4 flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={() => setDeleteTarget(order)}
+                disabled={deletingId === order.id}
+              >
+                {deletingId === order.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash className="h-4 w-4" />
+                )}
+                Delete Purchase Order
+              </Button>
+            </div>
           </div>
         ))}
 
@@ -531,7 +672,7 @@ const PurchaseOrdersPage = () => {
                     : ingredients.filter((i) => i.category === selectedCategory);
 
                 return (
-                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_90px_90px_150px_auto]">
+                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_80px_90px_100px_140px_auto]">
                     <div className="space-y-2">
                       <Label>Category</Label>
                       <Select
@@ -586,6 +727,17 @@ const PurchaseOrdersPage = () => {
                     <div className="space-y-2">
                       <Label>Rate</Label>
                       <Input type="number" min="0" step="0.01" value={line.unit_cost} onChange={(event) => updateLine(index, { unit_cost: event.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Total ₹</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Auto"
+                        value={line.total_cost}
+                        onChange={(event) => updateLine(index, { total_cost: event.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Expiry</Label>
@@ -654,6 +806,28 @@ const PurchaseOrdersPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this purchase order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && (deleteTarget.status === "received" || deleteTarget.status === "partial")
+                ? `This will permanently delete PO-${String(deleteTarget.po_number).padStart(3, "0")} and remove the received quantities from your ingredient stock.`
+                : "This will permanently delete this purchase order draft."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && handleDeletePurchaseOrder(deleteTarget)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
