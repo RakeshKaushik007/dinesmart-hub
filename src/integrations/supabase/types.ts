@@ -963,12 +963,49 @@ export type Database = {
           },
         ]
       }
+      user_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          target_email: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_by: string | null
           branch_id: string | null
           created_at: string
+          custom_role_name: string | null
           id: string
+          is_active: boolean
+          parent_user_id: string | null
+          permissions: string[]
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -976,7 +1013,11 @@ export type Database = {
           assigned_by?: string | null
           branch_id?: string | null
           created_at?: string
+          custom_role_name?: string | null
           id?: string
+          is_active?: boolean
+          parent_user_id?: string | null
+          permissions?: string[]
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -984,7 +1025,11 @@ export type Database = {
           assigned_by?: string | null
           branch_id?: string | null
           created_at?: string
+          custom_role_name?: string | null
           id?: string
+          is_active?: boolean
+          parent_user_id?: string | null
+          permissions?: string[]
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -1063,6 +1108,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_descendant_user_ids: {
+        Args: { _root_user_id: string }
+        Returns: string[]
+      }
       get_user_branch_ids: { Args: { _user_id: string }; Returns: string[] }
       has_any_role: {
         Args: {
