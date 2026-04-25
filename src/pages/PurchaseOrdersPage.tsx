@@ -175,34 +175,37 @@ const PurchaseOrdersPage = () => {
         if (lineIndex !== index) return line;
 
         const nextLine = { ...line, ...patch };
+        // When picking ingredient, prefill rate from cost_per_unit and recompute total
         if (patch.ingredient_id !== undefined) {
           const ingredient = ingredients.find((item) => item.id === patch.ingredient_id);
           if (ingredient) {
-            nextLine.unit_cost = ingredient.cost_per_unit.toString();
+            nextLine.unit_cost = ingredient.cost_per_unit ? ingredient.cost_per_unit.toString() : "";
             const q = Number(nextLine.quantity || 0);
-            nextLine.total_cost = q > 0 ? (q * ingredient.cost_per_unit).toFixed(2) : "";
+            nextLine.total_cost =
+              q > 0 && ingredient.cost_per_unit > 0 ? (q * ingredient.cost_per_unit).toFixed(2) : "";
           }
-        }
-        // If user edits total_cost, derive unit_cost from qty
-        if (patch.total_cost !== undefined) {
+        } else if (patch.total_cost !== undefined) {
+          // User edited Total → derive Rate from Qty
           const q = Number(nextLine.quantity || 0);
           const t = Number(patch.total_cost || 0);
-          nextLine.unit_cost = q > 0 ? (t / q).toFixed(4) : "";
-        }
-        // If user edits unit_cost directly, recompute total_cost
-        else if (patch.unit_cost !== undefined) {
+          nextLine.unit_cost = q > 0 && t > 0 ? (t / q).toFixed(4) : nextLine.unit_cost;
+        } else if (patch.unit_cost !== undefined) {
+          // User edited Rate → recompute Total from Qty
           const q = Number(nextLine.quantity || 0);
           const u = Number(patch.unit_cost || 0);
-          nextLine.total_cost = q > 0 ? (q * u).toFixed(2) : "";
-        }
-        // If qty changes, recompute total from current unit_cost
-        else if (patch.quantity !== undefined) {
+          nextLine.total_cost = q > 0 && u > 0 ? (q * u).toFixed(2) : "";
+        } else if (patch.quantity !== undefined) {
+          // Qty changed → prefer keeping Rate fixed, recompute Total
           const q = Number(patch.quantity || 0);
           const u = Number(nextLine.unit_cost || 0);
-          nextLine.total_cost = q > 0 && u > 0 ? (q * u).toFixed(2) : nextLine.total_cost;
-          // Or if total was set & unit empty, recompute unit
-          if (q > 0 && Number(nextLine.total_cost || 0) > 0 && !patch.unit_cost) {
-            nextLine.unit_cost = (Number(nextLine.total_cost) / q).toFixed(4);
+          const t = Number(nextLine.total_cost || 0);
+          if (u > 0 && q > 0) {
+            nextLine.total_cost = (q * u).toFixed(2);
+          } else if (t > 0 && q > 0) {
+            // Rate is empty but Total is set → derive Rate
+            nextLine.unit_cost = (t / q).toFixed(4);
+          } else if (q === 0) {
+            nextLine.total_cost = "";
           }
         }
         return nextLine;
