@@ -18,31 +18,48 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          created_by: string | null
           id: string
           is_active: boolean
+          manager_user_id: string | null
           name: string
           phone: string | null
+          restaurant_id: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
+          manager_user_id?: string | null
           name: string
           phone?: string | null
+          restaurant_id?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
+          manager_user_id?: string | null
           name?: string
           phone?: string | null
+          restaurant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "branches_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_summaries: {
         Row: {
@@ -746,6 +763,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      restaurants: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          owner_user_id: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          owner_user_id?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner_user_id?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       shifts: {
         Row: {
