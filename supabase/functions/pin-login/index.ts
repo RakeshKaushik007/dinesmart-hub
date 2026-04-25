@@ -23,9 +23,19 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { pin } = await req.json().catch(() => ({}));
+    const { pin, identifier } = await req.json().catch(() => ({}));
     if (!pin || !/^\d{4}$/.test(pin)) {
       return respond({ ok: false, error: "Enter a valid 4-digit PIN" });
+    }
+    const id = typeof identifier === "string" ? identifier.trim() : "";
+    if (!id) {
+      return respond({ ok: false, error: "Enter your email or phone number" });
+    }
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
+    const normalizedPhone = id.replace(/[\s\-()]/g, "");
+    const isPhone = /^\+?\d{7,15}$/.test(normalizedPhone);
+    if (!isEmail && !isPhone) {
+      return respond({ ok: false, error: "Enter a valid email or phone number" });
     }
 
     const admin = createClient(
@@ -33,17 +43,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: profiles, error: profErr } = await admin
+    let query = admin
       .from("profiles")
-      .select("user_id, email, is_active")
+      .select("user_id, email, phone, is_active")
       .eq("pos_pin", pin);
+    if (isEmail) {
+      query = query.ilike("email", id);
+    } else {
+      query = query.eq("phone", normalizedPhone);
+    }
+    const { data: profiles, error: profErr } = await query;
 
     if (profErr) return respond({ ok: false, error: profErr.message });
     if (!profiles || profiles.length === 0) {
-      return respond({ ok: false, error: "Invalid PIN" });
+      return respond({ ok: false, error: "Invalid credentials" });
     }
     if (profiles.length > 1) {
-      // Defensive: PINs should ideally be unique per branch. Refuse ambiguous match.
       return respond({ ok: false, error: "PIN collision — ask your manager to reset it" });
     }
 
