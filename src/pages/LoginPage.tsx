@@ -37,6 +37,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [pin, setPin] = useState("");
+  const [pinIdentifier, setPinIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -73,12 +74,18 @@ const LoginPage = () => {
 
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!pinIdentifier.trim()) {
+      toast({ title: "Identifier required", description: "Enter your email or phone number", variant: "destructive" });
+      return;
+    }
     if (!/^\d{4}$/.test(pin)) {
       toast({ title: "Invalid PIN", description: "Enter your 4-digit POS PIN", variant: "destructive" });
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("pin-login", { body: { pin } });
+    const { data, error } = await supabase.functions.invoke("pin-login", {
+      body: { pin, identifier: pinIdentifier.trim() },
+    });
     if (error || !data?.ok) {
       toast({ title: "Login failed", description: data?.error || error?.message || "Could not sign in", variant: "destructive" });
       setLoading(false);
@@ -213,6 +220,18 @@ const LoginPage = () => {
                   <TabsContent value="pin">
                     <form onSubmit={handlePinLogin} className="space-y-4">
                       <div className="space-y-2">
+                        <Label htmlFor="pin-identifier">Email or Phone</Label>
+                        <Input
+                          id="pin-identifier"
+                          type="text"
+                          value={pinIdentifier}
+                          onChange={(e) => setPinIdentifier(e.target.value)}
+                          placeholder="you@example.com or +91..."
+                          autoComplete="username"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="pin">4-Digit POS PIN</Label>
                         <Input
                           id="pin"
@@ -222,11 +241,10 @@ const LoginPage = () => {
                           onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
                           placeholder="••••"
                           className="font-mono tracking-[0.8em] text-center text-2xl h-14"
-                          autoFocus
                         />
                         <p className="text-xs text-muted-foreground">Ask your manager if you don't have a PIN.</p>
                       </div>
-                      <Button type="submit" className="w-full" disabled={loading || pin.length !== 4}>
+                      <Button type="submit" className="w-full" disabled={loading || pin.length !== 4 || !pinIdentifier.trim()}>
                         {loading ? "Signing in..." : "Sign In with PIN"}
                         {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
                       </Button>
