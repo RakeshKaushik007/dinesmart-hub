@@ -39,6 +39,8 @@ import IngredientConsumptionPage from "@/pages/IngredientConsumptionPage";
 import PaymentMethodsPage from "@/pages/PaymentMethodsPage";
 import PendingAggregatorSettlementPage from "@/pages/PendingAggregatorSettlementPage";
 import StaffPage from "@/pages/StaffPage";
+import RestaurantsPage from "@/pages/RestaurantsPage";
+import BranchesPage from "@/pages/BranchesPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -82,6 +84,7 @@ const App = () => (
 
                 {/* Owner+ */}
                 <Route path="/dynamic-pricing" element={<ProtectedRoute requiredRole="owner"><DynamicPricingPage /></ProtectedRoute>} />
+                <Route path="/branches" element={<ProtectedRoute requiredRole="owner"><BranchesPage /></ProtectedRoute>} />
                 <Route path="/profitability" element={<ProtectedRoute requiredRole="owner"><ProfitabilityPage /></ProtectedRoute>} />
                 <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
@@ -96,6 +99,7 @@ const App = () => (
                 <Route path="/staff" element={<ProtectedRoute requiredRole="branch_manager"><StaffPage /></ProtectedRoute>} />
 
                 {/* Super Admin only */}
+                <Route path="/admin/restaurants" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><RestaurantsPage /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin"]}><AdminUsersPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
