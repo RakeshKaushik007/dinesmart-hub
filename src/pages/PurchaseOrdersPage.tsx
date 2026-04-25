@@ -175,34 +175,37 @@ const PurchaseOrdersPage = () => {
         if (lineIndex !== index) return line;
 
         const nextLine = { ...line, ...patch };
+        // When picking ingredient, prefill rate from cost_per_unit and recompute total
         if (patch.ingredient_id !== undefined) {
           const ingredient = ingredients.find((item) => item.id === patch.ingredient_id);
           if (ingredient) {
-            nextLine.unit_cost = ingredient.cost_per_unit.toString();
+            nextLine.unit_cost = ingredient.cost_per_unit ? ingredient.cost_per_unit.toString() : "";
             const q = Number(nextLine.quantity || 0);
-            nextLine.total_cost = q > 0 ? (q * ingredient.cost_per_unit).toFixed(2) : "";
+            nextLine.total_cost =
+              q > 0 && ingredient.cost_per_unit > 0 ? (q * ingredient.cost_per_unit).toFixed(2) : "";
           }
-        }
-        // If user edits total_cost, derive unit_cost from qty
-        if (patch.total_cost !== undefined) {
+        } else if (patch.total_cost !== undefined) {
+          // User edited Total → derive Rate from Qty
           const q = Number(nextLine.quantity || 0);
           const t = Number(patch.total_cost || 0);
-          nextLine.unit_cost = q > 0 ? (t / q).toFixed(4) : "";
-        }
-        // If user edits unit_cost directly, recompute total_cost
-        else if (patch.unit_cost !== undefined) {
+          nextLine.unit_cost = q > 0 && t > 0 ? (t / q).toFixed(4) : nextLine.unit_cost;
+        } else if (patch.unit_cost !== undefined) {
+          // User edited Rate → recompute Total from Qty
           const q = Number(nextLine.quantity || 0);
           const u = Number(patch.unit_cost || 0);
-          nextLine.total_cost = q > 0 ? (q * u).toFixed(2) : "";
-        }
-        // If qty changes, recompute total from current unit_cost
-        else if (patch.quantity !== undefined) {
+          nextLine.total_cost = q > 0 && u > 0 ? (q * u).toFixed(2) : "";
+        } else if (patch.quantity !== undefined) {
+          // Qty changed → prefer keeping Rate fixed, recompute Total
           const q = Number(patch.quantity || 0);
           const u = Number(nextLine.unit_cost || 0);
-          nextLine.total_cost = q > 0 && u > 0 ? (q * u).toFixed(2) : nextLine.total_cost;
-          // Or if total was set & unit empty, recompute unit
-          if (q > 0 && Number(nextLine.total_cost || 0) > 0 && !patch.unit_cost) {
-            nextLine.unit_cost = (Number(nextLine.total_cost) / q).toFixed(4);
+          const t = Number(nextLine.total_cost || 0);
+          if (u > 0 && q > 0) {
+            nextLine.total_cost = (q * u).toFixed(2);
+          } else if (t > 0 && q > 0) {
+            // Rate is empty but Total is set → derive Rate
+            nextLine.unit_cost = (t / q).toFixed(4);
+          } else if (q === 0) {
+            nextLine.total_cost = "";
           }
         }
         return nextLine;
@@ -633,7 +636,7 @@ const PurchaseOrdersPage = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create purchase order</DialogTitle>
           </DialogHeader>
@@ -672,14 +675,33 @@ const PurchaseOrdersPage = () => {
                     : ingredients.filter((i) => i.category === selectedCategory);
 
                 return (
-                  <div key={`${index}-${line.ingredient_id || "new"}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_80px_90px_100px_140px_auto]">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
+                  <div
+                    key={`${index}-${line.ingredient_id || "new"}`}
+                    className="space-y-3 rounded-lg border border-border p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Item {index + 1}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeLine(index)}
+                        disabled={lines.length === 1}
+                        className="h-7 w-7"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Category</Label>
                       <Select
                         value={selectedCategory}
                         onValueChange={(value) => {
                           setLineCategoryFilter((prev) => ({ ...prev, [index]: value }));
-                          // Clear ingredient if it no longer matches
                           const current = ingredients.find((i) => i.id === line.ingredient_id);
                           if (value !== "all" && current && current.category !== value) {
                             updateLine(index, { ingredient_id: "" });
@@ -720,65 +742,88 @@ const PurchaseOrdersPage = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Qty</Label>
-                      <Input type="number" min="0" step="0.01" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Rate</Label>
-                      <Input type="number" min="0" step="0.01" value={line.unit_cost} onChange={(event) => updateLine(index, { unit_cost: event.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Total ₹</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Auto"
-                        value={line.total_cost}
-                        onChange={(event) => updateLine(index, { total_cost: event.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Expiry</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !line.expiry_date && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {line.expiry_date ? format(new Date(line.expiry_date), "PP") : <span>Pick date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={line.expiry_date ? new Date(line.expiry_date) : undefined}
-                            onSelect={(date) =>
-                              updateLine(index, {
-                                expiry_date: date ? format(date, "yyyy-MM-dd") : null,
-                              })
-                            }
-                            initialFocus
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <div className="min-w-[88px] pb-2 text-right text-xs text-muted-foreground">
-                        <div>Total</div>
-                        <div className="font-mono text-sm text-foreground">₹{lineTotal.toLocaleString()}</div>
-                        {selectedIngredient && <div>{selectedIngredient.unit}</div>}
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>
+                          Qty {selectedIngredient ? `(${selectedIngredient.unit})` : ""}
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0"
+                          value={line.quantity}
+                          onChange={(event) => updateLine(index, { quantity: event.target.value })}
+                        />
                       </div>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} disabled={lines.length === 1}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="space-y-2">
+                        <Label>Rate (₹/unit)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Auto"
+                          value={line.unit_cost}
+                          onChange={(event) => updateLine(index, { unit_cost: event.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Total ₹</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Auto"
+                          value={line.total_cost}
+                          onChange={(event) => updateLine(index, { total_cost: event.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Expiry date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !line.expiry_date && "text-muted-foreground",
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {line.expiry_date ? format(new Date(line.expiry_date), "PP") : <span>Pick date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={line.expiry_date ? new Date(line.expiry_date) : undefined}
+                              onSelect={(date) =>
+                                updateLine(index, {
+                                  expiry_date: date ? format(date, "yyyy-MM-dd") : null,
+                                })
+                              }
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex items-end justify-end">
+                        <div className="rounded-md bg-muted/40 px-3 py-2 text-right">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Line total
+                          </div>
+                          <div className="font-mono text-sm font-semibold text-foreground">
+                            ₹{lineTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
