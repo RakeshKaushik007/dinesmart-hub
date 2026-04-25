@@ -5,6 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type AppRole = "super_admin" | "admin" | "owner" | "branch_manager" | "employee";
+
+// Caller role -> roles they may create
+const CAN_CREATE: Record<AppRole, AppRole[]> = {
+  super_admin: ["admin", "owner", "branch_manager", "employee"],
+  admin: ["owner", "branch_manager", "employee"],
+  owner: ["branch_manager", "employee"],
+  branch_manager: ["employee"],
+  employee: [],
+};
+
 // Always return 200 so the supabase-js client surfaces our `{ ok, error }` body
 // instead of swallowing it under a generic "non-2xx status code" error.
 const respond = (body: Record<string, unknown>) =>
@@ -30,25 +41,67 @@ Deno.serve(async (req) => {
     const { data: { user: caller } } = await supabaseAdmin.auth.getUser(token);
     if (!caller) return respond({ ok: false, error: "Unauthorized — please sign in again" });
 
-    // Caller must be at least branch_manager (managers create employees, owners create managers/employees)
     const { data: callerRoles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", caller.id);
 
-    const roles = (callerRoles || []).map((r) => r.role);
-    const allowed = ["super_admin", "admin", "owner", "branch_manager"];
-    if (!roles.some((r) => allowed.includes(r))) {
+    const roles = (callerRoles || []).map((r) => r.role) as AppRole[];
+    if (roles.length === 0) {
       return respond({ ok: false, error: "You don't have permission to create users" });
     }
 
     const body = await req.json().catch(() => ({}));
-    const { email, password, full_name } = body || {};
+    const {
+      email,
+      password,
+      full_name,
+      role,
+      custom_role_name,
+      permissions,
+      branch_id,
+    } = body || {};
+
     if (!email || !password) {
       return respond({ ok: false, error: "Email and password are required" });
     }
     if (typeof password !== "string" || password.length < 6) {
       return respond({ ok: false, error: "Password must be at least 6 characters" });
+    }
+
+    // If caller specified a role, enforce hierarchy
+    let targetRole: AppRole | null = null;
+    if (role) {
+      targetRole = role as AppRole;
+      const canCreate = roles.flatMap((r) => CAN_CREATE[r] || []);
+      if (!canCreate.includes(targetRole)) {
+        return respond({
+          ok: false,
+          error: `You don't have permission to create a user with role "${targetRole}"`,
+        });
+      }
+    } else {
+      // Backward-compat: no role provided just creates the auth user
+      const allowed = ["super_admin", "admin", "owner", "branch_manager"];
+      if (!roles.some((r) => allowed.includes(r))) {
+        return respond({ ok: false, error: "You don't have permission to create users" });
+      }
+    }
+
+    // Custom role name uniqueness within this parent
+    if (targetRole && custom_role_name) {
+      const { data: dup } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("parent_user_id", caller.id)
+        .ilike("custom_role_name", custom_role_name)
+        .maybeSingle();
+      if (dup) {
+        return respond({
+          ok: false,
+          error: `You already have a "${custom_role_name}" under you. Pick a different name.`,
+        });
+      }
     }
 
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -59,9 +112,42 @@ Deno.serve(async (req) => {
     });
 
     if (error) {
-      // Surface Supabase's actual message (e.g. "User already registered", weak password, etc.)
       return respond({ ok: false, error: error.message });
     }
+
+    const newUserId = data.user?.id;
+
+    // Insert role assignment with hierarchy fields
+    if (newUserId && targetRole) {
+      const { error: roleErr } = await supabaseAdmin.from("user_roles").insert({
+        user_id: newUserId,
+        role: targetRole,
+        parent_user_id: caller.id,
+        custom_role_name: custom_role_name || null,
+        permissions: Array.isArray(permissions) ? permissions : [],
+        branch_id: branch_id || null,
+        assigned_by: caller.id,
+        is_active: true,
+      });
+      if (roleErr) {
+        return respond({ ok: false, error: `User created but role assignment failed: ${roleErr.message}` });
+      }
+    }
+
+    // Audit log
+    await supabaseAdmin.from("user_audit_log").insert({
+      actor_id: caller.id,
+      actor_email: caller.email ?? null,
+      action: "create_user",
+      target_user_id: newUserId,
+      target_email: email,
+      details: {
+        role: targetRole,
+        custom_role_name: custom_role_name || null,
+        branch_id: branch_id || null,
+        permissions: permissions || [],
+      },
+    });
 
     return respond({ ok: true, user: data.user });
   } catch (err) {
