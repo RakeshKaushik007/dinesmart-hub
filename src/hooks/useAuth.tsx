@@ -7,6 +7,10 @@ export type AppRole = "super_admin" | "admin" | "owner" | "branch_manager" | "em
 interface UserRole {
   role: AppRole;
   branch_id: string | null;
+  custom_role_name: string | null;
+  permissions: string[];
+  parent_user_id: string | null;
+  is_active: boolean;
 }
 
 interface AuthContextType {
@@ -44,12 +48,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserData = useCallback(async (userId: string) => {
     const [rolesRes, profileRes] = await Promise.all([
-      supabase.from("user_roles").select("role, branch_id").eq("user_id", userId),
+      supabase
+        .from("user_roles")
+        .select("role, branch_id, custom_role_name, permissions, parent_user_id, is_active")
+        .eq("user_id", userId),
       supabase.from("profiles").select("full_name, email, avatar_url").eq("user_id", userId).single(),
     ]);
 
     if (rolesRes.data) {
-      setRoles(rolesRes.data.map((r) => ({ role: r.role as AppRole, branch_id: r.branch_id })));
+      setRoles(
+        rolesRes.data.map((r: any) => ({
+          role: r.role as AppRole,
+          branch_id: r.branch_id,
+          custom_role_name: r.custom_role_name ?? null,
+          permissions: r.permissions ?? [],
+          parent_user_id: r.parent_user_id ?? null,
+          is_active: r.is_active ?? true,
+        }))
+      );
     }
     if (profileRes.data) {
       setProfile(profileRes.data);
