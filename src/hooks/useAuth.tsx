@@ -111,6 +111,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    try {
+      window.sessionStorage.removeItem("blennix.pos_session.v1");
+      window.sessionStorage.removeItem("blennix.pos_session.v1.pending");
+    } catch {
+      // ignore — session storage may be unavailable
+    }
     setUser(null);
     setSession(null);
     setRoles([]);
