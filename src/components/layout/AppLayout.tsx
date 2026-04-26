@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import AppSidebar from "./AppSidebar";
+import FloatingAIAssistant from "@/components/ai/FloatingAIAssistant";
 
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -38,6 +39,8 @@ const AppLayout = () => {
           <Outlet />
         </div>
       </main>
+
+      <FloatingAIAssistant />
     </div>
   );
 };
