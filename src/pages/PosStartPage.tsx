@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, MapPin, Store, ChefHat, ArrowRight } from "lucide-react";
+import { Loader2, MapPin, Store, ChefHat, ArrowRight, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { consumePinPendingMarker, usePosSession } from "@/hooks/usePosSession";
@@ -27,6 +27,10 @@ const PosStartPage = () => {
   const [loadingBranches, setLoadingBranches] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [query, setQuery] = useState("");
+  const [focusIndex, setFocusIndex] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const verifiedViaPin = useMemo(() => (user ? consumePinPendingMarker(user.id) : false), [user]);
 
@@ -80,6 +84,28 @@ const PosStartPage = () => {
     };
   }, [loading, user, roles, isAtLeast, toast, navigate]);
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return branches;
+    return branches.filter((b) =>
+      [b.name, b.address ?? "", b.restaurant_name ?? ""].some((s) => s.toLowerCase().includes(q)),
+    );
+  }, [branches, query]);
+
+  // Reset focus when filter changes; auto-select if only one result.
+  useEffect(() => {
+    setFocusIndex(0);
+    if (filtered.length === 1) setSelectedId(filtered[0].id);
+  }, [filtered]);
+
+  // Autofocus search on mount (desktop) — mobile keyboards shouldn't pop unprompted.
+  useEffect(() => {
+    if (loadingBranches) return;
+    if (window.matchMedia("(min-width: 640px)").matches) {
+      searchRef.current?.focus();
+    }
+  }, [loadingBranches]);
+
   const handleStart = () => {
     if (!user) return;
     const branch = branches.find((b) => b.id === selectedId);
@@ -96,6 +122,50 @@ const PosStartPage = () => {
       restaurant_name: branch.restaurant_name,
     });
     navigate(next, { replace: true });
+  };
+
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (filtered.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = Math.min(focusIndex + 1, filtered.length - 1);
+      setFocusIndex(next);
+      itemRefs.current[next]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const next = Math.max(focusIndex - 1, 0);
+      setFocusIndex(next);
+      itemRefs.current[next]?.focus();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const target = filtered[focusIndex] ?? filtered[0];
+      if (target) {
+        setSelectedId(target.id);
+        // Allow state update, then proceed if user pressed Enter again — start now.
+        setTimeout(() => handleStart(), 0);
+      }
+    }
+  };
+
+  const onCardKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number, b: BranchOption) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = Math.min(idx + 1, filtered.length - 1);
+      setFocusIndex(next);
+      itemRefs.current[next]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (idx === 0) {
+        searchRef.current?.focus();
+      } else {
+        setFocusIndex(idx - 1);
+        itemRefs.current[idx - 1]?.focus();
+      }
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setSelectedId(b.id);
+      if (e.key === "Enter") setTimeout(() => handleStart(), 0);
+    }
   };
 
   const handleCancel = async () => {
@@ -137,19 +207,44 @@ const PosStartPage = () => {
           </div>
         ) : (
           <>
-            <div className="grid sm:grid-cols-2 gap-3 mb-6 max-h-[50vh] overflow-y-auto pr-1">
-              {branches.map((b) => {
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <input
+                ref={searchRef}
+                type="search"
+                inputMode="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={onSearchKeyDown}
+                placeholder={`Search ${branches.length} branch${branches.length === 1 ? "" : "es"} by name, restaurant or address`}
+                className="w-full rounded-lg border border-input bg-secondary pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Search branches"
+              />
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border p-6 mb-6 text-center text-sm text-muted-foreground">
+                No branches match "{query}".
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3 mb-6 max-h-[50vh] overflow-y-auto pr-1" role="listbox" aria-label="Branches">
+                {filtered.map((b, idx) => {
                 const active = selectedId === b.id;
                 return (
                   <button
                     key={b.id}
+                    ref={(el) => (itemRefs.current[idx] = el)}
                     type="button"
+                    role="option"
+                    aria-selected={active}
                     onClick={() => setSelectedId(b.id)}
+                    onDoubleClick={() => { setSelectedId(b.id); handleStart(); }}
+                    onKeyDown={(e) => onCardKeyDown(e, idx, b)}
                     className={`text-left rounded-xl border p-4 transition-colors ${
                       active
                         ? "border-primary bg-primary/5 ring-2 ring-primary/30"
                         : "border-border hover:border-primary/40"
-                    }`}
+                    } focus:outline-none focus:ring-2 focus:ring-ring`}
                   >
                     <div className="flex items-start gap-2">
                       <Store className={`h-4 w-4 mt-0.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
@@ -169,7 +264,11 @@ const PosStartPage = () => {
                   </button>
                 );
               })}
-            </div>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground mb-3 hidden sm:block">
+              Tip: type to filter · ↑/↓ to move · Enter to start · double-tap a card on mobile
+            </p>
             <div className="flex items-center justify-between gap-3">
               <Button variant="ghost" onClick={handleCancel} disabled={submitting}>
                 Sign out
