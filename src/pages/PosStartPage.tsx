@@ -31,6 +31,12 @@ const PosStartPage = () => {
   const [focusIndex, setFocusIndex] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [announcement, setAnnouncement] = useState("");
+
+  const searchListboxId = "pos-branch-listbox";
+  const searchHelpId = "pos-branch-search-help";
+  const liveRegionId = "pos-branch-live";
 
   const verifiedViaPin = useMemo(() => (user ? consumePinPendingMarker(user.id) : false), [user]);
 
@@ -106,6 +112,57 @@ const PosStartPage = () => {
     }
   }, [loadingBranches]);
 
+  // Announce filter results so screen readers and voice control stay in sync.
+  useEffect(() => {
+    if (loadingBranches) return;
+    if (!query.trim()) {
+      setAnnouncement(`${branches.length} branches available.`);
+      return;
+    }
+    if (filtered.length === 0) {
+      setAnnouncement(`No branches match ${query}.`);
+    } else {
+      setAnnouncement(`${filtered.length} of ${branches.length} branches match ${query}.`);
+    }
+  }, [filtered, branches.length, query, loadingBranches]);
+
+  // Mobile focus trap — keep Tab cycling inside the picker so users with
+  // switch / keyboard control on small screens can't fall into the address bar.
+  useEffect(() => {
+    const node = dialogRef.current;
+    if (!node) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusables = node.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    node.addEventListener("keydown", handler);
+    return () => node.removeEventListener("keydown", handler);
+  }, [loadingBranches, branches.length]);
+
+  const selectedBranch = branches.find((b) => b.id === selectedId) ?? null;
+
+  // Speak the selection so AT users hear the change without scanning.
+  useEffect(() => {
+    if (selectedBranch) {
+      setAnnouncement(
+        `Selected ${selectedBranch.name}${selectedBranch.restaurant_name ? `, ${selectedBranch.restaurant_name}` : ""}. Press Enter to start your shift.`,
+      );
+    }
+  }, [selectedBranch]);
+
   const handleStart = () => {
     if (!user) return;
     const branch = branches.find((b) => b.id === selectedId);
@@ -144,6 +201,9 @@ const PosStartPage = () => {
         // Allow state update, then proceed if user pressed Enter again — start now.
         setTimeout(() => handleStart(), 0);
       }
+    } else if (e.key === "Escape" && query) {
+      e.preventDefault();
+      setQuery("");
     }
   };
 
@@ -175,22 +235,35 @@ const PosStartPage = () => {
 
   if (loading || loadingBranches) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="sr-only">Loading branches…</span>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-8 shadow-lg">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pos-start-title"
+        aria-describedby="pos-start-desc"
+        className="w-full max-w-2xl rounded-2xl border border-border bg-card p-8 shadow-lg"
+      >
+        {/* Polite live region — used for filter counts and selection announcements. */}
+        <div id={liveRegionId} role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {announcement}
+        </div>
+
         <div className="flex items-center gap-3 mb-6">
           <div className="h-11 w-11 rounded-xl bg-primary flex items-center justify-center">
-            <ChefHat className="h-6 w-6 text-primary-foreground" />
+            <ChefHat className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Start your POS shift</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 id="pos-start-title" className="text-xl font-bold text-foreground">Start your POS shift</h1>
+            <p id="pos-start-desc" className="text-sm text-muted-foreground">
               Pick the branch you're operating from. POS pages stay locked until this is set.
             </p>
           </div>
@@ -198,7 +271,7 @@ const PosStartPage = () => {
 
         {branches.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-3">
-            <Store className="h-8 w-8 mx-auto text-muted-foreground" />
+            <Store className="h-8 w-8 mx-auto text-muted-foreground" aria-hidden="true" />
             <h2 className="font-semibold text-foreground">No branches available</h2>
             <p className="text-sm text-muted-foreground">
               Your account isn't assigned to an active branch yet. Ask your manager to assign one.
@@ -208,7 +281,7 @@ const PosStartPage = () => {
         ) : (
           <>
             <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Search aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
                 ref={searchRef}
                 type="search"
@@ -219,7 +292,16 @@ const PosStartPage = () => {
                 placeholder={`Search ${branches.length} branch${branches.length === 1 ? "" : "es"} by name, restaurant or address`}
                 className="w-full rounded-lg border border-input bg-secondary pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 aria-label="Search branches"
+                aria-describedby={searchHelpId}
+                aria-controls={searchListboxId}
+                aria-autocomplete="list"
+                aria-activedescendant={filtered[focusIndex] ? `pos-branch-${filtered[focusIndex].id}` : undefined}
+                role="combobox"
+                aria-expanded={filtered.length > 0}
               />
+              <span id={searchHelpId} className="sr-only">
+                Type to filter branches. Use up and down arrow keys to move between matches, Enter to start your shift, or Escape to clear the search.
+              </span>
             </div>
 
             {filtered.length === 0 ? (
@@ -227,16 +309,29 @@ const PosStartPage = () => {
                 No branches match "{query}".
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-3 mb-6 max-h-[50vh] overflow-y-auto pr-1" role="listbox" aria-label="Branches">
+              <div
+                id={searchListboxId}
+                className="grid sm:grid-cols-2 gap-3 mb-6 max-h-[50vh] overflow-y-auto pr-1"
+                role="listbox"
+                aria-label={`${filtered.length} branch${filtered.length === 1 ? "" : "es"}${query ? ` matching ${query}` : " available"}`}
+                aria-activedescendant={filtered[focusIndex] ? `pos-branch-${filtered[focusIndex].id}` : undefined}
+              >
                 {filtered.map((b, idx) => {
                 const active = selectedId === b.id;
+                const labelParts = [
+                  `${b.name}${b.restaurant_name ? `, ${b.restaurant_name}` : ""}`,
+                  b.address ?? "",
+                  active ? "selected" : "",
+                ].filter(Boolean);
                 return (
                   <button
                     key={b.id}
+                    id={`pos-branch-${b.id}`}
                     ref={(el) => (itemRefs.current[idx] = el)}
                     type="button"
                     role="option"
                     aria-selected={active}
+                    aria-label={labelParts.join(". ")}
                     onClick={() => setSelectedId(b.id)}
                     onDoubleClick={() => { setSelectedId(b.id); handleStart(); }}
                     onKeyDown={(e) => onCardKeyDown(e, idx, b)}
@@ -247,7 +342,7 @@ const PosStartPage = () => {
                     } focus:outline-none focus:ring-2 focus:ring-ring`}
                   >
                     <div className="flex items-start gap-2">
-                      <Store className={`h-4 w-4 mt-0.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                      <Store aria-hidden="true" className={`h-4 w-4 mt-0.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
                       <div className="min-w-0">
                         <div className="font-semibold text-foreground truncate">{b.name}</div>
                         {b.restaurant_name && (
@@ -255,7 +350,7 @@ const PosStartPage = () => {
                         )}
                         {b.address && (
                           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3" />
+                            <MapPin aria-hidden="true" className="h-3 w-3" />
                             <span className="truncate">{b.address}</span>
                           </div>
                         )}
@@ -273,9 +368,13 @@ const PosStartPage = () => {
               <Button variant="ghost" onClick={handleCancel} disabled={submitting}>
                 Sign out
               </Button>
-              <Button onClick={handleStart} disabled={!selectedId || submitting}>
+              <Button
+                onClick={handleStart}
+                disabled={!selectedId || submitting}
+                aria-label={selectedBranch ? `Start POS shift at ${selectedBranch.name}` : "Select a branch to continue"}
+              >
                 {submitting ? "Starting..." : "Enter POS"}
-                {!submitting && <ArrowRight className="h-4 w-4 ml-2" />}
+                {!submitting && <ArrowRight aria-hidden="true" className="h-4 w-4 ml-2" />}
               </Button>
             </div>
           </>

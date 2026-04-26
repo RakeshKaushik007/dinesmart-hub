@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Send, Gauge, Loader2, PackagePlus, Check, X } from "lucide-react";
+import { Bot, Send, Gauge, Loader2, PackagePlus, Check, X, Mic, MicOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 interface Proposal {
   id: string;
@@ -63,6 +64,19 @@ const AIAssistantChat = ({ compact = false, heightClass }: Props) => {
   const [loading, setLoading] = useState(false);
   const [quota, setQuota] = useState(loadQuota);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const speech = useSpeechRecognition({
+    onFinal: (text) => {
+      setInput((prev) => (prev ? `${prev} ${text}` : text).trim());
+      // Refocus the field so the user can edit or hit Enter.
+      requestAnimationFrame(() => inputRef.current?.focus());
+    },
+  });
+
+  useEffect(() => {
+    if (speech.error) toast.error(speech.error);
+  }, [speech.error]);
 
   const resetDate = new Date(new Date(quota.weekStart).getTime() + 7 * 86_400_000).toISOString();
   const quotaPercent = (quota.used / WEEKLY_LIMIT) * 100;
@@ -287,8 +301,24 @@ const AIAssistantChat = ({ compact = false, heightClass }: Props) => {
         </div>
 
         <div className="border-t border-border p-3">
+          {speech.listening && (
+            <div role="status" aria-live="polite" className="flex items-center gap-2 mb-2 px-2 text-xs text-primary">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+              <span className="truncate">{speech.interim ? `Heard: ${speech.interim}` : "Listening… speak now"}</span>
+              <button
+                onClick={speech.stop}
+                className="ml-auto rounded-md border border-border px-2 py-0.5 text-[10px] hover:bg-secondary"
+              >
+                Stop
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -296,17 +326,36 @@ const AIAssistantChat = ({ compact = false, heightClass }: Props) => {
               disabled={loading}
               placeholder='Try: "restock paneer by 5 kg" or "what is low on stock?"'
               className="flex-1 rounded-lg border border-input bg-secondary px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+              aria-label="Message AI assistant"
             />
+            {speech.supported && (
+              <button
+                type="button"
+                onClick={speech.listening ? speech.stop : speech.start}
+                disabled={loading}
+                className={`rounded-lg p-2.5 transition-colors disabled:opacity-50 ${
+                  speech.listening
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input"
+                }`}
+                aria-label={speech.listening ? "Stop voice input" : "Start voice input"}
+                aria-pressed={speech.listening}
+                title={speech.listening ? "Stop listening" : "Speak your message"}
+              >
+                {speech.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+            )}
             <button
               onClick={send}
               disabled={loading || !input.trim()}
               className="rounded-lg bg-primary p-2.5 text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              aria-label="Send message"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-            Restocks require manager approval · {Math.max(0, WEEKLY_LIMIT - quota.used)} queries remaining
+            {speech.supported ? "Tap the mic to dictate · " : ""}Restocks require manager approval · {Math.max(0, WEEKLY_LIMIT - quota.used)} queries remaining
           </p>
         </div>
       </div>
