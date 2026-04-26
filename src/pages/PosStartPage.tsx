@@ -201,6 +201,9 @@ const PosStartPage = () => {
         // Allow state update, then proceed if user pressed Enter again — start now.
         setTimeout(() => handleStart(), 0);
       }
+    } else if (e.key === "Escape" && query) {
+      e.preventDefault();
+      setQuery("");
     }
   };
 
