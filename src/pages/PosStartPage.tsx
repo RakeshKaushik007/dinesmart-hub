@@ -50,24 +50,50 @@ const PosStartPage = () => {
     (async () => {
       setLoadingBranches(true);
 
-      // Branches the user is scoped to — based on user_roles.branch_id when set.
-      const scopedBranchIds = roles
-        .map((r) => r.branch_id)
-        .filter((b): b is string => !!b);
+      // Branches the user is explicitly scoped to via user_roles.branch_id.
+      const scopedBranchIds = Array.from(
+        new Set(roles.map((r) => r.branch_id).filter((b): b is string => !!b)),
+      );
 
-      let query = supabase
+      // Restaurants the user owns (owner role users can manage all branches in their restaurant).
+      let ownedRestaurantIds: string[] = [];
+      if (!isAtLeast("admin")) {
+        const { data: owned } = await supabase
+          .from("restaurants")
+          .select("id")
+          .eq("owner_user_id", user.id);
+        ownedRestaurantIds = (owned ?? []).map((r: any) => r.id);
+      }
+
+      let queryBuilder = supabase
         .from("branches")
         .select("id, name, address, restaurant_id, restaurants(name)")
         .eq("is_active", true)
         .order("name");
 
-      // Owners and below without explicit branch scope still need to pick from
-      // their restaurant's branches; admins/super_admins see all active.
-      if (!isAtLeast("admin") && scopedBranchIds.length > 0) {
-        query = query.in("id", scopedBranchIds);
+      if (!isAtLeast("admin")) {
+        // Non-admins (owner / branch_manager / employee) must be constrained to
+        // either branches they're explicitly assigned to OR branches inside a
+        // restaurant they own. If neither, they see nothing — never fall open
+        // to "all branches" because that would let a manager hop into another
+        // owner's branch.
+        if (scopedBranchIds.length === 0 && ownedRestaurantIds.length === 0) {
+          if (cancelled) return;
+          setBranches([]);
+          setLoadingBranches(false);
+          return;
+        }
+        const orParts: string[] = [];
+        if (scopedBranchIds.length > 0) {
+          orParts.push(`id.in.(${scopedBranchIds.join(",")})`);
+        }
+        if (ownedRestaurantIds.length > 0) {
+          orParts.push(`restaurant_id.in.(${ownedRestaurantIds.join(",")})`);
+        }
+        queryBuilder = queryBuilder.or(orParts.join(","));
       }
 
-      const { data, error } = await query;
+      const { data, error } = await queryBuilder;
       if (cancelled) return;
       if (error) {
         toast({ title: "Could not load branches", description: error.message, variant: "destructive" });
