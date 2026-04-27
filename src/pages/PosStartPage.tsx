@@ -108,6 +108,23 @@ const PosStartPage = () => {
         }));
         setBranches(mapped);
         if (mapped.length === 1) setSelectedId(mapped[0].id);
+
+        // Managers and employees never get to switch — auto-start on their
+        // single assigned branch. Owners with exactly one branch also skip
+        // the picker since there's nothing to choose.
+        const canSwitch = isAtLeast("admin") || isAtLeast("owner");
+        if (mapped.length === 1 && (!canSwitch || mapped.length === 1 && isAtLeast("owner"))) {
+          const only = mapped[0];
+          startSession({
+            verified_via: verifiedViaPin ? "pin" : "email",
+            branch_id: only.id,
+            branch_name: only.name,
+            restaurant_id: only.restaurant_id,
+            restaurant_name: only.restaurant_name,
+          });
+          navigate(next, { replace: true });
+          return;
+        }
       }
       setLoadingBranches(false);
     })();
