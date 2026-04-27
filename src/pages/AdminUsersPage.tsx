@@ -197,13 +197,38 @@ const AdminUsersPage = () => {
   }, [flatNodes, search]);
 
   const { data: branches = [] } = useQuery({
-    queryKey: ["admin-branches"],
+    queryKey: ["admin-branches", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("branches").select("id, name").eq("is_active", true);
+      // Super admins see every branch. Everyone else sees only branches in
+      // restaurants they own, so an admin/owner can't accidentally assign
+      // a new staff member to someone else's branch.
+      if (hasRole("super_admin")) {
+        const { data, error } = await supabase
+          .from("branches")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        if (error) throw error;
+        return data || [];
+      }
+
+      const { data: owned, error: ownedErr } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_user_id", user!.id);
+      if (ownedErr) throw ownedErr;
+      const restIds = (owned ?? []).map((r: any) => r.id);
+      if (restIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("branches")
+        .select("id, name")
+        .in("restaurant_id", restIds)
+        .eq("is_active", true)
+        .order("name");
       if (error) throw error;
       return data || [];
     },
-    enabled: canManage,
+    enabled: canManage && !!user,
   });
 
   const { data: auditLog = [] } = useQuery({
