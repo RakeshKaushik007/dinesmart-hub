@@ -72,25 +72,25 @@ const PosStartPage = () => {
         .order("name");
 
       if (!isAtLeast("admin")) {
-        // Non-admins (owner / branch_manager / employee) must be constrained to
-        // either branches they're explicitly assigned to OR branches inside a
-        // restaurant they own. If neither, they see nothing — never fall open
-        // to "all branches" because that would let a manager hop into another
-        // owner's branch.
-        if (scopedBranchIds.length === 0 && ownedRestaurantIds.length === 0) {
-          if (cancelled) return;
-          setBranches([]);
-          setLoadingBranches(false);
-          return;
+        // Owners pick from branches in restaurants they own.
+        // Managers / employees are pinned to their assigned branch — they cannot switch.
+        if (isAtLeast("owner")) {
+          if (ownedRestaurantIds.length === 0) {
+            if (cancelled) return;
+            setBranches([]);
+            setLoadingBranches(false);
+            return;
+          }
+          queryBuilder = queryBuilder.in("restaurant_id", ownedRestaurantIds);
+        } else {
+          if (scopedBranchIds.length === 0) {
+            if (cancelled) return;
+            setBranches([]);
+            setLoadingBranches(false);
+            return;
+          }
+          queryBuilder = queryBuilder.in("id", scopedBranchIds);
         }
-        const orParts: string[] = [];
-        if (scopedBranchIds.length > 0) {
-          orParts.push(`id.in.(${scopedBranchIds.join(",")})`);
-        }
-        if (ownedRestaurantIds.length > 0) {
-          orParts.push(`restaurant_id.in.(${ownedRestaurantIds.join(",")})`);
-        }
-        queryBuilder = queryBuilder.or(orParts.join(","));
       }
 
       const { data, error } = await queryBuilder;
