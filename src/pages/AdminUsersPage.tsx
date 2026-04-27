@@ -359,7 +359,17 @@ const AdminUsersPage = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Role</Label>
-                  <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: v as CreatableRole })}>
+                  <Select
+                    value={newUser.role}
+                    onValueChange={(v) =>
+                      setNewUser({
+                        ...newUser,
+                        role: v as CreatableRole,
+                        // Owners don't have a branch — clear any prior selection.
+                        branch_id: v === "owner" ? "none" : newUser.branch_id,
+                      })
+                    }
+                  >
                     <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
                     <SelectContent>
                       {allowedNewRoles.map((r) => (
