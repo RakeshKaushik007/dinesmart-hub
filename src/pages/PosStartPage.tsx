@@ -109,11 +109,11 @@ const PosStartPage = () => {
         setBranches(mapped);
         if (mapped.length === 1) setSelectedId(mapped[0].id);
 
-        // Managers and employees never get to switch — auto-start on their
-        // single assigned branch. Owners and admins always see the picker so
-        // they can confirm the branch even if they only have one.
-        const canSwitch = isAtLeast("owner");
-        if (mapped.length === 1 && !canSwitch) {
+        // If the user only has one accessible branch, skip the picker and
+        // auto-start their session — there's nothing to choose. The picker
+        // only makes sense when 2+ branches are available (true multi-branch
+        // owners or admins).
+        if (mapped.length === 1) {
           const only = mapped[0];
           startSession({
             verified_via: verifiedViaPin ? "pin" : "email",

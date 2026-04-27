@@ -197,13 +197,38 @@ const AdminUsersPage = () => {
   }, [flatNodes, search]);
 
   const { data: branches = [] } = useQuery({
-    queryKey: ["admin-branches"],
+    queryKey: ["admin-branches", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("branches").select("id, name").eq("is_active", true);
+      // Super admins see every branch. Everyone else sees only branches in
+      // restaurants they own, so an admin/owner can't accidentally assign
+      // a new staff member to someone else's branch.
+      if (hasRole("super_admin")) {
+        const { data, error } = await supabase
+          .from("branches")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        if (error) throw error;
+        return data || [];
+      }
+
+      const { data: owned, error: ownedErr } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_user_id", user!.id);
+      if (ownedErr) throw ownedErr;
+      const restIds = (owned ?? []).map((r: any) => r.id);
+      if (restIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("branches")
+        .select("id, name")
+        .in("restaurant_id", restIds)
+        .eq("is_active", true)
+        .order("name");
       if (error) throw error;
       return data || [];
     },
-    enabled: canManage,
+    enabled: canManage && !!user,
   });
 
   const { data: auditLog = [] } = useQuery({
@@ -334,7 +359,17 @@ const AdminUsersPage = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Role</Label>
-                  <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: v as CreatableRole })}>
+                  <Select
+                    value={newUser.role}
+                    onValueChange={(v) =>
+                      setNewUser({
+                        ...newUser,
+                        role: v as CreatableRole,
+                        // Owners don't have a branch — clear any prior selection.
+                        branch_id: v === "owner" ? "none" : newUser.branch_id,
+                      })
+                    }
+                  >
                     <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
                     <SelectContent>
                       {allowedNewRoles.map((r) => (
@@ -352,18 +387,29 @@ const AdminUsersPage = () => {
                   />
                   <p className="text-xs text-muted-foreground">Must be unique among users you've created.</p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Branch (optional)</Label>
-                  <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No branch</SelectItem>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Owners aren't pinned to a branch — they manage their own
+                    restaurants/branches separately. Only show the branch
+                    picker for branch managers and employees, and only list
+                    branches the caller actually controls. */}
+                {newUser.role && newUser.role !== "owner" && (
+                  <div className="space-y-2">
+                    <Label>Branch (optional)</Label>
+                    <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No branch</SelectItem>
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {branches.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        You don't have any branches yet. The owner can add branches from the Branches page.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button
