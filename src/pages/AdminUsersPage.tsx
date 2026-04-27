@@ -377,18 +377,29 @@ const AdminUsersPage = () => {
                   />
                   <p className="text-xs text-muted-foreground">Must be unique among users you've created.</p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Branch (optional)</Label>
-                  <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No branch</SelectItem>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Owners aren't pinned to a branch — they manage their own
+                    restaurants/branches separately. Only show the branch
+                    picker for branch managers and employees, and only list
+                    branches the caller actually controls. */}
+                {newUser.role && newUser.role !== "owner" && (
+                  <div className="space-y-2">
+                    <Label>Branch (optional)</Label>
+                    <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No branch</SelectItem>
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {branches.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        You don't have any branches yet. The owner can add branches from the Branches page.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button
