@@ -232,6 +232,7 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
   const { theme, toggle } = useTheme();
   const { profile, roles, signOut, isAtLeast } = useAuth();
+  const canSwitchBranch = isAtLeast("owner");
   const { session: posSession, endSession: endPosSession } = usePosSession();
   const navigate = useNavigate();
 
@@ -321,15 +322,17 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
           <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 mb-1">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">POS Branch</p>
             <p className="text-[12px] font-semibold text-sidebar-foreground truncate">{posSession.branch_name}</p>
-            <button
-              onClick={() => {
-                endPosSession();
-                navigate("/pos/start");
-              }}
-              className="mt-1 text-[11px] text-primary hover:underline"
-            >
-              Switch branch / end shift
-            </button>
+            {canSwitchBranch && (
+              <button
+                onClick={() => {
+                  endPosSession();
+                  navigate("/pos/start");
+                }}
+                className="mt-1 text-[11px] text-primary hover:underline"
+              >
+                Switch branch / end shift
+              </button>
+            )}
           </div>
         )}
         <button
