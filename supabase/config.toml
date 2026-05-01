@@ -1,1 +1,28 @@
 project_id = "zkmtqgbbnilwmurovarc"
+
+[functions.pin-login]
+verify_jwt = false
+
+[functions.hierarchy-tree]
+verify_jwt = false
+
+[functions.admin-create-restaurant]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.owner-create-branch]
+verify_jwt = false
+
+[functions.delete-user-cascade]
+verify_jwt = false
+
+[functions.staff-directory]
+verify_jwt = false
+
+[functions.ai-assistant]
+verify_jwt = false
+
+[functions.apply-restock]
+verify_jwt = false

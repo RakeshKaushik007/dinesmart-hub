@@ -5,9 +5,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/hooks/useAuth";
+import { PosSessionProvider } from "@/hooks/usePosSession";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import RequirePosSession from "@/components/auth/RequirePosSession";
 import AppLayout from "@/components/layout/AppLayout";
 import LoginPage from "@/pages/LoginPage";
+import PosStartPage from "@/pages/PosStartPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 import Index from "@/pages/Index";
 import IngredientsPage from "@/pages/IngredientsPage";
@@ -53,6 +56,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <PosSessionProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
@@ -60,15 +64,18 @@ const App = () => (
               <Route path="/order/:tableId" element={<CustomerOrderPage />} />
               <Route path="/kiosk" element={<KioskPage />} />
 
+              {/* POS session gate (after login, before POS pages) */}
+              <Route path="/pos/start" element={<ProtectedRoute><PosStartPage /></ProtectedRoute>} />
+
               {/* Protected routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               {/* All roles */}
                 <Route path="/" element={<Index />} />
-                <Route path="/billing" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><BillingPage /></ProtectedRoute>} />
-                <Route path="/tables" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><TablesPage /></ProtectedRoute>} />
-                <Route path="/active-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><ActiveOrdersPage /></ProtectedRoute>} />
-                <Route path="/kitchen-display" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><KitchenDisplayPage /></ProtectedRoute>} />
-                <Route path="/aggregator-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><AggregatorOrdersPage /></ProtectedRoute>} />
+                <Route path="/billing" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><RequirePosSession><BillingPage /></RequirePosSession></ProtectedRoute>} />
+                <Route path="/tables" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><RequirePosSession><TablesPage /></RequirePosSession></ProtectedRoute>} />
+                <Route path="/active-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><RequirePosSession><ActiveOrdersPage /></RequirePosSession></ProtectedRoute>} />
+                <Route path="/kitchen-display" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><RequirePosSession><KitchenDisplayPage /></RequirePosSession></ProtectedRoute>} />
+                <Route path="/aggregator-orders" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><RequirePosSession><AggregatorOrdersPage /></RequirePosSession></ProtectedRoute>} />
                 <Route path="/alerts" element={<ProtectedRoute allowedRoles={["super_admin","admin","owner","branch_manager","employee"]}><AlertsPage /></ProtectedRoute>} />
 
                 {/* Branch Manager+ */}
@@ -104,6 +111,7 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </PosSessionProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
