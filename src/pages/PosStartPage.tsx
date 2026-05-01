@@ -75,13 +75,17 @@ const PosStartPage = () => {
         // Owners pick from branches in restaurants they own.
         // Managers / employees are pinned to their assigned branch — they cannot switch.
         if (isAtLeast("owner")) {
-          if (ownedRestaurantIds.length === 0) {
+          const filters = [
+            ...ownedRestaurantIds.map((id) => `restaurant_id.eq.${id}`),
+            ...scopedBranchIds.map((id) => `id.eq.${id}`),
+          ];
+          if (filters.length === 0) {
             if (cancelled) return;
             setBranches([]);
             setLoadingBranches(false);
             return;
           }
-          queryBuilder = queryBuilder.in("restaurant_id", ownedRestaurantIds);
+          queryBuilder = queryBuilder.or(filters.join(","));
         } else {
           if (scopedBranchIds.length === 0) {
             if (cancelled) return;
