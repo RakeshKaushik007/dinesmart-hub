@@ -10,6 +10,7 @@ export interface PosSession {
   branch_name: string;
   restaurant_id: string | null;
   restaurant_name: string | null;
+  accessible_branch_count?: number;
   started_at: string;
 }
 
