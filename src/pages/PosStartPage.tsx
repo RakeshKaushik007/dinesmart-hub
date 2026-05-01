@@ -65,6 +65,14 @@ const PosStartPage = () => {
         ownedRestaurantIds = (owned ?? []).map((r: any) => r.id);
       }
 
+      const handleNoAccessibleBranches = () => {
+        setBranches([]);
+        setLoadingBranches(false);
+        if (isAtLeast("owner")) {
+          navigate("/branches", { replace: true });
+        }
+      };
+
       let queryBuilder = supabase
         .from("branches")
         .select("id, name, address, restaurant_id, restaurants(name)")
@@ -81,8 +89,7 @@ const PosStartPage = () => {
           ];
           if (filters.length === 0) {
             if (cancelled) return;
-            setBranches([]);
-            setLoadingBranches(false);
+            handleNoAccessibleBranches();
             return;
           }
           queryBuilder = queryBuilder.or(filters.join(","));
