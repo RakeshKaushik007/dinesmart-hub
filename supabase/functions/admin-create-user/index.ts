@@ -121,12 +121,18 @@ Deno.serve(async (req) => {
       } else if (roles.includes("owner")) {
         const { data: branch } = await supabaseAdmin
           .from("branches")
-          .select("id, restaurants!inner(owner_user_id)")
+          .select("id, restaurant_id")
           .eq("id", branch_id)
           .eq("is_active", true)
-          .eq("restaurants.owner_user_id", caller.id)
           .maybeSingle();
-        if (!branch) return respond({ ok: false, error: "You can only assign users to branches you own" });
+        if (!branch?.restaurant_id) return respond({ ok: false, error: "You can only assign users to branches you own" });
+        const { data: ownedRestaurant } = await supabaseAdmin
+          .from("restaurants")
+          .select("id")
+          .eq("id", branch.restaurant_id)
+          .eq("owner_user_id", caller.id)
+          .maybeSingle();
+        if (!ownedRestaurant) return respond({ ok: false, error: "You can only assign users to branches you own" });
       } else if (roles.includes("branch_manager")) {
         const { data: assigned } = await supabaseAdmin
           .from("user_roles")
