@@ -143,7 +143,7 @@ const flattenTree = (nodes: TreeNode[]): TreeNode[] => {
 };
 
 const AdminUsersPage = () => {
-  const { user, hasAnyRole, hasRole } = useAuth();
+  const { user, roles, hasAnyRole, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -215,7 +215,7 @@ const AdminUsersPage = () => {
       }
 
       if (hasRole("branch_manager") && !hasRole("owner")) {
-        const branchIds = Array.from(new Set(flatNodes.filter((n) => n.user_id === user!.id && n.branch_id).map((n) => n.branch_id as string)));
+        const branchIds = Array.from(new Set(roles.map((r) => r.branch_id).filter((id): id is string => !!id)));
         if (branchIds.length === 0) return [];
         const { data, error } = await supabase
           .from("branches")
