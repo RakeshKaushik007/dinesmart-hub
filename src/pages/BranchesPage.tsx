@@ -39,7 +39,7 @@ interface Branch {
 }
 
 const BranchesPage = () => {
-  const { user, hasRole } = useAuth();
+  const { user, isAtLeast } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -53,7 +53,7 @@ const BranchesPage = () => {
     manager_custom_role_name: "",
   });
 
-  const canManage = hasRole("owner");
+  const canManage = isAtLeast("owner");
 
   // Restaurants visible to caller (RLS filters: owners see own, admins see all)
   const { data: restaurants = [] } = useQuery({
@@ -70,8 +70,9 @@ const BranchesPage = () => {
   });
 
   const myRestaurants = useMemo(() => {
+    if (isAtLeast("admin")) return restaurants;
     return restaurants.filter((r) => r.owner_user_id === user?.id);
-  }, [restaurants, user]);
+  }, [restaurants, user, isAtLeast]);
 
   const { data: branches = [], isLoading } = useQuery({
     queryKey: ["branches-with-managers", user?.id],
@@ -131,7 +132,7 @@ const BranchesPage = () => {
     return (
       <div className="p-8">
         <h1 className="text-2xl font-bold">Access denied</h1>
-        <p className="text-muted-foreground mt-2">Only Owners can manage branches.</p>
+        <p className="text-muted-foreground mt-2">Only Owners (or Admins) can manage branches.</p>
       </div>
     );
   }

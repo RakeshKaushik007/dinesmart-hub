@@ -9,8 +9,8 @@ type AppRole = "super_admin" | "admin" | "owner" | "branch_manager" | "employee"
 
 // Caller role -> roles they may create
 const CAN_CREATE: Record<AppRole, AppRole[]> = {
-  super_admin: ["admin", "owner"],
-  admin: ["owner"],
+  super_admin: ["admin", "owner", "branch_manager", "employee"],
+  admin: ["owner", "branch_manager", "employee"],
   owner: ["branch_manager", "employee"],
   branch_manager: ["employee"],
   employee: [],
@@ -104,51 +104,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    let safeBranchId: string | null = null;
-    if (targetRole === "branch_manager" || targetRole === "employee") {
-      if (!branch_id) {
-        return respond({ ok: false, error: "Branch is required for Managers and Staff" });
-      }
-
-      if (roles.includes("super_admin")) {
-        const { data: branch } = await supabaseAdmin
-          .from("branches")
-          .select("id")
-          .eq("id", branch_id)
-          .eq("is_active", true)
-          .maybeSingle();
-        if (!branch) return respond({ ok: false, error: "Branch not found" });
-      } else if (roles.includes("owner")) {
-        const { data: branch } = await supabaseAdmin
-          .from("branches")
-          .select("id, restaurant_id")
-          .eq("id", branch_id)
-          .eq("is_active", true)
-          .maybeSingle();
-        if (!branch?.restaurant_id) return respond({ ok: false, error: "You can only assign users to branches you own" });
-        const { data: ownedRestaurant } = await supabaseAdmin
-          .from("restaurants")
-          .select("id")
-          .eq("id", branch.restaurant_id)
-          .eq("owner_user_id", caller.id)
-          .maybeSingle();
-        if (!ownedRestaurant) return respond({ ok: false, error: "You can only assign users to branches you own" });
-      } else if (roles.includes("branch_manager")) {
-        const { data: assigned } = await supabaseAdmin
-          .from("user_roles")
-          .select("id")
-          .eq("user_id", caller.id)
-          .eq("branch_id", branch_id)
-          .eq("is_active", true)
-          .maybeSingle();
-        if (!assigned) return respond({ ok: false, error: "You can only assign staff to your assigned branch" });
-      } else {
-        return respond({ ok: false, error: "You don't have permission to assign branches" });
-      }
-
-      safeBranchId = branch_id;
-    }
-
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -170,7 +125,7 @@ Deno.serve(async (req) => {
         parent_user_id: caller.id,
         custom_role_name: custom_role_name || null,
         permissions: Array.isArray(permissions) ? permissions : [],
-        branch_id: safeBranchId,
+        branch_id: branch_id || null,
         assigned_by: caller.id,
         is_active: true,
       });
@@ -189,7 +144,7 @@ Deno.serve(async (req) => {
       details: {
         role: targetRole,
         custom_role_name: custom_role_name || null,
-        branch_id: safeBranchId,
+        branch_id: branch_id || null,
         permissions: permissions || [],
       },
     });

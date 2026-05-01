@@ -65,14 +65,6 @@ const PosStartPage = () => {
         ownedRestaurantIds = (owned ?? []).map((r: any) => r.id);
       }
 
-      const handleNoAccessibleBranches = () => {
-        setBranches([]);
-        setLoadingBranches(false);
-        if (isAtLeast("owner")) {
-          navigate("/branches", { replace: true });
-        }
-      };
-
       let queryBuilder = supabase
         .from("branches")
         .select("id, name, address, restaurant_id, restaurants(name)")
@@ -83,16 +75,13 @@ const PosStartPage = () => {
         // Owners pick from branches in restaurants they own.
         // Managers / employees are pinned to their assigned branch — they cannot switch.
         if (isAtLeast("owner")) {
-          const filters = [
-            ...ownedRestaurantIds.map((id) => `restaurant_id.eq.${id}`),
-            ...scopedBranchIds.map((id) => `id.eq.${id}`),
-          ];
-          if (filters.length === 0) {
+          if (ownedRestaurantIds.length === 0) {
             if (cancelled) return;
-            handleNoAccessibleBranches();
+            setBranches([]);
+            setLoadingBranches(false);
             return;
           }
-          queryBuilder = queryBuilder.or(filters.join(","));
+          queryBuilder = queryBuilder.in("restaurant_id", ownedRestaurantIds);
         } else {
           if (scopedBranchIds.length === 0) {
             if (cancelled) return;
@@ -118,10 +107,6 @@ const PosStartPage = () => {
           restaurant_name: b.restaurants?.name ?? null,
         }));
         setBranches(mapped);
-        if (mapped.length === 0 && isAtLeast("owner")) {
-          handleNoAccessibleBranches();
-          return;
-        }
         if (mapped.length === 1) setSelectedId(mapped[0].id);
 
         // If the user only has one accessible branch, skip the picker and
@@ -136,7 +121,6 @@ const PosStartPage = () => {
             branch_name: only.name,
             restaurant_id: only.restaurant_id,
             restaurant_name: only.restaurant_name,
-            accessible_branch_count: mapped.length,
           });
           navigate(next, { replace: true });
           return;
@@ -236,7 +220,6 @@ const PosStartPage = () => {
       branch_name: branch.name,
       restaurant_id: branch.restaurant_id,
       restaurant_name: branch.restaurant_name,
-      accessible_branch_count: branches.length,
     });
     navigate(next, { replace: true });
   };
