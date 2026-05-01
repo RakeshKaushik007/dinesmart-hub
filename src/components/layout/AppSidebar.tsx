@@ -233,8 +233,8 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
   const { theme, toggle } = useTheme();
   const { profile, roles, signOut, isAtLeast } = useAuth();
-  const canSwitchBranch = isAtLeast("owner");
   const { session: posSession, endSession: endPosSession } = usePosSession();
+  const canSwitchBranch = isAtLeast("owner") && (posSession?.accessible_branch_count ?? 0) > 1;
   const navigate = useNavigate();
 
   const topRole = roles.length > 0 ? roles[0].role : null;
