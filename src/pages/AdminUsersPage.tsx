@@ -393,6 +393,11 @@ const AdminUsersPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {hasRole("admin") && !hasRole("super_admin") && newUser.role === "owner" && (
+                  <p className="text-xs text-muted-foreground">
+                    Admins create only Owner accounts here. Branches are created later by that Owner from Branch Management.
+                  </p>
+                )}
                 <div className="space-y-2">
                   <Label>Custom Title (optional)</Label>
                   <Input
@@ -406,13 +411,12 @@ const AdminUsersPage = () => {
                     restaurants/branches separately. Only show the branch
                     picker for branch managers and employees, and only list
                     branches the caller actually controls. */}
-                {newUser.role && newUser.role !== "owner" && (
+                {canAssignBranch && newUser.role && newUser.role !== "owner" && (
                   <div className="space-y-2">
-                    <Label>Branch (optional)</Label>
+                    <Label>Branch *</Label>
                     <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">No branch</SelectItem>
                         {branches.map((b) => (
                           <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                         ))}
@@ -429,7 +433,13 @@ const AdminUsersPage = () => {
               <DialogFooter>
                 <Button
                   className="w-full"
-                  disabled={createMutation.isPending || !newUser.email || !newUser.password || !newUser.role}
+                  disabled={
+                    createMutation.isPending ||
+                    !newUser.email ||
+                    !newUser.password ||
+                    !newUser.role ||
+                    (canAssignBranch && newUser.role !== "owner" && (newUser.branch_id === "none" || branches.length === 0))
+                  }
                   onClick={() => createMutation.mutate()}
                 >
                   {createMutation.isPending ? "Creating..." : "Create User"}
