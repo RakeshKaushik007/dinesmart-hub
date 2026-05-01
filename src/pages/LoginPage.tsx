@@ -67,7 +67,7 @@ const LoginPage = () => {
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
-        navigate("/");
+        navigate("/pos/start?next=/");
       }
     }
     setLoading(false);
@@ -106,8 +106,7 @@ const LoginPage = () => {
       markPosVerifiedViaPin(verifyData.user.id);
     }
     setLoading(false);
-    // PIN users should always go through the POS branch picker.
-    navigate("/pos/start");
+    navigate("/pos/start?next=/");
   };
 
   return (
