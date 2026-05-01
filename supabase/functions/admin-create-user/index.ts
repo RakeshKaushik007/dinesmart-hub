@@ -9,7 +9,7 @@ type AppRole = "super_admin" | "admin" | "owner" | "branch_manager" | "employee"
 
 // Caller role -> roles they may create
 const CAN_CREATE: Record<AppRole, AppRole[]> = {
-  super_admin: ["admin", "owner", "branch_manager", "employee"],
+  super_admin: ["admin", "owner"],
   admin: ["owner"],
   owner: ["branch_manager", "employee"],
   branch_manager: ["employee"],
