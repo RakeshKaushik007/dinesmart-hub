@@ -121,6 +121,7 @@ const PosStartPage = () => {
             branch_name: only.name,
             restaurant_id: only.restaurant_id,
             restaurant_name: only.restaurant_name,
+            accessible_branch_count: mapped.length,
           });
           navigate(next, { replace: true });
           return;
@@ -220,6 +221,7 @@ const PosStartPage = () => {
       branch_name: branch.name,
       restaurant_id: branch.restaurant_id,
       restaurant_name: branch.restaurant_name,
+      accessible_branch_count: branches.length,
     });
     navigate(next, { replace: true });
   };
