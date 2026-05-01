@@ -50,50 +50,24 @@ const PosStartPage = () => {
     (async () => {
       setLoadingBranches(true);
 
-      // Branches the user is explicitly scoped to via user_roles.branch_id.
-      const scopedBranchIds = Array.from(
-        new Set(roles.map((r) => r.branch_id).filter((b): b is string => !!b)),
-      );
+      // Branches the user is scoped to — based on user_roles.branch_id when set.
+      const scopedBranchIds = roles
+        .map((r) => r.branch_id)
+        .filter((b): b is string => !!b);
 
-      // Restaurants the user owns (owner role users can manage all branches in their restaurant).
-      let ownedRestaurantIds: string[] = [];
-      if (!isAtLeast("admin")) {
-        const { data: owned } = await supabase
-          .from("restaurants")
-          .select("id")
-          .eq("owner_user_id", user.id);
-        ownedRestaurantIds = (owned ?? []).map((r: any) => r.id);
-      }
-
-      let queryBuilder = supabase
+      let query = supabase
         .from("branches")
         .select("id, name, address, restaurant_id, restaurants(name)")
         .eq("is_active", true)
         .order("name");
 
-      if (!isAtLeast("admin")) {
-        // Owners pick from branches in restaurants they own.
-        // Managers / employees are pinned to their assigned branch — they cannot switch.
-        if (isAtLeast("owner")) {
-          if (ownedRestaurantIds.length === 0) {
-            if (cancelled) return;
-            setBranches([]);
-            setLoadingBranches(false);
-            return;
-          }
-          queryBuilder = queryBuilder.in("restaurant_id", ownedRestaurantIds);
-        } else {
-          if (scopedBranchIds.length === 0) {
-            if (cancelled) return;
-            setBranches([]);
-            setLoadingBranches(false);
-            return;
-          }
-          queryBuilder = queryBuilder.in("id", scopedBranchIds);
-        }
+      // Owners and below without explicit branch scope still need to pick from
+      // their restaurant's branches; admins/super_admins see all active.
+      if (!isAtLeast("admin") && scopedBranchIds.length > 0) {
+        query = query.in("id", scopedBranchIds);
       }
 
-      const { data, error } = await queryBuilder;
+      const { data, error } = await query;
       if (cancelled) return;
       if (error) {
         toast({ title: "Could not load branches", description: error.message, variant: "destructive" });
@@ -108,23 +82,6 @@ const PosStartPage = () => {
         }));
         setBranches(mapped);
         if (mapped.length === 1) setSelectedId(mapped[0].id);
-
-        // If the user only has one accessible branch, skip the picker and
-        // auto-start their session — there's nothing to choose. The picker
-        // only makes sense when 2+ branches are available (true multi-branch
-        // owners or admins).
-        if (mapped.length === 1) {
-          const only = mapped[0];
-          startSession({
-            verified_via: verifiedViaPin ? "pin" : "email",
-            branch_id: only.id,
-            branch_name: only.name,
-            restaurant_id: only.restaurant_id,
-            restaurant_name: only.restaurant_name,
-          });
-          navigate(next, { replace: true });
-          return;
-        }
       }
       setLoadingBranches(false);
     })();

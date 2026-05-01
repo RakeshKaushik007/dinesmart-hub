@@ -107,7 +107,7 @@ const App = () => (
 
                 {/* Super Admin only */}
                 <Route path="/admin/restaurants" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><RestaurantsPage /></ProtectedRoute>} />
-                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin", "admin", "owner", "branch_manager"]}><AdminUsersPage /></ProtectedRoute>} />
+                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin"]}><AdminUsersPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
