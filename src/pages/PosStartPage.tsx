@@ -118,6 +118,10 @@ const PosStartPage = () => {
           restaurant_name: b.restaurants?.name ?? null,
         }));
         setBranches(mapped);
+        if (mapped.length === 0 && isAtLeast("owner")) {
+          handleNoAccessibleBranches();
+          return;
+        }
         if (mapped.length === 1) setSelectedId(mapped[0].id);
 
         // If the user only has one accessible branch, skip the picker and
