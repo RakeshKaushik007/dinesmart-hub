@@ -31,10 +31,9 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", caller.id);
     const roles = (callerRoles || []).map((r) => r.role as string);
-    const isPrivileged = roles.includes("super_admin") || roles.includes("admin");
     const isOwner = roles.includes("owner");
-    if (!isPrivileged && !isOwner) {
-      return respond({ ok: false, error: "Only Owners (or Admins) can create branches" });
+    if (!isOwner) {
+      return respond({ ok: false, error: "Only Owners can create branches" });
     }
 
     const body = await req.json().catch(() => ({}));
@@ -56,7 +55,7 @@ Deno.serve(async (req) => {
       return respond({ ok: false, error: "Manager password must be at least 6 characters" });
     }
 
-    // Verify caller owns this restaurant (unless privileged)
+    // Verify caller owns this restaurant.
     const { data: restaurant, error: rErr } = await admin
       .from("restaurants")
       .select("id, owner_user_id, name")
@@ -65,7 +64,7 @@ Deno.serve(async (req) => {
     if (rErr || !restaurant) {
       return respond({ ok: false, error: "Restaurant not found" });
     }
-    if (!isPrivileged && restaurant.owner_user_id !== caller.id) {
+    if (restaurant.owner_user_id !== caller.id) {
       return respond({ ok: false, error: "You don't own this restaurant" });
     }
 
