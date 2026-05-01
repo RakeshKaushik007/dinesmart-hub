@@ -40,7 +40,7 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "destructive" |
 
 const CAN_CREATE: Record<AppRole, CreatableRole[]> = {
   super_admin: ["admin", "owner", "branch_manager", "employee"],
-  admin: ["owner", "branch_manager", "employee"],
+  admin: ["owner"],
   owner: ["branch_manager", "employee"],
   branch_manager: ["employee"],
   employee: [],
@@ -160,6 +160,7 @@ const AdminUsersPage = () => {
 
   const canManage = hasAnyRole(["super_admin", "admin", "owner", "branch_manager"]);
   const isSuper = hasRole("super_admin") || hasRole("admin");
+  const canAssignBranch = hasRole("super_admin") || hasRole("owner") || hasRole("branch_manager");
 
   // Determine which roles the current user can create
   const allowedNewRoles = useMemo<CreatableRole[]>(() => {
@@ -199,13 +200,27 @@ const AdminUsersPage = () => {
   const { data: branches = [] } = useQuery({
     queryKey: ["admin-branches", user?.id],
     queryFn: async () => {
-      // Super admins see every branch. Everyone else sees only branches in
-      // restaurants they own, so an admin/owner can't accidentally assign
-      // a new staff member to someone else's branch.
+      if (hasRole("admin") && !hasRole("super_admin")) return [];
+
+      // Super admins see every branch. Owners see only branches in restaurants
+      // they own. Branch managers see only their assigned branch ids.
       if (hasRole("super_admin")) {
         const { data, error } = await supabase
           .from("branches")
           .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        if (error) throw error;
+        return data || [];
+      }
+
+      if (hasRole("branch_manager") && !hasRole("owner")) {
+        const branchIds = Array.from(new Set(flatNodes.filter((n) => n.user_id === user!.id && n.branch_id).map((n) => n.branch_id as string)));
+        if (branchIds.length === 0) return [];
+        const { data, error } = await supabase
+          .from("branches")
+          .select("id, name")
+          .in("id", branchIds)
           .eq("is_active", true)
           .order("name");
         if (error) throw error;
