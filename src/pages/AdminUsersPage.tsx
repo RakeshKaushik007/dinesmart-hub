@@ -39,7 +39,7 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "destructive" |
 };
 
 const CAN_CREATE: Record<AppRole, CreatableRole[]> = {
-  super_admin: ["admin", "owner", "branch_manager", "employee"],
+  super_admin: ["admin", "owner"],
   admin: ["owner"],
   owner: ["branch_manager", "employee"],
   branch_manager: ["employee"],
