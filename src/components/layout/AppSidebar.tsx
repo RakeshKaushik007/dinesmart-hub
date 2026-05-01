@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   ChefHat,
   AlertTriangle,
@@ -36,7 +36,6 @@ import {
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth, AppRole } from "@/hooks/useAuth";
-import { usePosSession } from "@/hooks/usePosSession";
 
 interface NavItem {
   to: string;
@@ -232,8 +231,6 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const location = useLocation();
   const { theme, toggle } = useTheme();
   const { profile, roles, signOut, isAtLeast } = useAuth();
-  const { session: posSession, endSession: endPosSession } = usePosSession();
-  const navigate = useNavigate();
 
   const topRole = roles.length > 0 ? roles[0].role : null;
 
@@ -317,21 +314,6 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
       </nav>
 
       <div className="px-3 pb-4 space-y-1">
-        {posSession && (
-          <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 mb-1">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">POS Branch</p>
-            <p className="text-[12px] font-semibold text-sidebar-foreground truncate">{posSession.branch_name}</p>
-            <button
-              onClick={() => {
-                endPosSession();
-                navigate("/pos/start");
-              }}
-              className="mt-1 text-[11px] text-primary hover:underline"
-            >
-              Switch branch / end shift
-            </button>
-          </div>
-        )}
         <button
           onClick={toggle}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full"

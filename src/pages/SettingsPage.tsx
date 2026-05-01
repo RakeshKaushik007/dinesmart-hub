@@ -6,14 +6,10 @@ import { toast } from "sonner";
 import {
   Settings, Store, Receipt, User, Bell, Palette, Save, Loader2, Building2, Phone, MapPin, Mail, Percent, Globe, Clock,
 } from "lucide-react";
-import { Bot, ShieldCheck } from "lucide-react";
-import { useFloatingAISetting } from "@/hooks/useFloatingAISetting";
 
 const SettingsPage = () => {
-  const { profile, user, isAtLeast, hasRole } = useAuth();
+  const { profile, user, isAtLeast } = useAuth();
   const { theme, toggle } = useTheme();
-  const isSuperAdmin = hasRole("super_admin");
-  const { enabled: floatingAIEnabled, saving: savingFloatingAI, setEnabled: setFloatingAIEnabled } = useFloatingAISetting();
   const [activeTab, setActiveTab] = useState("profile");
   const [saving, setSaving] = useState(false);
 
@@ -104,7 +100,6 @@ const SettingsPage = () => {
     ...(isAtLeast("branch_manager") ? [{ id: "billing", label: "Tax & Billing", icon: Receipt }] : []),
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "appearance", label: "Appearance", icon: Palette },
-    ...(isSuperAdmin ? [{ id: "platform", label: "Platform", icon: ShieldCheck }] : []),
   ];
 
   return (
@@ -322,41 +317,6 @@ const SettingsPage = () => {
                     </button>
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "platform" && isSuperAdmin && (
-            <div className="space-y-5">
-              <h2 className="text-lg font-semibold text-card-foreground">Platform Controls</h2>
-              <p className="text-sm text-muted-foreground">Global toggles that affect every workspace.</p>
-              <div className="space-y-4 pt-2">
-                <label className="flex items-start justify-between gap-4 p-4 rounded-xl border border-border bg-background">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="rounded-md bg-primary/10 p-2 mt-0.5">
-                      <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-card-foreground">Floating AI Assistant</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        When on, owners and admins see a floating chat bubble on every page. Turning this off hides it for everyone in real time.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const next = !floatingAIEnabled;
-                      const { error } = await setFloatingAIEnabled(next);
-                      if (error) toast.error(error.message);
-                      else toast.success(`Floating assistant ${next ? "enabled" : "disabled"} for everyone`);
-                    }}
-                    disabled={savingFloatingAI}
-                    aria-pressed={floatingAIEnabled}
-                    className={`relative shrink-0 w-11 h-6 rounded-full transition-colors disabled:opacity-60 ${floatingAIEnabled ? "bg-primary" : "bg-muted-foreground/30"}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${floatingAIEnabled ? "translate-x-5" : ""}`} />
-                  </button>
-                </label>
               </div>
             </div>
           )}

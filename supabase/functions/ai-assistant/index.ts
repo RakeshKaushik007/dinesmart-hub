@@ -52,32 +52,7 @@ Deno.serve(async (req) => {
       )
       .join("\n");
 
-    const systemPrompt = `You are Blennix's inventory assistant for a restaurant POS. Answer concisely with markdown. Use the live inventory snapshot below as the source of truth. If asked about something not in the data, say so.
-
-When the user asks to restock, top-up, add stock, or order more of an ingredient, call the propose_restock tool with the matching ingredient_id from the snapshot. Never invent IDs. Always include a one-line reason. The user must confirm before anything is written; do not claim the change was applied.
-
-INVENTORY SNAPSHOT (${ingredients?.length ?? 0} items):
-${(ingredients ?? []).map((i: any) => `- [${i.id}] ${i.name} (${i.category ?? "uncategorized"}): ${i.current_stock} ${i.unit}, min ${i.min_threshold}, status ${i.status}, expires ${i.expiry_date ?? "n/a"}, cost ₹${i.cost_per_unit}/${i.unit}`).join("\n") || "(no ingredients found)"}`;
-
-    const tools = [
-      {
-        type: "function",
-        function: {
-          name: "propose_restock",
-          description: "Propose adding stock to an ingredient. Requires user confirmation before being applied.",
-          parameters: {
-            type: "object",
-            properties: {
-              ingredient_id: { type: "string", description: "UUID of the ingredient from the snapshot" },
-              quantity: { type: "number", description: "Amount to add, in the ingredient's unit" },
-              reason: { type: "string", description: "Short justification (e.g. 'below threshold', 'weekend prep')" },
-            },
-            required: ["ingredient_id", "quantity", "reason"],
-            additionalProperties: false,
-          },
-        },
-      },
-    ];
+    const systemPrompt = `You are Blennix's inventory assistant for a restaurant POS. Answer concisely with markdown. Use the live inventory snapshot below as the source of truth. If asked about something not in the data, say so.\n\nINVENTORY SNAPSHOT (${ingredients?.length ?? 0} items):\n${inventoryContext || "(no ingredients found)"}`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -88,7 +63,6 @@ ${(ingredients ?? []).map((i: any) => `- [${i.id}] ${i.name} (${i.category ?? "u
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
-        tools,
       }),
     });
 
@@ -105,28 +79,8 @@ ${(ingredients ?? []).map((i: any) => `- [${i.id}] ${i.name} (${i.category ?? "u
     }
 
     const json = await aiResp.json();
-    const message = json.choices?.[0]?.message ?? {};
-    const reply: string = message.content ?? "";
-    const proposals: Array<{ ingredient_id: string; ingredient_name: string; quantity: number; unit: string; reason: string }> = [];
-
-    const ingMap = new Map((ingredients ?? []).map((i: any) => [i.id, i]));
-    for (const call of message.tool_calls ?? []) {
-      if (call?.function?.name !== "propose_restock") continue;
-      try {
-        const args = JSON.parse(call.function.arguments ?? "{}");
-        const ing: any = ingMap.get(args.ingredient_id);
-        if (!ing || !(args.quantity > 0)) continue;
-        proposals.push({
-          ingredient_id: ing.id,
-          ingredient_name: ing.name,
-          quantity: Number(args.quantity),
-          unit: ing.unit,
-          reason: String(args.reason ?? "").slice(0, 200),
-        });
-      } catch { /* ignore malformed tool call */ }
-    }
-
-    return respond({ ok: true, reply, proposals });
+    const reply = json.choices?.[0]?.message?.content ?? "";
+    return respond({ ok: true, reply });
   } catch (e) {
     console.error("ai-assistant error", e);
     return respond({ ok: false, error: e instanceof Error ? e.message : "Unknown error" }, 500);

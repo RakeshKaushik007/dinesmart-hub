@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { markPosVerifiedViaPin } from "@/hooks/usePosSession";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,7 +91,7 @@ const LoginPage = () => {
       setLoading(false);
       return;
     }
-    const { data: verifyData, error: verifyErr } = await supabase.auth.verifyOtp({
+    const { error: verifyErr } = await supabase.auth.verifyOtp({
       type: "magiclink",
       token_hash: data.token_hash,
     });
@@ -101,13 +100,8 @@ const LoginPage = () => {
       setLoading(false);
       return;
     }
-    if (verifyData?.user) {
-      // Stash a marker so the POS gate knows this tab authenticated via PIN.
-      markPosVerifiedViaPin(verifyData.user.id);
-    }
     setLoading(false);
-    // PIN users should always go through the POS branch picker.
-    navigate("/pos/start");
+    navigate("/");
   };
 
   return (
