@@ -65,6 +65,14 @@ const PosStartPage = () => {
         ownedRestaurantIds = (owned ?? []).map((r: any) => r.id);
       }
 
+      const handleNoAccessibleBranches = () => {
+        setBranches([]);
+        setLoadingBranches(false);
+        if (isAtLeast("owner")) {
+          navigate("/branches", { replace: true });
+        }
+      };
+
       let queryBuilder = supabase
         .from("branches")
         .select("id, name, address, restaurant_id, restaurants(name)")
@@ -75,13 +83,16 @@ const PosStartPage = () => {
         // Owners pick from branches in restaurants they own.
         // Managers / employees are pinned to their assigned branch — they cannot switch.
         if (isAtLeast("owner")) {
-          if (ownedRestaurantIds.length === 0) {
+          const filters = [
+            ...ownedRestaurantIds.map((id) => `restaurant_id.eq.${id}`),
+            ...scopedBranchIds.map((id) => `id.eq.${id}`),
+          ];
+          if (filters.length === 0) {
             if (cancelled) return;
-            setBranches([]);
-            setLoadingBranches(false);
+            handleNoAccessibleBranches();
             return;
           }
-          queryBuilder = queryBuilder.in("restaurant_id", ownedRestaurantIds);
+          queryBuilder = queryBuilder.or(filters.join(","));
         } else {
           if (scopedBranchIds.length === 0) {
             if (cancelled) return;
@@ -107,6 +118,10 @@ const PosStartPage = () => {
           restaurant_name: b.restaurants?.name ?? null,
         }));
         setBranches(mapped);
+        if (mapped.length === 0 && isAtLeast("owner")) {
+          handleNoAccessibleBranches();
+          return;
+        }
         if (mapped.length === 1) setSelectedId(mapped[0].id);
 
         // If the user only has one accessible branch, skip the picker and
