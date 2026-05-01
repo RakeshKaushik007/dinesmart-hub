@@ -63,11 +63,18 @@ const LoginPage = () => {
         toast({ title: "Check your email", description: "We sent a confirmation link to verify your account." });
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
-        navigate("/pos/start?next=/");
+        const { data: roleRows } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("is_active", true);
+        const roles = (roleRows ?? []).map((r: any) => r.role as string);
+        const needsBranchContext = roles.some((r) => ["owner", "branch_manager", "employee"].includes(r));
+        navigate(needsBranchContext ? "/pos/start?next=/" : "/");
       }
     }
     setLoading(false);
