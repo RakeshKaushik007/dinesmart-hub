@@ -39,8 +39,8 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "destructive" |
 };
 
 const CAN_CREATE: Record<AppRole, CreatableRole[]> = {
-  super_admin: ["admin", "owner"],
-  admin: ["owner"],
+  super_admin: ["admin", "owner", "branch_manager", "employee"],
+  admin: ["owner", "branch_manager", "employee"],
   owner: ["branch_manager", "employee"],
   branch_manager: ["employee"],
   employee: [],
@@ -173,7 +173,7 @@ const AdminUsersPage = () => {
 
   const canManage = hasAnyRole(["super_admin", "admin", "owner", "branch_manager"]);
   const isSuper = hasRole("super_admin") || hasRole("admin");
-  const canAssignBranch = hasRole("super_admin") || hasRole("owner") || hasRole("branch_manager");
+  const canAssignBranch = hasRole("super_admin") || hasRole("admin") || hasRole("owner") || hasRole("branch_manager");
 
   // Determine which roles the current user can create
   const allowedNewRoles = useMemo<CreatableRole[]>(() => {
@@ -213,11 +213,9 @@ const AdminUsersPage = () => {
   const { data: branches = [] } = useQuery({
     queryKey: ["admin-branches", user?.id],
     queryFn: async () => {
-      if (hasRole("admin") && !hasRole("super_admin")) return [];
-
-      // Super admins see every branch. Owners see only branches in restaurants
-      // they own. Branch managers see only their assigned branch ids.
-      if (hasRole("super_admin")) {
+      // Super admins and admins see every branch. Owners see only branches in
+      // restaurants they own. Branch managers see only their assigned branches.
+      if (hasRole("super_admin") || hasRole("admin")) {
         const { data, error } = await supabase
           .from("branches")
           .select("id, name")
