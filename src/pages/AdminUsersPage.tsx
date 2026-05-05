@@ -642,6 +642,43 @@ const AdminUsersPage = () => {
         )}
       </Tabs>
 
+      <Dialog open={!!reassignTarget} onOpenChange={(v) => { if (!v) setReassignTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign branch</DialogTitle>
+            <DialogDescription>
+              Pick which branch <strong>{reassignTarget?.full_name || reassignTarget?.email}</strong> should log into.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Branch</Label>
+            <Select value={reassignBranchId} onValueChange={setReassignBranchId}>
+              <SelectTrigger><SelectValue placeholder="Pick a branch" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Unassigned —</SelectItem>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {branches.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No branches available. Create one from the Branches page first.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignTarget(null)}>Cancel</Button>
+            <Button
+              onClick={() => reassignMutation.mutate()}
+              disabled={reassignMutation.isPending || branches.length === 0}
+            >
+              {reassignMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) { setDeleteTarget(null); setDeletePreview(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
