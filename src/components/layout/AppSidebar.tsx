@@ -121,6 +121,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: "/payment-methods", icon: CreditCard, label: "Payment Methods", minRole: "branch_manager" },
       { to: "/staff", icon: Shield, label: "Staff Management", minRole: "branch_manager" },
+      { to: "/admin/users", icon: Shield, label: "User Management", minRole: "branch_manager" },
       { to: "/branches", icon: Building, label: "Branches", minRole: "owner" },
       { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
       { to: "/data-import", icon: FileSpreadsheet, label: "Data Import", minRole: "owner" },
@@ -132,7 +133,7 @@ const navGroups: NavGroup[] = [
     minRole: "admin",
     items: [
       { to: "/admin/restaurants", icon: Store, label: "Restaurants", minRole: "admin" },
-      { to: "/admin/users", icon: Shield, label: "User Management", minRole: "super_admin" },
+      { to: "/admin/users", icon: Shield, label: "User Management", minRole: "admin" },
     ],
   },
 ];
@@ -233,6 +234,7 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const { theme, toggle } = useTheme();
   const { profile, roles, signOut, isAtLeast } = useAuth();
   const { session: posSession, endSession: endPosSession } = usePosSession();
+  const canSwitchBranch = isAtLeast("owner") && (posSession?.accessible_branch_count ?? 0) > 1;
   const navigate = useNavigate();
 
   const topRole = roles.length > 0 ? roles[0].role : null;
@@ -321,15 +323,17 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
           <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 mb-1">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">POS Branch</p>
             <p className="text-[12px] font-semibold text-sidebar-foreground truncate">{posSession.branch_name}</p>
-            <button
-              onClick={() => {
-                endPosSession();
-                navigate("/pos/start");
-              }}
-              className="mt-1 text-[11px] text-primary hover:underline"
-            >
-              Switch branch / end shift
-            </button>
+            {canSwitchBranch && (
+              <button
+                onClick={() => {
+                  endPosSession();
+                  navigate("/pos/start");
+                }}
+                className="mt-1 text-[11px] text-primary hover:underline"
+              >
+                Switch branch / end shift
+              </button>
+            )}
           </div>
         )}
         <button

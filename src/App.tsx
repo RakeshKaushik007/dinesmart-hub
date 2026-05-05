@@ -91,7 +91,7 @@ const App = () => (
 
                 {/* Owner+ */}
                 <Route path="/dynamic-pricing" element={<ProtectedRoute requiredRole="owner"><DynamicPricingPage /></ProtectedRoute>} />
-                <Route path="/branches" element={<ProtectedRoute requiredRole="owner"><BranchesPage /></ProtectedRoute>} />
+                <Route path="/branches" element={<ProtectedRoute allowedRoles={["owner"]}><BranchesPage /></ProtectedRoute>} />
                 <Route path="/profitability" element={<ProtectedRoute requiredRole="owner"><ProfitabilityPage /></ProtectedRoute>} />
                 <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
@@ -107,7 +107,7 @@ const App = () => (
 
                 {/* Super Admin only */}
                 <Route path="/admin/restaurants" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><RestaurantsPage /></ProtectedRoute>} />
-                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin"]}><AdminUsersPage /></ProtectedRoute>} />
+                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin", "admin", "owner", "branch_manager"]}><AdminUsersPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

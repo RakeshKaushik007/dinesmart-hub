@@ -39,8 +39,8 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "destructive" |
 };
 
 const CAN_CREATE: Record<AppRole, CreatableRole[]> = {
-  super_admin: ["admin", "owner", "branch_manager", "employee"],
-  admin: ["owner", "branch_manager", "employee"],
+  super_admin: ["admin", "owner"],
+  admin: ["owner"],
   owner: ["branch_manager", "employee"],
   branch_manager: ["employee"],
   employee: [],
@@ -143,7 +143,7 @@ const flattenTree = (nodes: TreeNode[]): TreeNode[] => {
 };
 
 const AdminUsersPage = () => {
-  const { user, hasAnyRole, hasRole } = useAuth();
+  const { user, roles, hasAnyRole, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -160,6 +160,7 @@ const AdminUsersPage = () => {
 
   const canManage = hasAnyRole(["super_admin", "admin", "owner", "branch_manager"]);
   const isSuper = hasRole("super_admin") || hasRole("admin");
+  const canAssignBranch = hasRole("super_admin") || hasRole("owner") || hasRole("branch_manager");
 
   // Determine which roles the current user can create
   const allowedNewRoles = useMemo<CreatableRole[]>(() => {
@@ -197,13 +198,52 @@ const AdminUsersPage = () => {
   }, [flatNodes, search]);
 
   const { data: branches = [] } = useQuery({
-    queryKey: ["admin-branches"],
+    queryKey: ["admin-branches", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("branches").select("id, name").eq("is_active", true);
+      if (hasRole("admin") && !hasRole("super_admin")) return [];
+
+      // Super admins see every branch. Owners see only branches in restaurants
+      // they own. Branch managers see only their assigned branch ids.
+      if (hasRole("super_admin")) {
+        const { data, error } = await supabase
+          .from("branches")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        if (error) throw error;
+        return data || [];
+      }
+
+      if (hasRole("branch_manager") && !hasRole("owner")) {
+        const branchIds = Array.from(new Set(roles.map((r) => r.branch_id).filter((id): id is string => !!id)));
+        if (branchIds.length === 0) return [];
+        const { data, error } = await supabase
+          .from("branches")
+          .select("id, name")
+          .in("id", branchIds)
+          .eq("is_active", true)
+          .order("name");
+        if (error) throw error;
+        return data || [];
+      }
+
+      const { data: owned, error: ownedErr } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_user_id", user!.id);
+      if (ownedErr) throw ownedErr;
+      const restIds = (owned ?? []).map((r: any) => r.id);
+      if (restIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("branches")
+        .select("id, name")
+        .in("restaurant_id", restIds)
+        .eq("is_active", true)
+        .order("name");
       if (error) throw error;
       return data || [];
     },
-    enabled: canManage,
+    enabled: canManage && !!user,
   });
 
   const { data: auditLog = [] } = useQuery({
@@ -334,7 +374,17 @@ const AdminUsersPage = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Role</Label>
-                  <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: v as CreatableRole })}>
+                  <Select
+                    value={newUser.role}
+                    onValueChange={(v) =>
+                      setNewUser({
+                        ...newUser,
+                        role: v as CreatableRole,
+                        // Owners don't have a branch — clear any prior selection.
+                        branch_id: v === "owner" ? "none" : newUser.branch_id,
+                      })
+                    }
+                  >
                     <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
                     <SelectContent>
                       {allowedNewRoles.map((r) => (
@@ -343,6 +393,11 @@ const AdminUsersPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {hasRole("admin") && !hasRole("super_admin") && newUser.role === "owner" && (
+                  <p className="text-xs text-muted-foreground">
+                    Admins create only Owner accounts here. Branches are created later by that Owner from Branch Management.
+                  </p>
+                )}
                 <div className="space-y-2">
                   <Label>Custom Title (optional)</Label>
                   <Input
@@ -352,23 +407,39 @@ const AdminUsersPage = () => {
                   />
                   <p className="text-xs text-muted-foreground">Must be unique among users you've created.</p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Branch (optional)</Label>
-                  <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No branch</SelectItem>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Owners aren't pinned to a branch — they manage their own
+                    restaurants/branches separately. Only show the branch
+                    picker for branch managers and employees, and only list
+                    branches the caller actually controls. */}
+                {canAssignBranch && newUser.role && newUser.role !== "owner" && (
+                  <div className="space-y-2">
+                    <Label>Branch *</Label>
+                    <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {branches.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        You don't have any branches yet. The owner can add branches from the Branches page.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button
                   className="w-full"
-                  disabled={createMutation.isPending || !newUser.email || !newUser.password || !newUser.role}
+                  disabled={
+                    createMutation.isPending ||
+                    !newUser.email ||
+                    !newUser.password ||
+                    !newUser.role ||
+                    (canAssignBranch && newUser.role !== "owner" && (newUser.branch_id === "none" || branches.length === 0))
+                  }
                   onClick={() => createMutation.mutate()}
                 >
                   {createMutation.isPending ? "Creating..." : "Create User"}
