@@ -55,12 +55,16 @@ const TreeRow = ({
   branches,
   onDelete,
   canDelete,
+  onReassign,
+  canReassign,
 }: {
   node: TreeNode;
   depth: number;
   branches: { id: string; name: string }[];
   onDelete: (n: TreeNode) => void;
   canDelete: (n: TreeNode) => boolean;
+  onReassign: (n: TreeNode) => void;
+  canReassign: (n: TreeNode) => boolean;
 }) => {
   const [open, setOpen] = useState(true);
   const hasKids = node.children.length > 0;
@@ -103,6 +107,11 @@ const TreeRow = ({
           </div>
           <div className="text-xs text-muted-foreground truncate">{node.email}</div>
         </div>
+        {canReassign(node) && node.is_active && (
+          <Button size="sm" variant="ghost" onClick={() => onReassign(node)} title="Assign branch">
+            <MapPin className="h-4 w-4" />
+          </Button>
+        )}
         {canDelete(node) && node.is_active && (
           <Button
             size="sm"
@@ -124,6 +133,8 @@ const TreeRow = ({
               branches={branches}
               onDelete={onDelete}
               canDelete={canDelete}
+              onReassign={onReassign}
+              canReassign={canReassign}
             />
           ))}
         </div>
@@ -515,6 +526,8 @@ const AdminUsersPage = () => {
                       branches={branches}
                       onDelete={previewDelete}
                       canDelete={canDeleteNode}
+                      onReassign={openReassign}
+                      canReassign={canReassignNode}
                     />
                   ))}
                 </div>
