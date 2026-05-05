@@ -198,7 +198,10 @@ const BranchesPage = () => {
                 </div>
               </div>
               <div className="border-t pt-4 space-y-4">
-                <p className="text-sm font-semibold">Branch Manager Account</p>
+                <p className="text-sm font-semibold">Branch Manager Account (optional)</p>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  You can leave these blank and add or assign a manager later from User Management.
+                </p>
                 <div className="space-y-2">
                   <Label>Full Name</Label>
                   <Input
@@ -207,7 +210,7 @@ const BranchesPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email *</Label>
+                  <Label>Email</Label>
                   <Input
                     type="email"
                     value={form.manager_email}
@@ -215,12 +218,12 @@ const BranchesPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Temporary Password *</Label>
+                  <Label>Temporary Password</Label>
                   <Input
                     type="text"
                     value={form.manager_password}
                     onChange={(e) => setForm({ ...form, manager_password: e.target.value })}
-                    placeholder="Min 6 characters"
+                    placeholder="Min 6 characters (required only if email is set)"
                   />
                 </div>
                 <div className="space-y-2">
@@ -243,8 +246,7 @@ const BranchesPage = () => {
                   createMutation.isPending ||
                   !form.restaurant_id ||
                   !form.branch_name ||
-                  !form.manager_email ||
-                  !form.manager_password
+                  (!!form.manager_email && form.manager_password.length < 6)
                 }
               >
                 {createMutation.isPending ? "Creating..." : "Create Branch"}

@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { UserPlus, Shield, Trash2, Building2, Users, ChevronRight, ChevronDown, Search, History } from "lucide-react";
+import { UserPlus, Shield, Trash2, Building2, Users, ChevronRight, ChevronDown, Search, History, MapPin } from "lucide-react";
 
 type CreatableRole = Exclude<AppRole, "super_admin">;
 
@@ -55,12 +55,16 @@ const TreeRow = ({
   branches,
   onDelete,
   canDelete,
+  onReassign,
+  canReassign,
 }: {
   node: TreeNode;
   depth: number;
   branches: { id: string; name: string }[];
   onDelete: (n: TreeNode) => void;
   canDelete: (n: TreeNode) => boolean;
+  onReassign: (n: TreeNode) => void;
+  canReassign: (n: TreeNode) => boolean;
 }) => {
   const [open, setOpen] = useState(true);
   const hasKids = node.children.length > 0;
@@ -103,6 +107,11 @@ const TreeRow = ({
           </div>
           <div className="text-xs text-muted-foreground truncate">{node.email}</div>
         </div>
+        {canReassign(node) && node.is_active && (
+          <Button size="sm" variant="ghost" onClick={() => onReassign(node)} title="Assign branch">
+            <MapPin className="h-4 w-4" />
+          </Button>
+        )}
         {canDelete(node) && node.is_active && (
           <Button
             size="sm"
@@ -124,6 +133,8 @@ const TreeRow = ({
               branches={branches}
               onDelete={onDelete}
               canDelete={canDelete}
+              onReassign={onReassign}
+              canReassign={canReassign}
             />
           ))}
         </div>
@@ -157,6 +168,8 @@ const AdminUsersPage = () => {
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<TreeNode | null>(null);
   const [deletePreview, setDeletePreview] = useState<{ descendant_count: number; breakdown: Record<string, number> } | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<TreeNode | null>(null);
+  const [reassignBranchId, setReassignBranchId] = useState<string>("none");
 
   const canManage = hasAnyRole(["super_admin", "admin", "owner", "branch_manager"]);
   const isSuper = hasRole("super_admin") || hasRole("admin");
@@ -327,6 +340,37 @@ const AdminUsersPage = () => {
     return node.parent_user_id === user?.id;
   };
 
+  const canReassignNode = (node: TreeNode) => {
+    if (!canAssignBranch) return false;
+    if (node.role !== "branch_manager" && node.role !== "employee") return false;
+    if (isSuper) return true;
+    return node.parent_user_id === user?.id;
+  };
+
+  const openReassign = (node: TreeNode) => {
+    setReassignTarget(node);
+    setReassignBranchId(node.branch_id ?? "none");
+  };
+
+  const reassignMutation = useMutation({
+    mutationFn: async () => {
+      if (!reassignTarget) throw new Error("No target");
+      const newBranch = reassignBranchId === "none" ? null : reassignBranchId;
+      const { error } = await supabase
+        .from("user_roles")
+        .update({ branch_id: newBranch })
+        .eq("user_id", reassignTarget.user_id)
+        .eq("role", reassignTarget.role);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Branch updated");
+      setReassignTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["hierarchy-tree"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   if (!canManage) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -482,6 +526,8 @@ const AdminUsersPage = () => {
                       branches={branches}
                       onDelete={previewDelete}
                       canDelete={canDeleteNode}
+                      onReassign={openReassign}
+                      canReassign={canReassignNode}
                     />
                   ))}
                 </div>
@@ -534,11 +580,18 @@ const AdminUsersPage = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {canDeleteNode(n) && n.is_active && (
-                          <Button size="sm" variant="ghost" onClick={() => previewDelete(n)} className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {canReassignNode(n) && n.is_active && (
+                            <Button size="sm" variant="ghost" onClick={() => openReassign(n)} title="Assign branch">
+                              <MapPin className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDeleteNode(n) && n.is_active && (
+                            <Button size="sm" variant="ghost" onClick={() => previewDelete(n)} className="text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -588,6 +641,43 @@ const AdminUsersPage = () => {
           </TabsContent>
         )}
       </Tabs>
+
+      <Dialog open={!!reassignTarget} onOpenChange={(v) => { if (!v) setReassignTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign branch</DialogTitle>
+            <DialogDescription>
+              Pick which branch <strong>{reassignTarget?.full_name || reassignTarget?.email}</strong> should log into.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Branch</Label>
+            <Select value={reassignBranchId} onValueChange={setReassignBranchId}>
+              <SelectTrigger><SelectValue placeholder="Pick a branch" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Unassigned —</SelectItem>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {branches.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No branches available. Create one from the Branches page first.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignTarget(null)}>Cancel</Button>
+            <Button
+              onClick={() => reassignMutation.mutate()}
+              disabled={reassignMutation.isPending || branches.length === 0}
+            >
+              {reassignMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) { setDeleteTarget(null); setDeletePreview(null); } }}>
         <AlertDialogContent>
