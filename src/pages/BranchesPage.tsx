@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building, Plus, Mail, Phone, MapPin, User } from "lucide-react";
+import { Building, Plus, Mail, Phone, MapPin, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Branch {
@@ -39,7 +39,7 @@ interface Branch {
 }
 
 const BranchesPage = () => {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, hasAnyRole } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -53,7 +53,8 @@ const BranchesPage = () => {
     manager_custom_role_name: "",
   });
 
-  const canManage = hasRole("owner");
+  const canManage = hasAnyRole(["owner", "admin", "super_admin"]);
+  const isAdmin = hasAnyRole(["admin", "super_admin"]);
 
   // Restaurants visible to caller (RLS filters: owners see own, admins see all)
   const { data: restaurants = [] } = useQuery({
@@ -70,8 +71,9 @@ const BranchesPage = () => {
   });
 
   const myRestaurants = useMemo(() => {
+    if (isAdmin) return restaurants;
     return restaurants.filter((r) => r.owner_user_id === user?.id);
-  }, [restaurants, user]);
+  }, [restaurants, user, isAdmin]);
 
   const { data: branches = [], isLoading } = useQuery({
     queryKey: ["branches-with-managers", user?.id],
@@ -127,11 +129,23 @@ const BranchesPage = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (branchId: string) => {
+      const { error } = await supabase.from("branches").delete().eq("id", branchId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Branch deleted");
+      qc.invalidateQueries({ queryKey: ["branches-with-managers"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!canManage) {
     return (
       <div className="p-8">
         <h1 className="text-2xl font-bold">Access denied</h1>
-        <p className="text-muted-foreground mt-2">Only Owners can manage branches.</p>
+        <p className="text-muted-foreground mt-2">Only Admins or Owners can manage branches.</p>
       </div>
     );
   }
@@ -312,6 +326,21 @@ const BranchesPage = () => {
                       {b.manager.email}
                     </p>
                   )}
+                </div>
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      if (confirm(`Delete branch "${b.name}"? This cannot be undone.`)) {
+                        deleteMutation.mutate(b.id);
+                      }
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  </Button>
                 </div>
               </CardContent>
             </Card>
