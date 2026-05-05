@@ -48,10 +48,12 @@ Deno.serve(async (req) => {
       manager_custom_role_name,
     } = body || {};
 
-    if (!restaurant_id || !branch_name || !manager_email || !manager_password) {
-      return respond({ ok: false, error: "Restaurant, branch name, manager email and password are required" });
+    if (!restaurant_id || !branch_name) {
+      return respond({ ok: false, error: "Restaurant and branch name are required" });
     }
-    if (typeof manager_password !== "string" || manager_password.length < 6) {
+    // Manager is optional. If an email is provided, a password (>=6 chars) is required.
+    const wantsManager = !!(manager_email && String(manager_email).trim().length > 0);
+    if (wantsManager && (typeof manager_password !== "string" || manager_password.length < 6)) {
       return respond({ ok: false, error: "Manager password must be at least 6 characters" });
     }
 
@@ -68,17 +70,22 @@ Deno.serve(async (req) => {
       return respond({ ok: false, error: "You don't own this restaurant" });
     }
 
-    // 1. Create the manager auth user
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email: manager_email,
-      password: manager_password,
-      email_confirm: true,
-      user_metadata: { full_name: manager_full_name || "" },
-    });
-    if (createErr || !created.user) {
-      return respond({ ok: false, error: createErr?.message || "Failed to create manager user" });
+    // 1. (Optional) Create the manager auth user
+    let managerId: string | null = null;
+    let createdUser: any = null;
+    if (wantsManager) {
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email: manager_email,
+        password: manager_password,
+        email_confirm: true,
+        user_metadata: { full_name: manager_full_name || "" },
+      });
+      if (createErr || !created.user) {
+        return respond({ ok: false, error: createErr?.message || "Failed to create manager user" });
+      }
+      managerId = created.user.id;
+      createdUser = created.user;
     }
-    const managerId = created.user.id;
 
     // 2. Create the branch
     const { data: branch, error: branchErr } = await admin
@@ -94,21 +101,23 @@ Deno.serve(async (req) => {
       .select()
       .single();
     if (branchErr) {
-      return respond({ ok: false, error: `Manager created but branch insert failed: ${branchErr.message}` });
+      return respond({ ok: false, error: `Branch insert failed: ${branchErr.message}` });
     }
 
-    // 3. Assign branch_manager role under the caller, scoped to the new branch
-    const { error: roleErr } = await admin.from("user_roles").insert({
-      user_id: managerId,
-      role: "branch_manager",
-      parent_user_id: caller.id,
-      custom_role_name: manager_custom_role_name || null,
-      branch_id: branch.id,
-      assigned_by: caller.id,
-      is_active: true,
-    });
-    if (roleErr) {
-      return respond({ ok: false, error: `Branch created but role assignment failed: ${roleErr.message}` });
+    // 3. Assign branch_manager role under the caller, scoped to the new branch (only if manager was created)
+    if (managerId) {
+      const { error: roleErr } = await admin.from("user_roles").insert({
+        user_id: managerId,
+        role: "branch_manager",
+        parent_user_id: caller.id,
+        custom_role_name: manager_custom_role_name || null,
+        branch_id: branch.id,
+        assigned_by: caller.id,
+        is_active: true,
+      });
+      if (roleErr) {
+        return respond({ ok: false, error: `Branch created but role assignment failed: ${roleErr.message}` });
+      }
     }
 
     // 4. Audit
@@ -117,17 +126,18 @@ Deno.serve(async (req) => {
       actor_email: caller.email ?? null,
       action: "create_branch",
       target_user_id: managerId,
-      target_email: manager_email,
+      target_email: manager_email ?? null,
       details: {
         restaurant_id,
         restaurant_name: restaurant.name,
         branch_id: branch.id,
         branch_name,
         manager_custom_role_name: manager_custom_role_name || null,
+        manager_attached: !!managerId,
       },
     });
 
-    return respond({ ok: true, branch, manager: created.user });
+    return respond({ ok: true, branch, manager: createdUser });
   } catch (err) {
     return respond({ ok: false, error: (err as Error).message || "Unexpected error" });
   }
