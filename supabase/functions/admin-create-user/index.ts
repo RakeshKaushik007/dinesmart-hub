@@ -9,8 +9,8 @@ type AppRole = "super_admin" | "admin" | "owner" | "branch_manager" | "employee"
 
 // Caller role -> roles they may create
 const CAN_CREATE: Record<AppRole, AppRole[]> = {
-  super_admin: ["admin", "owner"],
-  admin: ["owner"],
+  super_admin: ["admin", "owner", "branch_manager", "employee"],
+  admin: ["owner", "branch_manager", "employee"],
   owner: ["branch_manager", "employee"],
   branch_manager: ["employee"],
   employee: [],
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
         return respond({ ok: false, error: "Branch is required for Managers and Staff" });
       }
 
-      if (roles.includes("super_admin")) {
+      if (roles.includes("super_admin") || roles.includes("admin")) {
         const { data: branch } = await supabaseAdmin
           .from("branches")
           .select("id")
