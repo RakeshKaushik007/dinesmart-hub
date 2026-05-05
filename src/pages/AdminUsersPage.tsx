@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { UserPlus, Shield, Trash2, Building2, Users, ChevronRight, ChevronDown, Search, History } from "lucide-react";
+import { UserPlus, Shield, Trash2, Building2, Users, ChevronRight, ChevronDown, Search, History, MapPin } from "lucide-react";
 
 type CreatableRole = Exclude<AppRole, "super_admin">;
 
@@ -157,6 +157,8 @@ const AdminUsersPage = () => {
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<TreeNode | null>(null);
   const [deletePreview, setDeletePreview] = useState<{ descendant_count: number; breakdown: Record<string, number> } | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<TreeNode | null>(null);
+  const [reassignBranchId, setReassignBranchId] = useState<string>("none");
 
   const canManage = hasAnyRole(["super_admin", "admin", "owner", "branch_manager"]);
   const isSuper = hasRole("super_admin") || hasRole("admin");
@@ -326,6 +328,37 @@ const AdminUsersPage = () => {
     if (isSuper) return true;
     return node.parent_user_id === user?.id;
   };
+
+  const canReassignNode = (node: TreeNode) => {
+    if (!canAssignBranch) return false;
+    if (node.role !== "branch_manager" && node.role !== "employee") return false;
+    if (isSuper) return true;
+    return node.parent_user_id === user?.id;
+  };
+
+  const openReassign = (node: TreeNode) => {
+    setReassignTarget(node);
+    setReassignBranchId(node.branch_id ?? "none");
+  };
+
+  const reassignMutation = useMutation({
+    mutationFn: async () => {
+      if (!reassignTarget) throw new Error("No target");
+      const newBranch = reassignBranchId === "none" ? null : reassignBranchId;
+      const { error } = await supabase
+        .from("user_roles")
+        .update({ branch_id: newBranch })
+        .eq("user_id", reassignTarget.user_id)
+        .eq("role", reassignTarget.role);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Branch updated");
+      setReassignTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["hierarchy-tree"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   if (!canManage) {
     return (
@@ -534,11 +567,18 @@ const AdminUsersPage = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {canDeleteNode(n) && n.is_active && (
-                          <Button size="sm" variant="ghost" onClick={() => previewDelete(n)} className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {canReassignNode(n) && n.is_active && (
+                            <Button size="sm" variant="ghost" onClick={() => openReassign(n)} title="Assign branch">
+                              <MapPin className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDeleteNode(n) && n.is_active && (
+                            <Button size="sm" variant="ghost" onClick={() => previewDelete(n)} className="text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
