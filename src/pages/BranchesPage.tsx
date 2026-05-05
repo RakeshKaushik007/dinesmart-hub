@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building, Plus, Mail, Phone, MapPin, User } from "lucide-react";
+import { Building, Plus, Mail, Phone, MapPin, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Branch {
@@ -125,6 +125,18 @@ const BranchesPage = () => {
         manager_password: "",
         manager_custom_role_name: "",
       });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (branchId: string) => {
+      const { error } = await supabase.from("branches").delete().eq("id", branchId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Branch deleted");
+      qc.invalidateQueries({ queryKey: ["branches-with-managers"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -314,6 +326,21 @@ const BranchesPage = () => {
                       {b.manager.email}
                     </p>
                   )}
+                </div>
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      if (confirm(`Delete branch "${b.name}"? This cannot be undone.`)) {
+                        deleteMutation.mutate(b.id);
+                      }
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  </Button>
                 </div>
               </CardContent>
             </Card>
