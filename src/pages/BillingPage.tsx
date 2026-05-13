@@ -51,6 +51,8 @@ const BillingPage = () => {
   const [selectedTableId, setSelectedTableId] = useState<string>("");
   const [tables, setTables] = useState<TableOption[]>([]);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, profile } = useAuth();
@@ -132,6 +134,8 @@ const BillingPage = () => {
       discount: 0,
       created_by: user?.id,
       table_id: orderType === "dine_in" ? selectedTableId : null,
+      customer_name: customerName.trim() || null,
+      customer_phone: customerPhone.trim() || null,
     }).select("id, order_number").single();
 
     if (error || !order) {
@@ -173,6 +177,8 @@ const BillingPage = () => {
     setCart([]);
     setSelectedTableId("");
     setSearch("");
+    setCustomerName("");
+    setCustomerPhone("");
     setPlacingOrder(false);
     searchRef.current?.focus();
   };
