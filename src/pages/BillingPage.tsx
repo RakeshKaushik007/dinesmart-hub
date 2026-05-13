@@ -51,6 +51,8 @@ const BillingPage = () => {
   const [selectedTableId, setSelectedTableId] = useState<string>("");
   const [tables, setTables] = useState<TableOption[]>([]);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, profile } = useAuth();
@@ -132,6 +134,8 @@ const BillingPage = () => {
       discount: 0,
       created_by: user?.id,
       table_id: orderType === "dine_in" ? selectedTableId : null,
+      customer_name: customerName.trim() || null,
+      customer_phone: customerPhone.trim() || null,
     }).select("id, order_number").single();
 
     if (error || !order) {
@@ -173,6 +177,8 @@ const BillingPage = () => {
     setCart([]);
     setSelectedTableId("");
     setSearch("");
+    setCustomerName("");
+    setCustomerPhone("");
     setPlacingOrder(false);
     searchRef.current?.focus();
   };
@@ -330,6 +336,12 @@ const BillingPage = () => {
             Table {tables.find(t => t.id === selectedTableId)?.table_number}
           </div>
         )}
+
+        <div className="px-3 py-2 border-b border-border space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Customer (optional)</p>
+          <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Name" className="h-8 text-xs" />
+          <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Mobile number" className="h-8 text-xs" />
+        </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {cart.length === 0 ? (

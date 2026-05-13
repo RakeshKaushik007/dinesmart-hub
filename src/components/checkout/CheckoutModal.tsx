@@ -25,6 +25,7 @@ import CancelOrderDialog from "./CancelOrderDialog";
 import NCReasonDialog from "./NCReasonDialog";
 import RefundItemDialog from "./RefundItemDialog";
 import { logWastageForPreparedItem } from "@/lib/wastageHelpers";
+import { Plus as PlusIcon, Minus as MinusIcon } from "lucide-react";
 
 export interface OrderItem {
   id?: string;
@@ -278,6 +279,47 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     onSettled();
   };
 
+  const recalcOrderTotals = async (orderId: string) => {
+    const { data: rows } = await supabase
+      .from("order_items")
+      .select("total_price, is_void, is_nc, is_refunded")
+      .eq("order_id", orderId);
+    if (!rows) return;
+    const sub = rows
+      .filter((r) => !r.is_void)
+      .reduce((s, r) => s + ((r.is_nc || r.is_refunded) ? 0 : Number(r.total_price)), 0);
+    const tax = sub * (TAX_PCT / 100);
+    await supabase.from("orders").update({ subtotal: sub, tax, total: sub + tax }).eq("id", orderId);
+  };
+
+  const adjustItemQty = async (item: OrderItem, delta: number) => {
+    if (!order || !item.id) return;
+    const newQty = item.quantity + delta;
+    if (newQty <= 0) {
+      // Treat as void with reason
+      await supabase.from("order_items").update({
+        is_void: true,
+        void_reason: "Removed during edit",
+        voided_by: user?.id,
+      }).eq("id", item.id);
+    } else {
+      await supabase.from("order_items").update({
+        quantity: newQty,
+        total_price: Number(item.unit_price) * newQty,
+      }).eq("id", item.id);
+    }
+    await recalcOrderTotals(order.id);
+    const current = localItems.length > 0 ? localItems : order.items;
+    setLocalItems(current.map((i) =>
+      i.id === item.id
+        ? newQty <= 0
+          ? { ...i, is_void: true }
+          : { ...i, quantity: newQty, total_price: Number(i.unit_price) * newQty }
+        : i,
+    ));
+    toast({ title: newQty <= 0 ? "Item removed" : "Quantity updated", description: `${item.item_name}` });
+  };
+
   const printReceipt = (o: OrderWithItems, paymentMethodCode: string) => {
     const printWindow = window.open("", "_blank", "width=300,height=600");
     if (!printWindow) return;
@@ -395,6 +437,18 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                   <span className="font-mono">{(item.is_nc || item.is_refunded) ? "₹0" : `₹${item.total_price}`}</span>
                   {isManager && !item.is_void && (
                     <div className="flex gap-1">
+                      {!item.is_nc && !item.is_refunded && item.id && (
+                        <>
+                          <button onClick={() => adjustItemQty(item, -1)} title="Decrease qty"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground">
+                            <MinusIcon className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => adjustItemQty(item, +1)} title="Increase qty"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground">
+                            <PlusIcon className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      )}
                       {!item.is_nc && !item.is_refunded && (
                         <button onClick={() => setNcItem(item)} title="Mark NC (₹0)"
                           className="p-1 rounded hover:bg-amber-500/10 text-amber-600">

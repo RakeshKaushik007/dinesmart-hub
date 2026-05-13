@@ -15,6 +15,7 @@ import UnauthorizedPage from "@/pages/UnauthorizedPage";
 import Index from "@/pages/Index";
 import IngredientsPage from "@/pages/IngredientsPage";
 import RecipesPage from "@/pages/RecipesPage";
+import PrepRecipesPage from "@/pages/PrepRecipesPage";
 import AlertsPage from "@/pages/AlertsPage";
 import BillingPage from "@/pages/BillingPage";
 import TablesPage from "@/pages/TablesPage";
@@ -88,6 +89,7 @@ const App = () => (
                 <Route path="/audit-log" element={<ProtectedRoute requiredRole="branch_manager"><AuditLogPage /></ProtectedRoute>} />
                 <Route path="/void-nc-log" element={<ProtectedRoute requiredRole="branch_manager"><VoidNCLogPage /></ProtectedRoute>} />
                 <Route path="/recipes" element={<ProtectedRoute requiredRole="branch_manager"><RecipesPage /></ProtectedRoute>} />
+                <Route path="/prep-recipes" element={<ProtectedRoute requiredRole="branch_manager"><PrepRecipesPage /></ProtectedRoute>} />
 
                 {/* Owner+ */}
                 <Route path="/dynamic-pricing" element={<ProtectedRoute requiredRole="owner"><DynamicPricingPage /></ProtectedRoute>} />

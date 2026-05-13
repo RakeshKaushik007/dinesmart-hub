@@ -168,6 +168,7 @@ export type Database = {
           current_stock: number
           expiry_date: string | null
           id: string
+          is_prep: boolean
           last_restocked: string | null
           min_threshold: number
           name: string
@@ -183,6 +184,7 @@ export type Database = {
           current_stock?: number
           expiry_date?: string | null
           id?: string
+          is_prep?: boolean
           last_restocked?: string | null
           min_threshold?: number
           name: string
@@ -198,6 +200,7 @@ export type Database = {
           current_stock?: number
           expiry_date?: string | null
           id?: string
+          is_prep?: boolean
           last_restocked?: string | null
           min_threshold?: number
           name?: string
@@ -543,6 +546,116 @@ export type Database = {
           is_active?: boolean
           name?: string
           type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      prep_batches: {
+        Row: {
+          batch_quantity: number
+          branch_id: string | null
+          created_at: string
+          expiry_date: string | null
+          id: string
+          notes: string | null
+          prep_ingredient_id: string
+          prep_recipe_id: string | null
+          prepared_by: string | null
+          unit: string
+        }
+        Insert: {
+          batch_quantity: number
+          branch_id?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          prep_ingredient_id: string
+          prep_recipe_id?: string | null
+          prepared_by?: string | null
+          unit?: string
+        }
+        Update: {
+          batch_quantity?: number
+          branch_id?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          prep_ingredient_id?: string
+          prep_recipe_id?: string | null
+          prepared_by?: string | null
+          unit?: string
+        }
+        Relationships: []
+      }
+      prep_recipe_ingredients: {
+        Row: {
+          id: string
+          ingredient_id: string
+          prep_recipe_id: string
+          quantity: number
+          unit: string
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          prep_recipe_id: string
+          quantity?: number
+          unit?: string
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          prep_recipe_id?: string
+          quantity?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prep_recipe_ingredients_prep_recipe_id_fkey"
+            columns: ["prep_recipe_id"]
+            isOneToOne: false
+            referencedRelation: "prep_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prep_recipes: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          output_quantity: number
+          output_unit: string
+          prep_ingredient_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          output_quantity?: number
+          output_unit?: string
+          prep_ingredient_id: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          output_quantity?: number
+          output_unit?: string
+          prep_ingredient_id?: string
           updated_at?: string
         }
         Relationships: []
