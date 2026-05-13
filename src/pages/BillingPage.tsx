@@ -337,6 +337,12 @@ const BillingPage = () => {
           </div>
         )}
 
+        <div className="px-3 py-2 border-b border-border space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Customer (optional)</p>
+          <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Name" className="h-8 text-xs" />
+          <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Mobile number" className="h-8 text-xs" />
+        </div>
+
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

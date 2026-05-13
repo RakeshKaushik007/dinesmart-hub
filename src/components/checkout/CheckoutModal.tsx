@@ -25,6 +25,7 @@ import CancelOrderDialog from "./CancelOrderDialog";
 import NCReasonDialog from "./NCReasonDialog";
 import RefundItemDialog from "./RefundItemDialog";
 import { logWastageForPreparedItem } from "@/lib/wastageHelpers";
+import { Plus as PlusIcon, Minus as MinusIcon } from "lucide-react";
 
 export interface OrderItem {
   id?: string;
@@ -276,6 +277,47 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     toast({ title: "Order Settled!", description: `Order #${order.order_number} paid via ${payLabel}${releaseTable && order.table_id ? " · Table released" : ""}` });
     resetState();
     onSettled();
+  };
+
+  const recalcOrderTotals = async (orderId: string) => {
+    const { data: rows } = await supabase
+      .from("order_items")
+      .select("total_price, is_void, is_nc, is_refunded")
+      .eq("order_id", orderId);
+    if (!rows) return;
+    const sub = rows
+      .filter((r) => !r.is_void)
+      .reduce((s, r) => s + ((r.is_nc || r.is_refunded) ? 0 : Number(r.total_price)), 0);
+    const tax = sub * (TAX_PCT / 100);
+    await supabase.from("orders").update({ subtotal: sub, tax, total: sub + tax }).eq("id", orderId);
+  };
+
+  const adjustItemQty = async (item: OrderItem, delta: number) => {
+    if (!order || !item.id) return;
+    const newQty = item.quantity + delta;
+    if (newQty <= 0) {
+      // Treat as void with reason
+      await supabase.from("order_items").update({
+        is_void: true,
+        void_reason: "Removed during edit",
+        voided_by: user?.id,
+      }).eq("id", item.id);
+    } else {
+      await supabase.from("order_items").update({
+        quantity: newQty,
+        total_price: Number(item.unit_price) * newQty,
+      }).eq("id", item.id);
+    }
+    await recalcOrderTotals(order.id);
+    const current = localItems.length > 0 ? localItems : order.items;
+    setLocalItems(current.map((i) =>
+      i.id === item.id
+        ? newQty <= 0
+          ? { ...i, is_void: true }
+          : { ...i, quantity: newQty, total_price: Number(i.unit_price) * newQty }
+        : i,
+    ));
+    toast({ title: newQty <= 0 ? "Item removed" : "Quantity updated", description: `${item.item_name}` });
   };
 
   const printReceipt = (o: OrderWithItems, paymentMethodCode: string) => {
