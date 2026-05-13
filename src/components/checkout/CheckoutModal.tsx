@@ -437,6 +437,18 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                   <span className="font-mono">{(item.is_nc || item.is_refunded) ? "₹0" : `₹${item.total_price}`}</span>
                   {isManager && !item.is_void && (
                     <div className="flex gap-1">
+                      {!item.is_nc && !item.is_refunded && item.id && (
+                        <>
+                          <button onClick={() => adjustItemQty(item, -1)} title="Decrease qty"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground">
+                            <MinusIcon className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => adjustItemQty(item, +1)} title="Increase qty"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground">
+                            <PlusIcon className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      )}
                       {!item.is_nc && !item.is_refunded && (
                         <button onClick={() => setNcItem(item)} title="Mark NC (₹0)"
                           className="p-1 rounded hover:bg-amber-500/10 text-amber-600">

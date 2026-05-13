@@ -24,7 +24,20 @@ import {
   PieChart,
   Pie,
   Cell,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  ReferenceLine,
 } from "recharts";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { supabase as sb } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { RefreshCcw } from "lucide-react";
 
 const COLORS = [
   "hsl(var(--chart-1, 220 70% 50%))",
@@ -40,6 +53,12 @@ interface DaySummary {
 }
 
 const OwnerDashboard = () => {
+  const { toast } = useToast();
+  const { hasAnyRole } = useAuth();
+  const canReset = hasAnyRole(["super_admin", "admin", "owner"]);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [quadrant, setQuadrant] = useState<{ name: string; sales: number; margin: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [yesterdayRevenue, setYesterdayRevenue] = useState(0);
@@ -123,6 +142,36 @@ const OwnerDashboard = () => {
         .sort((a, b) => b.margin - a.margin);
       setMarginItems(margins);
 
+      // Quadrant: sales (units) per item from order_items joined to menu_items
+      const { data: soldItems } = await supabase
+        .from("order_items")
+        .select("menu_item_id, quantity, is_void, is_refunded")
+        .gte("created_at", weekAgo.toISOString());
+      const salesByItem: Record<string, number> = {};
+      (soldItems || []).forEach((r: any) => {
+        if (r.is_void || r.is_refunded || !r.menu_item_id) return;
+        salesByItem[r.menu_item_id] = (salesByItem[r.menu_item_id] || 0) + Number(r.quantity || 0);
+      });
+      const quadData = (menuItemsRes.data || []).map((m: any) => {
+        const sp = Number(m.selling_price || 0);
+        const cp = Number(m.cost_price || 0);
+        const margin = sp > 0 ? ((sp - cp) / sp) * 100 : 0;
+        // menuItemsRes.data has no id field; refetch with id below would be heavy — use name lookup
+        return { name: m.name, sales: 0, margin };
+      });
+      // Re-fetch with id for proper mapping
+      const { data: itemsWithIds } = await supabase
+        .from("menu_items")
+        .select("id, name, selling_price, cost_price")
+        .eq("is_active", true);
+      const quad = (itemsWithIds || []).map((m) => {
+        const sp = Number(m.selling_price || 0);
+        const cp = Number(m.cost_price || 0);
+        const margin = sp > 0 ? ((sp - cp) / sp) * 100 : 0;
+        return { name: m.name, sales: salesByItem[m.id] || 0, margin };
+      });
+      setQuadrant(quad);
+
       // Wastage today
       setWastageToday((wastageRes.data || []).reduce((s, w) => s + Number(w.cost), 0));
 
@@ -151,6 +200,19 @@ const OwnerDashboard = () => {
     fetchData();
   }, []);
 
+  const handleReset = async () => {
+    setResetting(true);
+    const { data, error } = await sb.functions.invoke("owner-reset-data", { body: { confirm: "RESET" } });
+    setResetting(false);
+    setResetOpen(false);
+    if (error || !data?.ok) {
+      toast({ title: "Reset failed", description: error?.message || data?.error, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Data reset", description: "Inventory and order history have been cleared." });
+    setTimeout(() => window.location.reload(), 600);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -167,6 +229,14 @@ const OwnerDashboard = () => {
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Owner Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Strategic business intelligence</p>
       </div>
+
+      {canReset && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setResetOpen(true)} className="text-destructive border-destructive/40 hover:bg-destructive/10">
+            <RefreshCcw className="h-4 w-4 mr-2" /> Reset data
+          </Button>
+        </div>
+      )}
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -336,6 +406,56 @@ const OwnerDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Profitability Quadrant */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+          <Target className="h-4 w-4 text-muted-foreground" />
+          Menu Profitability (Last 7 days)
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          X = units sold · Y = margin %. Top-right = Best Sellers, top-left = Hidden Gems, bottom-right = Volume but Low Margin, bottom-left = Underperformers.
+        </p>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis type="number" dataKey="sales" name="Units sold" tick={{ fontSize: 11 }} />
+              <YAxis type="number" dataKey="margin" name="Margin %" tick={{ fontSize: 11 }} unit="%" />
+              <ZAxis range={[80, 80]} />
+              <ReferenceLine
+                x={quadrant.length ? (quadrant.reduce((s, q) => s + q.sales, 0) / quadrant.length) : 0}
+                stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3"
+              />
+              <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+              <Tooltip
+                cursor={{ strokeDasharray: "3 3" }}
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number, n: string) => [n === "Margin %" ? `${v.toFixed(1)}%` : v, n]}
+                labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ""}
+              />
+              <Scatter data={quadrant} fill="hsl(var(--primary))" />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset inventory & order history?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This wipes all stock levels, stock transactions, wastage logs, purchase orders, orders, table sessions, daily summaries and prep batches. Menu, recipes, branches and users are kept. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReset} disabled={resetting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {resetting ? "Resetting…" : "Yes, reset everything"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
