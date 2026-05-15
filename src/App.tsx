@@ -40,6 +40,8 @@ import AuditLogPage from "@/pages/AuditLogPage";
 import DataImportPage from "@/pages/DataImportPage";
 import VoidNCLogPage from "@/pages/VoidNCLogPage";
 import IngredientConsumptionPage from "@/pages/IngredientConsumptionPage";
+import ExpiryReportPage from "@/pages/ExpiryReportPage";
+import AggregatorStockOutPage from "@/pages/AggregatorStockOutPage";
 import PaymentMethodsPage from "@/pages/PaymentMethodsPage";
 import PendingAggregatorSettlementPage from "@/pages/PendingAggregatorSettlementPage";
 import StaffPage from "@/pages/StaffPage";
@@ -100,6 +102,8 @@ const App = () => (
                 <Route path="/menu-management" element={<ProtectedRoute requiredRole="owner"><MenuManagementPage /></ProtectedRoute>} />
                 <Route path="/data-import" element={<ProtectedRoute requiredRole="owner"><DataImportPage /></ProtectedRoute>} />
                 <Route path="/ingredient-consumption" element={<ProtectedRoute requiredRole="owner"><IngredientConsumptionPage /></ProtectedRoute>} />
+                <Route path="/expiry-report" element={<ProtectedRoute requiredRole="branch_manager"><ExpiryReportPage /></ProtectedRoute>} />
+                <Route path="/aggregator-stockout" element={<ProtectedRoute requiredRole="branch_manager"><AggregatorStockOutPage /></ProtectedRoute>} />
 
                 {/* Settings - all roles */}
                 <Route path="/settings" element={<SettingsPage />} />

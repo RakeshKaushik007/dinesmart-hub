@@ -94,6 +94,8 @@ const navGroups: NavGroup[] = [
       { to: "/purchase-orders", icon: Truck, label: "Purchase Orders", minRole: "branch_manager" },
       { to: "/wastage", icon: Trash2, label: "Wastage Logs", minRole: "branch_manager" },
       { to: "/ingredient-consumption", icon: TrendingUp, label: "Consumption Insights", minRole: "owner" },
+      { to: "/expiry-report", icon: CalendarDays, label: "Expiry Report", minRole: "branch_manager" },
+      { to: "/aggregator-stockout", icon: Bike, label: "Aggregator Stock-Out", minRole: "branch_manager" },
     ],
   },
   {

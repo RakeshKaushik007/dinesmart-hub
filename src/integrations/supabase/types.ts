@@ -258,6 +258,8 @@ export type Database = {
       }
       menu_items: {
         Row: {
+          aggregator_out_of_stock: boolean
+          aggregator_out_of_stock_at: string | null
           branch_id: string | null
           category_id: string | null
           cost_price: number
@@ -273,6 +275,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aggregator_out_of_stock?: boolean
+          aggregator_out_of_stock_at?: string | null
           branch_id?: string | null
           category_id?: string | null
           cost_price?: number
@@ -288,6 +292,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aggregator_out_of_stock?: boolean
+          aggregator_out_of_stock_at?: string | null
           branch_id?: string | null
           category_id?: string | null
           cost_price?: number
@@ -1295,6 +1301,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      expiry_consumption_report: {
+        Args: { _days?: number }
+        Returns: {
+          consumed_cost: number
+          consumed_qty: number
+          expired_cost: number
+          expired_qty: number
+          ingredient_id: string
+          ingredient_name: string
+          is_prep: boolean
+          unit: string
+        }[]
+      }
       get_descendant_user_ids: {
         Args: { _root_user_id: string }
         Returns: string[]
@@ -1314,6 +1333,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      run_inventory_deduction_check: { Args: never; Returns: Json }
+      scan_expiry_alerts: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role:
