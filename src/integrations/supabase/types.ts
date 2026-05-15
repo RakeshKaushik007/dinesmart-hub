@@ -1333,6 +1333,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      run_inventory_deduction_check: { Args: never; Returns: Json }
       scan_expiry_alerts: { Args: never; Returns: undefined }
     }
     Enums: {
