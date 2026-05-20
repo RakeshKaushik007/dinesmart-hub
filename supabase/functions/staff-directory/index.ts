@@ -83,6 +83,17 @@ Deno.serve(async (req) => {
       return respond({ ok: false, error: "You don't have permission to view staff" });
     }
 
+    // Non-admin viewers (owner / branch_manager) only see their own descendants + themselves.
+    let allowedUserIds: Set<string> | null = null;
+    if (!hasAnyRole(viewerRoles, INTERNAL_ROLES)) {
+      const { data: descendantsData, error: descErr } = await supabaseAdmin.rpc(
+        "get_descendant_user_ids",
+        { _root_user_id: caller.id },
+      );
+      if (descErr) return respond({ ok: false, error: descErr.message });
+      allowedUserIds = new Set<string>([caller.id, ...((descendantsData as string[]) || [])]);
+    }
+
     const [profilesRes, rolesRes] = await Promise.all([
       supabaseAdmin
         .from("profiles")
@@ -111,7 +122,11 @@ Deno.serve(async (req) => {
           roles: Array.from(new Set(visibleRoles)),
         };
       })
-      .filter((profile) => profile.roles.length > 0);
+      .filter((profile) => {
+        if (profile.roles.length === 0) return false;
+        if (allowedUserIds && !allowedUserIds.has(profile.user_id)) return false;
+        return true;
+      });
 
     return respond({ ok: true, staff });
   } catch (error) {
