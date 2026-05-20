@@ -47,6 +47,7 @@ import PendingAggregatorSettlementPage from "@/pages/PendingAggregatorSettlement
 import StaffPage from "@/pages/StaffPage";
 import RestaurantsPage from "@/pages/RestaurantsPage";
 import BranchesPage from "@/pages/BranchesPage";
+import SuperAdminDashboard from "@/pages/admin/SuperAdminDashboard";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -112,6 +113,7 @@ const App = () => (
                 <Route path="/staff" element={<ProtectedRoute requiredRole="branch_manager"><StaffPage /></ProtectedRoute>} />
 
                 {/* Super Admin only */}
+                <Route path="/admin" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminDashboard /></ProtectedRoute>} />
                 <Route path="/admin/restaurants" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><RestaurantsPage /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin", "admin", "owner", "branch_manager"]}><AdminUsersPage /></ProtectedRoute>} />
               </Route>

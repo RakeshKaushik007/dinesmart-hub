@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
+import { Navigate } from "react-router-dom";
 import EmployeeDashboard from "./dashboards/EmployeeDashboard";
 import ManagerDashboard from "./dashboards/ManagerDashboard";
 import OwnerDashboard from "./dashboards/OwnerDashboard";
@@ -13,6 +14,11 @@ const Index = () => {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  // Super admins are scoped to platform-level admin panel only
+  if (roles.some((r) => r.role === "super_admin")) {
+    return <Navigate to="/admin" replace />;
   }
 
   // Owner level and above see strategic dashboard
