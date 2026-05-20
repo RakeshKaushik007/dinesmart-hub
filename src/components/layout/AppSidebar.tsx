@@ -135,6 +135,7 @@ const navGroups: NavGroup[] = [
     label: "Admin",
     minRole: "admin",
     items: [
+      { to: "/admin", icon: Shield, label: "Platform Overview", minRole: "admin" },
       { to: "/admin/restaurants", icon: Store, label: "Restaurants", minRole: "admin" },
       { to: "/admin/users", icon: Shield, label: "User Management", minRole: "admin" },
     ],
