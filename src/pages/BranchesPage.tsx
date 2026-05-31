@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building, Plus, Mail, Phone, MapPin, User, Trash2 } from "lucide-react";
+import { Building, Plus, Mail, Phone, MapPin, User, Trash2, Store } from "lucide-react";
 import { toast } from "sonner";
 
 interface Branch {
@@ -55,6 +55,10 @@ const BranchesPage = () => {
 
   const canManage = hasAnyRole(["owner", "admin", "super_admin"]);
   const isAdmin = hasAnyRole(["admin", "super_admin"]);
+  const isOwner = hasRole("owner");
+
+  const [restOpen, setRestOpen] = useState(false);
+  const [restForm, setRestForm] = useState({ name: "", address: "", phone: "" });
 
   // Restaurants visible to caller (RLS filters: owners see own, admins see all)
   const { data: restaurants = [] } = useQuery({
@@ -74,6 +78,33 @@ const BranchesPage = () => {
     if (isAdmin) return restaurants;
     return restaurants.filter((r) => r.owner_user_id === user?.id);
   }, [restaurants, user, isAdmin]);
+
+  const createRestaurantMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not signed in");
+      if (!restForm.name.trim()) throw new Error("Restaurant name is required");
+      const { data, error } = await supabase
+        .from("restaurants")
+        .insert({
+          name: restForm.name.trim(),
+          address: restForm.address.trim() || null,
+          phone: restForm.phone.trim() || null,
+          owner_user_id: user.id,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Restaurant created — now add your first branch");
+      qc.invalidateQueries({ queryKey: ["my-restaurants"] });
+      setRestOpen(false);
+      setRestForm({ name: "", address: "", phone: "" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: branches = [], isLoading } = useQuery({
     queryKey: ["branches-with-managers", user?.id],
@@ -272,8 +303,66 @@ const BranchesPage = () => {
 
       {myRestaurants.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            You don't own any restaurants yet. Ask your Admin to add one for you.
+          <CardContent className="py-12 text-center space-y-4">
+            <Store className="h-10 w-10 mx-auto text-muted-foreground" />
+            <div>
+              <p className="font-semibold text-foreground">No restaurant yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isOwner
+                  ? "Create your restaurant to start adding branches and using billing."
+                  : "You don't own any restaurants yet. Ask your Admin to add one for you."}
+              </p>
+            </div>
+            {isOwner && (
+              <Dialog open={restOpen} onOpenChange={setRestOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" /> Create Restaurant
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Create your restaurant</DialogTitle>
+                    <DialogDescription>
+                      You can add branches under it on the next step.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <div className="space-y-2">
+                      <Label>Restaurant Name *</Label>
+                      <Input
+                        value={restForm.name}
+                        onChange={(e) => setRestForm({ ...restForm, name: e.target.value })}
+                        placeholder="e.g. Spice Garden"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Address</Label>
+                      <Input
+                        value={restForm.address}
+                        onChange={(e) => setRestForm({ ...restForm, address: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone</Label>
+                      <Input
+                        value={restForm.phone}
+                        onChange={(e) => setRestForm({ ...restForm, phone: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setRestOpen(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createRestaurantMutation.mutate()}
+                      disabled={createRestaurantMutation.isPending || !restForm.name.trim()}
+                    >
+                      {createRestaurantMutation.isPending ? "Creating..." : "Create"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </CardContent>
         </Card>
       ) : isLoading ? (
