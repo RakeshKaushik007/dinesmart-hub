@@ -175,6 +175,17 @@ const AdminUsersPage = () => {
   const isSuper = hasRole("super_admin") || hasRole("admin");
   const canAssignBranch = hasRole("super_admin") || hasRole("admin") || hasRole("owner") || hasRole("branch_manager");
 
+  // Auto-assign the branch when the caller only controls one. Avoids forcing
+  // single-branch owners/managers to pick from a dropdown of one.
+  useEffect(() => {
+    if (!createOpen) return;
+    if (!canAssignBranch) return;
+    if (!newUser.role || newUser.role === "owner") return;
+    if (branches.length === 1 && newUser.branch_id !== branches[0].id) {
+      setNewUser((u) => ({ ...u, branch_id: branches[0].id }));
+    }
+  }, [createOpen, canAssignBranch, newUser.role, newUser.branch_id, branches]);
+
   // Determine which roles the current user can create
   const allowedNewRoles = useMemo<CreatableRole[]>(() => {
     if (hasRole("super_admin")) return CAN_CREATE.super_admin;
