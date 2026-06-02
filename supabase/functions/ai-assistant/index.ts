@@ -52,12 +52,125 @@ Deno.serve(async (req) => {
       )
       .join("\n");
 
-    const systemPrompt = `You are Blennix's inventory assistant for a restaurant POS. Answer concisely with markdown. Use the live inventory snapshot below as the source of truth. If asked about something not in the data, say so.
+    // Pull sales / revenue context: last 30 days of completed orders + top items + daily summaries.
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: recentOrders } = await admin
+      .from("orders")
+      .select("id, order_number, status, total, subtotal, tax, discount, payment_mode, order_type, order_source, completed_at, created_at, branch_id")
+      .eq("status", "completed")
+      .gte("completed_at", since)
+      .order("completed_at", { ascending: false })
+      .limit(500);
+
+    const orders = recentOrders ?? [];
+    const totalRevenue = orders.reduce((s, o: any) => s + Number(o.total ?? 0), 0);
+    const orderCount = orders.length;
+    const avgOrderValue = orderCount ? totalRevenue / orderCount : 0;
+
+    // Aggregate by payment mode and order type
+    const byPayment: Record<string, { count: number; revenue: number }> = {};
+    const byType: Record<string, { count: number; revenue: number }> = {};
+    const byDay: Record<string, { count: number; revenue: number }> = {};
+    for (const o of orders as any[]) {
+      const pm = o.payment_mode ?? "unknown";
+      byPayment[pm] = byPayment[pm] || { count: 0, revenue: 0 };
+      byPayment[pm].count++;
+      byPayment[pm].revenue += Number(o.total ?? 0);
+
+      const ot = o.order_type ?? "unknown";
+      byType[ot] = byType[ot] || { count: 0, revenue: 0 };
+      byType[ot].count++;
+      byType[ot].revenue += Number(o.total ?? 0);
+
+      const day = (o.completed_at ?? o.created_at ?? "").slice(0, 10);
+      if (day) {
+        byDay[day] = byDay[day] || { count: 0, revenue: 0 };
+        byDay[day].count++;
+        byDay[day].revenue += Number(o.total ?? 0);
+      }
+    }
+
+    // Top-selling items (last 30 days)
+    const orderIds = orders.map((o: any) => o.id);
+    let topItemsText = "(no item sales data)";
+    if (orderIds.length) {
+      const { data: items } = await admin
+        .from("order_items")
+        .select("item_name, quantity, total_price, is_void, is_refunded")
+        .in("order_id", orderIds);
+      const agg: Record<string, { qty: number; revenue: number }> = {};
+      for (const it of items ?? []) {
+        if ((it as any).is_void || (it as any).is_refunded) continue;
+        const n = (it as any).item_name ?? "Unknown";
+        agg[n] = agg[n] || { qty: 0, revenue: 0 };
+        agg[n].qty += Number((it as any).quantity ?? 0);
+        agg[n].revenue += Number((it as any).total_price ?? 0);
+      }
+      const top = Object.entries(agg)
+        .sort((a, b) => b[1].revenue - a[1].revenue)
+        .slice(0, 15);
+      if (top.length) {
+        topItemsText = top
+          .map(([name, v], i) => `${i + 1}. ${name} — ${v.qty} sold, ₹${v.revenue.toFixed(2)}`)
+          .join("\n");
+      }
+    }
+
+    const dailyLines = Object.entries(byDay)
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+      .slice(0, 14)
+      .map(([d, v]) => `- ${d}: ${v.count} orders, ₹${v.revenue.toFixed(2)}`)
+      .join("\n") || "(no recent days)";
+
+    const paymentLines = Object.entries(byPayment)
+      .map(([k, v]) => `- ${k}: ${v.count} orders, ₹${v.revenue.toFixed(2)}`)
+      .join("\n") || "(none)";
+
+    const typeLines = Object.entries(byType)
+      .map(([k, v]) => `- ${k}: ${v.count} orders, ₹${v.revenue.toFixed(2)}`)
+      .join("\n") || "(none)";
+
+    // Daily summaries table (pre-computed, if present)
+    const { data: summaries } = await admin
+      .from("daily_summaries")
+      .select("summary_date, total_revenue, total_orders, total_cost, gross_profit, wastage_cost, avg_order_value, dine_in_orders, takeaway_orders, online_orders, cash_revenue, upi_revenue, card_revenue")
+      .order("summary_date", { ascending: false })
+      .limit(14);
+    const summaryLines = (summaries ?? [])
+      .map((s: any) =>
+        `- ${s.summary_date}: revenue ₹${Number(s.total_revenue ?? 0).toFixed(2)}, orders ${s.total_orders ?? 0}, profit ₹${Number(s.gross_profit ?? 0).toFixed(2)}, AOV ₹${Number(s.avg_order_value ?? 0).toFixed(2)}`,
+      )
+      .join("\n") || "(no precomputed summaries)";
+
+    const systemPrompt = `You are Blennix's restaurant POS assistant. Answer concisely with markdown. Use the live snapshots below (inventory + sales) as the source of truth. If asked about something not in the data, say so.
 
 When the user asks to restock, top-up, add stock, or order more of an ingredient, call the propose_restock tool with the matching ingredient_id from the snapshot. Never invent IDs. Always include a one-line reason. The user must confirm before anything is written; do not claim the change was applied.
 
+All currency values are in INR (₹). The sales window is the last 30 days unless stated otherwise.
+
 INVENTORY SNAPSHOT (${ingredients?.length ?? 0} items):
-${(ingredients ?? []).map((i: any) => `- [${i.id}] ${i.name} (${i.category ?? "uncategorized"}): ${i.current_stock} ${i.unit}, min ${i.min_threshold}, status ${i.status}, expires ${i.expiry_date ?? "n/a"}, cost ₹${i.cost_per_unit}/${i.unit}`).join("\n") || "(no ingredients found)"}`;
+${(ingredients ?? []).map((i: any) => `- [${i.id}] ${i.name} (${i.category ?? "uncategorized"}): ${i.current_stock} ${i.unit}, min ${i.min_threshold}, status ${i.status}, expires ${i.expiry_date ?? "n/a"}, cost ₹${i.cost_per_unit}/${i.unit}`).join("\n") || "(no ingredients found)"}
+
+SALES SUMMARY (last 30 days):
+- Total revenue: ₹${totalRevenue.toFixed(2)}
+- Completed orders: ${orderCount}
+- Average order value: ₹${avgOrderValue.toFixed(2)}
+
+REVENUE BY PAYMENT MODE:
+${paymentLines}
+
+REVENUE BY ORDER TYPE:
+${typeLines}
+
+DAILY REVENUE (last 14 days from recent orders):
+${dailyLines}
+
+TOP SELLING ITEMS (last 30 days, by revenue):
+${topItemsText}
+
+PRE-COMPUTED DAILY SUMMARIES (last 14):
+${summaryLines}`;
 
     const tools = [
       {
