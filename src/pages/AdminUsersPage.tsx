@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, AppRole } from "@/hooks/useAuth";
@@ -257,6 +257,17 @@ const AdminUsersPage = () => {
     enabled: canManage && !!user,
   });
 
+  // Auto-assign the branch when the caller only controls one. Avoids forcing
+  // single-branch owners/managers to pick from a dropdown of one.
+  useEffect(() => {
+    if (!createOpen) return;
+    if (!canAssignBranch) return;
+    if (!newUser.role || newUser.role === "owner") return;
+    if (branches.length === 1 && newUser.branch_id !== branches[0].id) {
+      setNewUser((u) => ({ ...u, branch_id: branches[0].id }));
+    }
+  }, [createOpen, canAssignBranch, newUser.role, newUser.branch_id, branches]);
+
   const { data: auditLog = [] } = useQuery({
     queryKey: ["user-audit-log"],
     queryFn: async () => {
@@ -453,7 +464,7 @@ const AdminUsersPage = () => {
                     restaurants/branches separately. Only show the branch
                     picker for branch managers and employees, and only list
                     branches the caller actually controls. */}
-                {canAssignBranch && newUser.role && newUser.role !== "owner" && (
+                {canAssignBranch && newUser.role && newUser.role !== "owner" && branches.length !== 1 && (
                   <div className="space-y-2">
                     <Label>Branch *</Label>
                     <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
@@ -470,6 +481,12 @@ const AdminUsersPage = () => {
                       </p>
                     )}
                   </div>
+                )}
+                {canAssignBranch && newUser.role && newUser.role !== "owner" && branches.length === 1 && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    Auto-assigned to <strong>{branches[0].name}</strong> (your only branch).
+                  </p>
                 )}
               </div>
               <DialogFooter>
