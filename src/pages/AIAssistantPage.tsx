@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bot, Sparkles, TrendingUp, AlertTriangle, PackageSearch, Boxes, Lightbulb } from "lucide-react";
+import { Bot, Sparkles, TrendingUp, AlertTriangle, PackageSearch, Boxes, Lightbulb, IndianRupee, Receipt } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AIAssistantChat from "@/components/ai/AIAssistantChat";
 
@@ -8,8 +8,10 @@ const QUICK_PROMPTS = [
   { icon: PackageSearch, label: "Which ingredients are expiring this week?", category: "Expiry" },
   { icon: TrendingUp, label: "Top 5 most expensive ingredients in stock", category: "Cost" },
   { icon: Boxes, label: "Suggest restocks for items below threshold", category: "Restock" },
-  { icon: Sparkles, label: "Summarize inventory health in 3 bullets", category: "Summary" },
-  { icon: Lightbulb, label: "Which items should I reorder before the weekend?", category: "Planning" },
+  { icon: IndianRupee, label: "What's my total revenue in the last 30 days?", category: "Sales" },
+  { icon: TrendingUp, label: "Show top 5 best-selling items this month", category: "Sales" },
+  { icon: Receipt, label: "Break down revenue by payment mode", category: "Revenue" },
+  { icon: Sparkles, label: "Summarize sales and inventory health in 5 bullets", category: "Summary" },
 ];
 
 const AIAssistantPage = () => {
