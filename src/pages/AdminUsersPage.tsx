@@ -464,7 +464,7 @@ const AdminUsersPage = () => {
                     restaurants/branches separately. Only show the branch
                     picker for branch managers and employees, and only list
                     branches the caller actually controls. */}
-                {canAssignBranch && newUser.role && newUser.role !== "owner" && (
+                {canAssignBranch && newUser.role && newUser.role !== "owner" && branches.length !== 1 && (
                   <div className="space-y-2">
                     <Label>Branch *</Label>
                     <Select value={newUser.branch_id} onValueChange={(v) => setNewUser({ ...newUser, branch_id: v })}>
@@ -481,6 +481,12 @@ const AdminUsersPage = () => {
                       </p>
                     )}
                   </div>
+                )}
+                {canAssignBranch && newUser.role && newUser.role !== "owner" && branches.length === 1 && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    Auto-assigned to <strong>{branches[0].name}</strong> (your only branch).
+                  </p>
                 )}
               </div>
               <DialogFooter>
