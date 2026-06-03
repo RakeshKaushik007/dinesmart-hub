@@ -124,7 +124,6 @@ const navGroups: NavGroup[] = [
     items: [
       { to: "/payment-methods", icon: CreditCard, label: "Payment Methods", minRole: "branch_manager" },
       { to: "/staff", icon: Shield, label: "Staff Management", minRole: "branch_manager" },
-      { to: "/admin/users", icon: Shield, label: "User Management", minRole: "branch_manager" },
       { to: "/branches", icon: Building, label: "Branches", minRole: "owner" },
       { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
       { to: "/data-import", icon: FileSpreadsheet, label: "Data Import", minRole: "owner" },
