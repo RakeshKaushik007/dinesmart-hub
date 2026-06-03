@@ -1,4 +1,6 @@
 import { Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 
 interface ProtectedRouteProps {
@@ -37,14 +39,23 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }: ProtectedRoute
   }
 
   if (requiredRole && !isAtLeast(requiredRole)) {
-    return <Navigate to="/unauthorized" replace />;
+    return <DeniedRedirect />;
   }
 
   if (allowedRoles && !hasAnyRole(allowedRoles)) {
-    return <Navigate to="/unauthorized" replace />;
+    return <DeniedRedirect />;
   }
 
   return <>{children}</>;
+};
+
+const DeniedRedirect = () => {
+  useEffect(() => {
+    toast.error("Access Denied", {
+      description: "You don't have permission to view that page.",
+    });
+  }, []);
+  return <Navigate to="/" replace />;
 };
 
 export default ProtectedRoute;
