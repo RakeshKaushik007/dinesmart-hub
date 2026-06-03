@@ -106,15 +106,64 @@ Deno.serve(async (req) => {
 
     let safeBranchId: string | null = null;
     if (targetRole === "branch_manager" || targetRole === "employee") {
-      if (!branch_id) {
-        return respond({ ok: false, error: "Branch is required for Managers and Staff" });
+      // Auto-pick a sensible default branch when caller didn't specify one,
+      // so new employees can immediately log into POS.
+      let effectiveBranchId: string | null = branch_id || null;
+
+      if (!effectiveBranchId) {
+        if (roles.includes("branch_manager")) {
+          const { data: mine } = await supabaseAdmin
+            .from("user_roles")
+            .select("branch_id")
+            .eq("user_id", caller.id)
+            .eq("is_active", true)
+            .not("branch_id", "is", null)
+            .limit(1)
+            .maybeSingle();
+          effectiveBranchId = mine?.branch_id ?? null;
+        } else if (roles.includes("owner")) {
+          const { data: owned } = await supabaseAdmin
+            .from("restaurants")
+            .select("id")
+            .eq("owner_user_id", caller.id)
+            .eq("is_active", true);
+          const ids = (owned || []).map((r) => r.id);
+          if (ids.length) {
+            const { data: br } = await supabaseAdmin
+              .from("branches")
+              .select("id")
+              .in("restaurant_id", ids)
+              .eq("is_active", true)
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle();
+            effectiveBranchId = br?.id ?? null;
+          }
+        } else if (roles.includes("super_admin") || roles.includes("admin")) {
+          const { data: br } = await supabaseAdmin
+            .from("branches")
+            .select("id")
+            .eq("is_active", true)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          effectiveBranchId = br?.id ?? null;
+        }
       }
 
+      if (!effectiveBranchId) {
+        return respond({
+          ok: false,
+          error: "No active branch available to assign. Create a branch first, then add the user.",
+        });
+      }
+
+      // Validate effective branch against caller's scope
       if (roles.includes("super_admin") || roles.includes("admin")) {
         const { data: branch } = await supabaseAdmin
           .from("branches")
           .select("id")
-          .eq("id", branch_id)
+          .eq("id", effectiveBranchId)
           .eq("is_active", true)
           .maybeSingle();
         if (!branch) return respond({ ok: false, error: "Branch not found" });
@@ -122,7 +171,7 @@ Deno.serve(async (req) => {
         const { data: branch } = await supabaseAdmin
           .from("branches")
           .select("id, restaurant_id")
-          .eq("id", branch_id)
+          .eq("id", effectiveBranchId)
           .eq("is_active", true)
           .maybeSingle();
         if (!branch?.restaurant_id) return respond({ ok: false, error: "You can only assign users to branches you own" });
@@ -138,7 +187,7 @@ Deno.serve(async (req) => {
           .from("user_roles")
           .select("id")
           .eq("user_id", caller.id)
-          .eq("branch_id", branch_id)
+          .eq("branch_id", effectiveBranchId)
           .eq("is_active", true)
           .maybeSingle();
         if (!assigned) return respond({ ok: false, error: "You can only assign staff to your assigned branch" });
@@ -146,7 +195,7 @@ Deno.serve(async (req) => {
         return respond({ ok: false, error: "You don't have permission to assign branches" });
       }
 
-      safeBranchId = branch_id;
+      safeBranchId = effectiveBranchId;
     }
 
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
