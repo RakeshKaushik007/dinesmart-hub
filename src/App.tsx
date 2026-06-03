@@ -104,7 +104,6 @@ const App = () => (
                 <Route path="/data-import" element={<ProtectedRoute requiredRole="owner"><DataImportPage /></ProtectedRoute>} />
                 <Route path="/ingredient-consumption" element={<ProtectedRoute requiredRole="owner"><IngredientConsumptionPage /></ProtectedRoute>} />
                 <Route path="/expiry-report" element={<ProtectedRoute requiredRole="branch_manager"><ExpiryReportPage /></ProtectedRoute>} />
-                <Route path="/aggregator-stockout" element={<ProtectedRoute requiredRole="branch_manager"><AggregatorStockOutPage /></ProtectedRoute>} />
 
                 {/* Settings - all roles */}
                 <Route path="/settings" element={<SettingsPage />} />
