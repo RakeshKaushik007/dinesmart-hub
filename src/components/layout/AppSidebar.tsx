@@ -133,8 +133,8 @@ const navGroups: NavGroup[] = [
     label: "Admin",
     minRole: "admin",
     items: [
-      { to: "/admin", icon: Shield, label: "Platform Overview", minRole: "admin" },
-      { to: "/admin/restaurants", icon: Store, label: "Restaurants", minRole: "admin" },
+      { to: "/admin", icon: Shield, label: "Platform Overview", minRole: "super_admin" },
+      { to: "/admin/restaurants", icon: Store, label: "Tenants & Subscriptions", minRole: "admin" },
       { to: "/admin/users", icon: Shield, label: "User Management", minRole: "admin" },
     ],
   },
@@ -241,8 +241,13 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
 
   const topRole = roles.length > 0 ? roles[0].role : null;
 
+  // Platform admins (admin only — NOT super_admin) are scoped strictly to the Admin panel.
+  // Super admins see everything. Owner/manager/employee see their normal sidebar.
+  const isPlatformAdminOnly =
+    roles.some((r) => r.role === "admin") && !roles.some((r) => r.role === "super_admin");
+
   const visibleGroups = navGroups
-    .filter((group) => isAtLeast(group.minRole))
+    .filter((group) => (isPlatformAdminOnly ? group.label === "Admin" : isAtLeast(group.minRole)))
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => isAtLeast(item.minRole)),
