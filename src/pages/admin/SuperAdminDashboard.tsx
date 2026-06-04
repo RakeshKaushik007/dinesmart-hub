@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Store, Users, Shield, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface OwnerRow {
   user_id: string;
@@ -26,6 +27,8 @@ const StatCard = ({ icon: Icon, label, value }: { icon: any; label: string; valu
 );
 
 const SuperAdminDashboard = () => {
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super_admin");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ owners: 0, restaurants: 0, branches: 0, managers: 0, staff: 0 });
   const [owners, setOwners] = useState<OwnerRow[]>([]);
@@ -94,11 +97,13 @@ const SuperAdminDashboard = () => {
         <div>
           <h1 className="text-3xl font-bold">Platform Overview</h1>
           <p className="text-sm text-muted-foreground">
-            Super Admin view — aggregate metrics only. No access to individual restaurant sales or orders.
+            {isSuperAdmin
+              ? "Super Admin view — aggregate metrics only. No access to individual restaurant sales or orders."
+              : "Admin view — tenant accounts and subscription management. No access to individual restaurant sales or orders."}
           </p>
         </div>
-        <Badge variant="destructive" className="gap-1">
-          <Shield className="h-3 w-3" /> Super Admin
+        <Badge variant={isSuperAdmin ? "destructive" : "secondary"} className="gap-1">
+          <Shield className="h-3 w-3" /> {isSuperAdmin ? "Super Admin" : "Admin"}
         </Badge>
       </div>
 
