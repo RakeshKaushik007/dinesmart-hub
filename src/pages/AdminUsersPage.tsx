@@ -38,6 +38,32 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "destructive" |
   employee: "outline",
 };
 
+// Permanent Blennix testing accounts — protected from deletion in the UI.
+const PROTECTED_EMAILS = new Set([
+  "superadmin@blennix.com",
+  "admin@blennix.com",
+  "owner@blennix.com",
+  "manager@blennix.com",
+  "employee@blennix.com",
+]);
+const isProtectedAccount = (email: string | null) =>
+  !!email && PROTECTED_EMAILS.has(email.toLowerCase());
+
+const roleAccent: Record<string, string> = {
+  super_admin: "from-rose-500/20 to-rose-500/5 border-rose-500/40 text-rose-300",
+  admin: "from-primary/20 to-primary/5 border-primary/40 text-primary",
+  owner: "from-amber-500/20 to-amber-500/5 border-amber-500/40 text-amber-300",
+  branch_manager: "from-sky-500/20 to-sky-500/5 border-sky-500/40 text-sky-300",
+  employee: "from-emerald-500/20 to-emerald-500/5 border-emerald-500/40 text-emerald-300",
+};
+
+const initialsOf = (n: { full_name: string | null; email: string | null }) => {
+  const src = (n.full_name || n.email || "?").trim();
+  const parts = src.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return src.slice(0, 2).toUpperCase();
+};
+
 const CAN_CREATE: Record<AppRole, CreatableRole[]> = {
   super_admin: ["admin", "owner", "branch_manager", "employee"],
   admin: ["owner", "branch_manager", "employee"],
@@ -69,16 +95,32 @@ const TreeRow = ({
   const [open, setOpen] = useState(true);
   const hasKids = node.children.length > 0;
   const branchName = node.branch_id ? branches.find((b) => b.id === node.branch_id)?.name : null;
+  const accent = roleAccent[node.role] ?? roleAccent.employee;
+  const protectedAcc = isProtectedAccount(node.email);
 
   return (
-    <div>
+    <div className="relative">
+      {depth > 0 && (
+        <span
+          aria-hidden
+          className="absolute left-0 top-0 bottom-0 border-l border-dashed border-border/60"
+          style={{ left: `${(depth - 1) * 28 + 18}px` }}
+        />
+      )}
       <div
-        className="flex items-center gap-2 py-2 px-2 rounded hover:bg-muted/50"
-        style={{ paddingLeft: `${depth * 20 + 8}px` }}
+        className="relative flex items-center gap-3 py-2 group"
+        style={{ paddingLeft: `${depth * 28}px` }}
       >
+        {depth > 0 && (
+          <span
+            aria-hidden
+            className="absolute top-1/2 border-t border-dashed border-border/60"
+            style={{ left: `${(depth - 1) * 28 + 18}px`, width: "14px" }}
+          />
+        )}
         <button
           onClick={() => setOpen((v) => !v)}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground transition-colors z-10 bg-background rounded-full"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {hasKids ? (
@@ -87,44 +129,56 @@ const TreeRow = ({
             <span className="inline-block w-4" />
           )}
         </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-foreground truncate">
-              {node.full_name || node.email || "—"}
-            </span>
-            <Badge variant={roleBadgeVariant[node.role] || "outline"} className="text-xs capitalize">
-              <Shield className="h-3 w-3 mr-1" />
-              {roleLabel(node.role, node.custom_role_name)}
-            </Badge>
-            {!node.is_active && (
-              <Badge variant="destructive" className="text-xs">Inactive</Badge>
-            )}
-            {branchName && (
-              <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                <Building2 className="h-3 w-3" /> {branchName}
+        <div className={`flex-1 min-w-0 flex items-center gap-3 rounded-xl border bg-gradient-to-r px-3 py-2.5 transition-all hover:shadow-md hover:-translate-y-px ${accent}`}>
+          <div className="h-9 w-9 rounded-full bg-background/60 border border-border/50 flex items-center justify-center text-xs font-semibold text-foreground shrink-0">
+            {initialsOf(node)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-foreground truncate">
+                {node.full_name || node.email || "—"}
               </span>
+              <Badge variant={roleBadgeVariant[node.role] || "outline"} className="text-[10px] uppercase tracking-wide capitalize">
+                <Shield className="h-3 w-3 mr-1" />
+                {roleLabel(node.role, node.custom_role_name)}
+              </Badge>
+              {protectedAcc && (
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wide border-primary/40 text-primary">
+                  Protected
+                </Badge>
+              )}
+              {!node.is_active && (
+                <Badge variant="destructive" className="text-[10px]">Inactive</Badge>
+              )}
+              {branchName && (
+                <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                  <Building2 className="h-3 w-3" /> {branchName}
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground truncate">{node.email}</div>
+          </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {canReassign(node) && node.is_active && (
+              <Button size="sm" variant="ghost" onClick={() => onReassign(node)} title="Assign branch">
+                <MapPin className="h-4 w-4" />
+              </Button>
+            )}
+            {canDelete(node) && node.is_active && !protectedAcc && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onDelete(node)}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             )}
           </div>
-          <div className="text-xs text-muted-foreground truncate">{node.email}</div>
         </div>
-        {canReassign(node) && node.is_active && (
-          <Button size="sm" variant="ghost" onClick={() => onReassign(node)} title="Assign branch">
-            <MapPin className="h-4 w-4" />
-          </Button>
-        )}
-        {canDelete(node) && node.is_active && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onDelete(node)}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
       </div>
       {open && hasKids && (
-        <div>
+        <div className="space-y-1">
           {node.children.map((c) => (
             <TreeRow
               key={c.user_id}
