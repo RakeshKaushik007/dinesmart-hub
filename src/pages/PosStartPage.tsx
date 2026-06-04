@@ -55,9 +55,13 @@ const PosStartPage = () => {
         new Set(roles.map((r) => r.branch_id).filter((b): b is string => !!b)),
       );
 
+      // Blennix family test accounts bypass branch enforcement — they see every branch.
+      const isTestBypass = !!user.email?.toLowerCase().endsWith("@blennix.com");
+      const adminScope = isAtLeast("admin") || isTestBypass;
+
       // Restaurants the user owns (owner role users can manage all branches in their restaurant).
       let ownedRestaurantIds: string[] = [];
-      if (!isAtLeast("admin")) {
+      if (!adminScope) {
         const { data: owned } = await supabase
           .from("restaurants")
           .select("id")
@@ -79,7 +83,7 @@ const PosStartPage = () => {
         .eq("is_active", true)
         .order("name");
 
-      if (!isAtLeast("admin")) {
+      if (!adminScope) {
         // Owners pick from branches in restaurants they own.
         // Managers / employees are pinned to their assigned branch — they cannot switch.
         if (isAtLeast("owner")) {
