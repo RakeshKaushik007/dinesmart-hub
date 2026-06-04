@@ -1,0 +1,2 @@
+UPDATE auth.users SET email = 'superadmin@blennix.com', raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('email', 'superadmin@blennix.com') WHERE id = '0db8d14e-6b5d-4801-aef0-ef03f1ee28c6';
+UPDATE public.profiles SET email = 'superadmin@blennix.com' WHERE user_id = '0db8d14e-6b5d-4801-aef0-ef03f1ee28c6';
