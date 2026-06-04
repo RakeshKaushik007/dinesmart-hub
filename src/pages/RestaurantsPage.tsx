@@ -16,8 +16,15 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Mail, Phone, MapPin } from "lucide-react";
+import { Building2, Plus, Mail, Phone, MapPin, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Restaurant {
   id: string;
@@ -27,6 +34,8 @@ interface Restaurant {
   is_active: boolean;
   owner_user_id: string | null;
   created_at: string;
+  subscription_status: string;
+  subscription_tier: string;
   owner?: { full_name: string | null; email: string | null } | null;
   branch_count?: number;
 }
@@ -72,6 +81,40 @@ const RestaurantsPage = () => {
       }));
     },
   });
+
+  const updateSubscription = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, any> }) => {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ ...patch, subscription_updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Subscription updated");
+      qc.invalidateQueries({ queryKey: ["restaurants-with-owners"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const impersonate = useMutation({
+    mutationFn: async (ownerUserId: string) => {
+      const { data, error } = await supabase.functions.invoke("admin-impersonate", {
+        body: { target_user_id: ownerUserId, redirect_to: window.location.origin },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error || "Failed to impersonate");
+      return data.action_link as string;
+    },
+    onSuccess: (link) => {
+      window.open(link, "_blank", "noopener,noreferrer");
+      toast.success("Opened owner session in a new tab");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const statusVariant = (s: string) =>
+    s === "active" ? "default" : s === "suspended" ? "destructive" : "secondary";
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -223,8 +266,8 @@ const RestaurantsPage = () => {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{r.name}</CardTitle>
-                  <Badge variant={r.is_active ? "default" : "secondary"}>
-                    {r.is_active ? "Active" : "Inactive"}
+                  <Badge variant={statusVariant(r.subscription_status) as any}>
+                    {r.subscription_status}
                   </Badge>
                 </div>
               </CardHeader>
@@ -253,6 +296,56 @@ const RestaurantsPage = () => {
                 </div>
                 <div className="pt-2">
                   <Badge variant="outline">{r.branch_count} branch{r.branch_count === 1 ? "" : "es"}</Badge>
+                </div>
+                <div className="border-t pt-3 mt-2 space-y-2">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">Subscription</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Status</p>
+                      <Select
+                        value={r.subscription_status}
+                        onValueChange={(v) =>
+                          updateSubscription.mutate({ id: r.id, patch: { subscription_status: v } })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="trial">Trial</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Plan tier</p>
+                      <Select
+                        value={r.subscription_tier}
+                        onValueChange={(v) =>
+                          updateSubscription.mutate({ id: r.id, patch: { subscription_tier: v } })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="starter">Starter</SelectItem>
+                          <SelectItem value="pro">Pro</SelectItem>
+                          <SelectItem value="enterprise">Enterprise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {r.owner_user_id && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full mt-1"
+                      onClick={() => impersonate.mutate(r.owner_user_id!)}
+                      disabled={impersonate.isPending}
+                    >
+                      <LogIn className="h-3.5 w-3.5 mr-2" />
+                      {impersonate.isPending ? "Generating..." : "Login as Owner"}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
