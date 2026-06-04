@@ -71,8 +71,10 @@ Deno.serve(async (req) => {
 
     // Audit log
     await admin.from("user_audit_log").insert({
-      actor_user_id: userData.user.id,
+      actor_id: userData.user.id,
+      actor_email: userData.user.email,
       target_user_id: targetUserId,
+      target_email: targetUser.user.email,
       action: "impersonate",
       details: { email: targetUser.user.email },
     });
