@@ -21,9 +21,9 @@ const Index = () => {
     return <Navigate to="/admin" replace />;
   }
 
-  // Platform admins (non-super) land on the Restaurants/tenants management page
+  // Platform admins (non-super) land on the Platform Overview
   if (roles.some((r) => r.role === "admin")) {
-    return <Navigate to="/admin/restaurants" replace />;
+    return <Navigate to="/admin" replace />;
   }
 
   // Owner level and above see strategic dashboard
