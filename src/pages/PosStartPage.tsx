@@ -59,6 +59,31 @@ const PosStartPage = () => {
       const isTestBypass = !!user.email?.toLowerCase().endsWith("@blennix.com");
       const adminScope = isAtLeast("admin") || isTestBypass;
 
+      // Blennix family accounts skip the picker entirely and auto-enter the
+      // single internal "Blennix Branch". Fetch it directly and start session.
+      if (isTestBypass) {
+        const { data: bb } = await supabase
+          .from("branches")
+          .select("id, name, restaurant_id, restaurants(name)")
+          .eq("is_active", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (cancelled) return;
+        if (bb) {
+          startSession({
+            verified_via: verifiedViaPin ? "pin" : "email",
+            branch_id: bb.id,
+            branch_name: bb.name,
+            restaurant_id: (bb as any).restaurant_id ?? null,
+            restaurant_name: (bb as any).restaurants?.name ?? null,
+            accessible_branch_count: 1,
+          });
+          navigate(next, { replace: true });
+          return;
+        }
+      }
+
       // Restaurants the user owns (owner role users can manage all branches in their restaurant).
       let ownedRestaurantIds: string[] = [];
       if (!adminScope) {
