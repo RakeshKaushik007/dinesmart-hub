@@ -914,6 +914,9 @@ export type Database = {
           name: string
           owner_user_id: string | null
           phone: string | null
+          subscription_status: string
+          subscription_tier: string
+          subscription_updated_at: string
           updated_at: string
         }
         Insert: {
@@ -925,6 +928,9 @@ export type Database = {
           name: string
           owner_user_id?: string | null
           phone?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          subscription_updated_at?: string
           updated_at?: string
         }
         Update: {
@@ -936,6 +942,9 @@ export type Database = {
           name?: string
           owner_user_id?: string | null
           phone?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          subscription_updated_at?: string
           updated_at?: string
         }
         Relationships: []
