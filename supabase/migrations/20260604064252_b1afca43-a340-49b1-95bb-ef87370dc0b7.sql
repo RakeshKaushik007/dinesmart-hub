@@ -1,0 +1,2 @@
+UPDATE auth.users SET email='admin@blennix.com', raw_user_meta_data = COALESCE(raw_user_meta_data,'{}'::jsonb) || jsonb_build_object('email','admin@blennix.com'), email_confirmed_at = COALESCE(email_confirmed_at, now()), updated_at = now() WHERE id='ae0cc3b6-e7b0-4338-9bf4-16cecad9df9f';
+UPDATE public.profiles SET email='admin@blennix.com', updated_at=now() WHERE user_id='ae0cc3b6-e7b0-4338-9bf4-16cecad9df9f';
