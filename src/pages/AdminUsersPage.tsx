@@ -399,6 +399,7 @@ const AdminUsersPage = () => {
 
   const canDeleteNode = (node: TreeNode) => {
     if (node.user_id === user?.id) return false;
+    if (isProtectedAccount(node.email)) return false;
     if (isSuper) return true;
     return node.parent_user_id === user?.id;
   };
