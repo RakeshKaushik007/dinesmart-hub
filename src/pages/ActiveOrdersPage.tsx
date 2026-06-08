@@ -8,7 +8,6 @@ const sourceStyles: Record<string, string> = {
   zomato: "bg-red-500/10 text-red-600",
   swiggy: "bg-orange-500/10 text-orange-600",
   qr: "bg-blue-500/10 text-blue-600",
-  phone: "bg-purple-500/10 text-purple-600",
 };
 
 const statusStyles: Record<string, string> = {
