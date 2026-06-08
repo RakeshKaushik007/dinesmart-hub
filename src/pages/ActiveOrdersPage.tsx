@@ -91,7 +91,7 @@ const ActiveOrdersPage = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {["all", "pos", "zomato", "swiggy", "qr", "phone"].map((s) => (
+        {["all", "pos", "zomato", "swiggy", "qr"].map((s) => (
           <button key={s} onClick={() => setSourceFilter(s)}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${sourceFilter === s ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
             {s === "all" ? "All Sources" : s === "qr" ? "QR Order" : s.toUpperCase()}
