@@ -27,7 +27,7 @@ export const useFloatingAISetting = () => {
   useEffect(() => {
     load();
     const channel = supabase
-      .channel("app_settings:floating_ai")
+      .channel(`app_settings:floating_ai:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "app_settings", filter: `key=eq.${SETTING_KEY}` },
