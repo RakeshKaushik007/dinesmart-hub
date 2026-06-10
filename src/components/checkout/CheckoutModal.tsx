@@ -112,6 +112,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     setLocalItems([]);
     setShowAddItems(false);
     setShowCancelOrder(false);
+    setSettling(false);
   };
 
   // Refunded items contribute ₹0 to subtotal, just like NC and void
@@ -251,8 +252,8 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   const handleSettle = async () => {
     if (!order || !selectedPayment) return;
     setSettling(true);
-
-    await supabase.from("orders").update({
+    try {
+      await supabase.from("orders").update({
       payment_mode: selectedPayment,
       status: "completed" as const,
       completed_at: new Date().toISOString(),
@@ -275,8 +276,11 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     const method = paymentMethods.find(m => m.code === selectedPayment);
     const payLabel = method?.name || selectedPayment.replace(/_/g, " ").toUpperCase();
     toast({ title: "Order Settled!", description: `Order #${order.order_number} paid via ${payLabel}${releaseTable && order.table_id ? " · Table released" : ""}` });
-    resetState();
-    onSettled();
+      resetState();
+      onSettled();
+    } finally {
+      setSettling(false);
+    }
   };
 
   const recalcOrderTotals = async (orderId: string) => {
