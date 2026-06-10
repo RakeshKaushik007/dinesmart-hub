@@ -9,6 +9,7 @@ import { PosSessionProvider } from "@/hooks/usePosSession";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RequirePosSession from "@/components/auth/RequirePosSession";
 import AppLayout from "@/components/layout/AppLayout";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import LoginPage from "@/pages/LoginPage";
 import PosStartPage from "@/pages/PosStartPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
@@ -61,6 +62,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <PosSessionProvider>
+            <ErrorBoundary>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
@@ -118,6 +120,7 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ErrorBoundary>
             </PosSessionProvider>
           </AuthProvider>
         </BrowserRouter>
