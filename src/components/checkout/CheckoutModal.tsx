@@ -541,6 +541,33 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
               ))}
             </div>
 
+            {/* Quick Add-ons */}
+            {addons.length > 0 && (
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-primary" /> Quick Add-ons
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {addons.map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => handleAddAddon(a)}
+                      disabled={addingAddonId === a.id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-secondary/50 hover:bg-primary/10 hover:border-primary/40 transition-colors text-xs font-medium disabled:opacity-50"
+                    >
+                      {addingAddonId === a.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3 text-primary" />
+                      )}
+                      <span>{a.name}</span>
+                      <span className="font-mono text-muted-foreground">₹{a.selling_price}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Discount section (managers only) */}
             {isManager && (
               <div className="border border-border rounded-lg p-3 space-y-2">
