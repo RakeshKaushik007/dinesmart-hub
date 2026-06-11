@@ -4,6 +4,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Wifi, WifiOff, Check, X, Bike } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel,
+  SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 interface AggregatorOrder {
   id: string;
@@ -63,8 +67,39 @@ const AggregatorOrdersPage = () => {
   const [manualPlatform, setManualPlatform] = useState<"swiggy" | "zomato">("swiggy");
   const [manualName, setManualName] = useState("");
   const [manualItems, setManualItems] = useState([{ name: "", qty: 1, price: 0 }]);
+  const [menuByCategory, setMenuByCategory] = useState<
+    { category: string; items: { id: string; name: string; price: number }[] }[]
+  >([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+
+  // Load menu items for the manual entry dropdown
+  useEffect(() => {
+    if (!manualOpen) return;
+    if (menuByCategory.length > 0) return;
+    (async () => {
+      const [{ data: items }, { data: cats }] = await Promise.all([
+        supabase
+          .from("menu_items")
+          .select("id, name, selling_price, category_id")
+          .eq("is_active", true)
+          .eq("is_available", true)
+          .order("name"),
+        supabase.from("menu_categories").select("id, name").order("name"),
+      ]);
+      const catMap: Record<string, string> = {};
+      cats?.forEach((c) => (catMap[c.id] = c.name));
+      const grouped: Record<string, { id: string; name: string; price: number }[]> = {};
+      (items || []).forEach((i: any) => {
+        const cat = catMap[i.category_id || ""] || "Uncategorized";
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push({ id: i.id, name: i.name, price: Number(i.selling_price) });
+      });
+      setMenuByCategory(
+        Object.entries(grouped).map(([category, items]) => ({ category, items })),
+      );
+    })();
+  }, [manualOpen, menuByCategory.length]);
 
   // Auto-sync mock: generate random aggregator order every 15-30s
   useEffect(() => {
