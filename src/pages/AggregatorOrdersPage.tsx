@@ -314,8 +314,38 @@ const AggregatorOrdersPage = () => {
               className="w-full px-3 py-2 rounded-lg bg-secondary text-foreground text-sm outline-none placeholder:text-muted-foreground" />
             {manualItems.map((item, i) => (
               <div key={i} className="flex gap-2">
-                <input value={item.name} onChange={(e) => { const n = [...manualItems]; n[i].name = e.target.value; setManualItems(n); }}
-                  placeholder="Item name" className="flex-1 px-3 py-2 rounded-lg bg-secondary text-foreground text-sm outline-none placeholder:text-muted-foreground" />
+                <Select
+                  value={item.name}
+                  onValueChange={(val) => {
+                    const picked = menuByCategory
+                      .flatMap((g) => g.items)
+                      .find((m) => m.name === val);
+                    const n = [...manualItems];
+                    n[i].name = val;
+                    if (picked) n[i].price = picked.price;
+                    setManualItems(n);
+                  }}
+                >
+                  <SelectTrigger className="flex-1 bg-secondary border-0 text-sm h-10">
+                    <SelectValue placeholder="Select item" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {menuByCategory.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">Loading menu…</div>
+                    ) : (
+                      menuByCategory.map((group) => (
+                        <SelectGroup key={group.category}>
+                          <SelectLabel>{group.category}</SelectLabel>
+                          {group.items.map((mi) => (
+                            <SelectItem key={mi.id} value={mi.name}>
+                              {mi.name} · ₹{mi.price}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
                 <input type="number" value={item.qty} onChange={(e) => { const n = [...manualItems]; n[i].qty = +e.target.value; setManualItems(n); }}
                   className="w-14 px-2 py-2 rounded-lg bg-secondary text-foreground text-sm outline-none text-center" />
                 <input type="number" value={item.price || ""} onChange={(e) => { const n = [...manualItems]; n[i].price = +e.target.value; setManualItems(n); }}
