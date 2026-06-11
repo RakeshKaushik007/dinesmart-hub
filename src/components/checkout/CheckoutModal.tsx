@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Receipt, Printer, Loader2,
-  DoorOpen, Ban, Gift, Percent, IndianRupee, Plus, XCircle, Undo2,
+  DoorOpen, Ban, Gift, Percent, IndianRupee, Plus, XCircle, Undo2, Sparkles,
 } from "lucide-react";
 import { resolvePaymentIcon } from "@/lib/paymentIcons";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,6 +89,10 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   // Cancel order dialog
   const [showCancelOrder, setShowCancelOrder] = useState(false);
 
+  // Quick add-ons
+  const [addons, setAddons] = useState<{ id: string; name: string; selling_price: number }[]>([]);
+  const [addingAddonId, setAddingAddonId] = useState<string | null>(null);
+
   const { toast } = useToast();
   const { user, profile, isAtLeast } = useAuth();
   const settings = useSettings();
@@ -102,6 +106,68 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   const aggregatorMethods = paymentMethods.filter(m => m.type === "aggregator");
 
   const items = order ? (localItems.length > 0 ? localItems : order.items) : [];
+
+  // Load add-on items (menu_items in the "Add-ons" category)
+  useEffect(() => {
+    if (!order) return;
+    let cancelled = false;
+    (async () => {
+      const { data: cat } = await supabase
+        .from("menu_categories")
+        .select("id")
+        .ilike("name", "add-ons")
+        .maybeSingle();
+      if (!cat || cancelled) return;
+      const { data: rows } = await supabase
+        .from("menu_items")
+        .select("id, name, selling_price")
+        .eq("category_id", cat.id)
+        .eq("is_active", true)
+        .eq("is_available", true)
+        .order("name");
+      if (!cancelled) setAddons(rows || []);
+    })();
+    return () => { cancelled = true; };
+  }, [order?.id]);
+
+  const handleAddAddon = async (addon: { id: string; name: string; selling_price: number }) => {
+    if (!order) return;
+    setAddingAddonId(addon.id);
+    try {
+      const current = localItems.length > 0 ? localItems : order.items;
+      // If the same add-on already exists (active), bump its quantity instead
+      const existing = current.find(
+        (i) => i.menu_item_id === addon.id && !i.is_void && !i.is_refunded && !i.is_nc && i.id
+      );
+      if (existing && existing.id) {
+        const newQty = existing.quantity + 1;
+        await supabase.from("order_items").update({
+          quantity: newQty,
+          total_price: Number(existing.unit_price) * newQty,
+        }).eq("id", existing.id);
+        setLocalItems(current.map((i) =>
+          i.id === existing.id ? { ...i, quantity: newQty, total_price: Number(i.unit_price) * newQty } : i
+        ));
+      } else {
+        const { data: inserted, error } = await supabase.from("order_items").insert({
+          order_id: order.id,
+          menu_item_id: addon.id,
+          item_name: addon.name,
+          quantity: 1,
+          unit_price: addon.selling_price,
+          total_price: addon.selling_price,
+        }).select("id, menu_item_id, item_name, quantity, unit_price, total_price, is_void, is_nc, is_refunded").single();
+        if (error || !inserted) throw error;
+        setLocalItems([...current, inserted as OrderItem]);
+      }
+      await recalcOrderTotals(order.id);
+      toast({ title: "Add-on added", description: `${addon.name} · ₹${addon.selling_price}` });
+    } catch (e: any) {
+      toast({ title: "Failed to add", description: e?.message || "Could not add add-on", variant: "destructive" });
+    } finally {
+      setAddingAddonId(null);
+    }
+  };
 
   const resetState = () => {
     setSelectedPayment(null);
@@ -474,6 +540,33 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                 </div>
               ))}
             </div>
+
+            {/* Quick Add-ons */}
+            {addons.length > 0 && (
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-primary" /> Quick Add-ons
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {addons.map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => handleAddAddon(a)}
+                      disabled={addingAddonId === a.id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-secondary/50 hover:bg-primary/10 hover:border-primary/40 transition-colors text-xs font-medium disabled:opacity-50"
+                    >
+                      {addingAddonId === a.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3 text-primary" />
+                      )}
+                      <span>{a.name}</span>
+                      <span className="font-mono text-muted-foreground">₹{a.selling_price}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Discount section (managers only) */}
             {isManager && (
