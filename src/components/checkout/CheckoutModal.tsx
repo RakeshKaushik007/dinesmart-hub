@@ -422,6 +422,13 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     const method = paymentMethods.find(m => m.code === paymentMethodCode);
     const payLabel = method?.name || paymentMethodCode.replace(/_/g, " ");
 
+    const tenderedNum = parseFloat(amountTendered) || 0;
+    const changeNum = Math.max(0, tenderedNum - calculated.grandTotal);
+    const cashLines = paymentMethodCode === "cash" && tenderedNum > 0
+      ? `<div><span>Amount Tendered</span><span>₹${tenderedNum.toFixed(2)}</span></div>
+         <div><span>Change Due</span><span>₹${changeNum.toFixed(2)}</span></div>`
+      : "";
+
     printWindow.document.write(`
       <html><head><title>Receipt #${o.order_number}</title>
       <style>body{font-family:monospace;margin:0;padding:16px;width:260px;}
@@ -455,6 +462,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
           ${scLine}
           <div class="grand"><span>Total</span><span>₹${calculated.grandTotal.toFixed(2)}</span></div>
         </div>
+        ${cashLines ? `<div class="totals">${cashLines}</div>` : ""}
         <div class="pay">Paid via ${payLabel}</div>
         <div class="staff">Billed by: ${staffName} (${staffId})</div>
         <div class="footer">Thank you! Visit again.</div>
