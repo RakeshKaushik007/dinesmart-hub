@@ -55,6 +55,7 @@ const BillingPage = () => {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, profile } = useAuth();
@@ -138,6 +139,7 @@ const BillingPage = () => {
       table_id: orderType === "dine_in" ? selectedTableId : null,
       customer_name: customerName.trim() || null,
       customer_phone: customerPhone.trim() || null,
+      notes: orderNotes.trim() || null,
     }).select("id, order_number").single();
 
     if (error || !order) {
@@ -173,7 +175,7 @@ const BillingPage = () => {
     const tableInfo = orderType === "dine_in"
       ? `Table ${tables.find(t => t.id === selectedTableId)?.table_number || "?"}`
       : "Takeaway";
-    printKOT(order.order_number, tableInfo, cart);
+    printKOT(order.order_number, tableInfo, cart, orderNotes.trim());
 
     toast({ title: "Order placed & KOT sent!", description: `Order #${order.order_number} — ${tableInfo}` });
     setCart([]);
@@ -181,11 +183,12 @@ const BillingPage = () => {
     setSearch("");
     setCustomerName("");
     setCustomerPhone("");
+    setOrderNotes("");
     setPlacingOrder(false);
     searchRef.current?.focus();
   };
 
-  const printKOT = (orderNum: number, tableInfo: string, items: CartItem[]) => {
+  const printKOT = (orderNum: number, tableInfo: string, items: CartItem[], notes?: string) => {
     const printWindow = window.open("", "_blank", "width=300,height=500");
     if (!printWindow) return;
     const staffName = profile?.full_name || user?.email || "Staff";
@@ -193,6 +196,12 @@ const BillingPage = () => {
     const itemsHtml = items.map(i => `
       <tr><td style="padding:4px 0;font-size:14px;">${i.name}</td><td style="text-align:right;padding:4px 0;font-size:14px;font-weight:bold;">×${i.quantity}</td></tr>
     `).join("");
+    const notesHtml = notes
+      ? `<div style="border-top:1px dashed #000;margin-top:8px;padding-top:6px;font-size:13px;">
+           <div style="font-weight:bold;text-transform:uppercase;font-size:11px;margin-bottom:2px;">Instructions</div>
+           <div style="white-space:pre-wrap;">${notes.replace(/</g, "&lt;")}</div>
+         </div>`
+      : "";
     printWindow.document.write(`
       <html><head><title>KOT #${orderNum}</title>
       <style>body{font-family:monospace;margin:0;padding:16px;width:260px;}
@@ -209,6 +218,7 @@ const BillingPage = () => {
           <div>${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
         </div>
         <table>${itemsHtml}</table>
+        ${notesHtml}
         <div class="staff">KOT by: ${staffName} (${staffId})</div>
         <div class="footer">Kitchen Copy</div>
         <script>setTimeout(()=>{window.print();window.close();},400)<\/script>
@@ -358,6 +368,18 @@ const BillingPage = () => {
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Customer (optional)</p>
           <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Name" className="h-8 text-xs" />
           <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Mobile number" className="h-8 text-xs" />
+        </div>
+
+        <div className="px-3 py-2 border-b border-border space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Comments / Instructions for Kitchen</p>
+          <textarea
+            value={orderNotes}
+            onChange={(e) => setOrderNotes(e.target.value)}
+            placeholder="e.g. less spicy, no onions, allergy info..."
+            rows={2}
+            maxLength={500}
+            className="w-full text-xs rounded-md border border-input bg-background px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
