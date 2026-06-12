@@ -685,6 +685,45 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
               </div>
             )}
 
+            {/* Cash tendered + change due */}
+            {selectedPayment === "cash" && (
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <IndianRupee className="h-3 w-3" /> Amount Tendered
+                </label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder={calculated.grandTotal.toFixed(2)}
+                  value={amountTendered}
+                  onChange={(e) => setAmountTendered(e.target.value)}
+                  className="font-mono text-lg"
+                  autoFocus
+                />
+                {(() => {
+                  const t = parseFloat(amountTendered) || 0;
+                  if (!amountTendered) return null;
+                  if (t < calculated.grandTotal) {
+                    return (
+                      <p className="text-xs font-medium text-destructive">
+                        Short by ₹{(calculated.grandTotal - t).toFixed(2)}
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="flex justify-between items-center pt-1 border-t border-border">
+                      <span className="text-sm font-medium">Change Due</span>
+                      <span className="font-mono text-lg font-bold text-emerald-600">
+                        ₹{(t - calculated.grandTotal).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             <Button onClick={handleSettle} disabled={!selectedPayment || settling} className="w-full" size="lg">
               {settling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}
               Print & Settle
