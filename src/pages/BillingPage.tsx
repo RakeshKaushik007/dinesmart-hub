@@ -38,6 +38,7 @@ interface TableOption {
   id: string;
   table_number: number;
   status: string;
+  section: string;
 }
 
 const BillingPage = () => {
@@ -50,6 +51,7 @@ const BillingPage = () => {
   const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
   const [selectedTableId, setSelectedTableId] = useState<string>("");
   const [tables, setTables] = useState<TableOption[]>([]);
+  const [selectedSection, setSelectedSection] = useState<string>("All");
   const [placingOrder, setPlacingOrder] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -63,7 +65,7 @@ const BillingPage = () => {
       const [{ data: items }, { data: cats }, { data: tablesData }] = await Promise.all([
         supabase.from("menu_items").select("id, name, selling_price, cost_price, is_available, category_id").eq("is_active", true).order("name"),
         supabase.from("menu_categories").select("id, name"),
-        supabase.from("restaurant_tables").select("id, table_number, status").eq("is_active", true).order("table_number"),
+        supabase.from("restaurant_tables").select("id, table_number, status, section").eq("is_active", true).order("table_number"),
       ]);
       const catMap: Record<string, string> = {};
       cats?.forEach(c => catMap[c.id] = c.name);
@@ -240,7 +242,10 @@ const BillingPage = () => {
   }
 
   const categories = ["All", ...new Set(menuItems.map(i => i.category))];
-  const availableTables = tables.filter(t => t.status === "available");
+  const sections = ["All", ...Array.from(new Set(tables.map(t => t.section || "Main")))];
+  const availableTables = tables.filter(
+    t => t.status === "available" && (selectedSection === "All" || (t.section || "Main") === selectedSection)
+  );
 
   return (
     <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-7rem)] md:h-[calc(100vh-3rem)]">
@@ -267,6 +272,17 @@ const BillingPage = () => {
             </button>
           </div>
           {orderType === "dine_in" && (
+            <>
+            <Select value={selectedSection} onValueChange={(v) => { setSelectedSection(v); setSelectedTableId(""); }}>
+              <SelectTrigger className="w-36 h-9 text-xs">
+                <SelectValue placeholder="Zone" />
+              </SelectTrigger>
+              <SelectContent>
+                {sections.map(s => (
+                  <SelectItem key={s} value={s}>{s === "All" ? "All Zones" : s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={selectedTableId} onValueChange={setSelectedTableId}>
               <SelectTrigger className="w-40 h-9 text-xs">
                 <SelectValue placeholder="Select table" />
@@ -276,10 +292,11 @@ const BillingPage = () => {
                   <SelectItem value="none" disabled>No tables available</SelectItem>
                 )}
                 {availableTables.map(t => (
-                  <SelectItem key={t.id} value={t.id}>Table {t.table_number}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>Table {t.table_number} · {t.section || "Main"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            </>
           )}
         </div>
 
