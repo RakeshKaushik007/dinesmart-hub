@@ -93,6 +93,9 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   const [addons, setAddons] = useState<{ id: string; name: string; selling_price: number }[]>([]);
   const [addingAddonId, setAddingAddonId] = useState<string | null>(null);
 
+  // Cash tendered
+  const [amountTendered, setAmountTendered] = useState("");
+
   const { toast } = useToast();
   const { user, profile, isAtLeast } = useAuth();
   const settings = useSettings();
@@ -179,6 +182,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     setShowAddItems(false);
     setShowCancelOrder(false);
     setSettling(false);
+    setAmountTendered("");
   };
 
   // Refunded items contribute ₹0 to subtotal, just like NC and void
