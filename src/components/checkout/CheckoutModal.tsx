@@ -93,6 +93,9 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
   const [addons, setAddons] = useState<{ id: string; name: string; selling_price: number }[]>([]);
   const [addingAddonId, setAddingAddonId] = useState<string | null>(null);
 
+  // Cash tendered
+  const [amountTendered, setAmountTendered] = useState("");
+
   const { toast } = useToast();
   const { user, profile, isAtLeast } = useAuth();
   const settings = useSettings();
@@ -179,6 +182,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     setShowAddItems(false);
     setShowCancelOrder(false);
     setSettling(false);
+    setAmountTendered("");
   };
 
   // Refunded items contribute ₹0 to subtotal, just like NC and void
@@ -418,6 +422,13 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
     const method = paymentMethods.find(m => m.code === paymentMethodCode);
     const payLabel = method?.name || paymentMethodCode.replace(/_/g, " ");
 
+    const tenderedNum = parseFloat(amountTendered) || 0;
+    const changeNum = Math.max(0, tenderedNum - calculated.grandTotal);
+    const cashLines = paymentMethodCode === "cash" && tenderedNum > 0
+      ? `<div><span>Amount Tendered</span><span>₹${tenderedNum.toFixed(2)}</span></div>
+         <div><span>Change Due</span><span>₹${changeNum.toFixed(2)}</span></div>`
+      : "";
+
     printWindow.document.write(`
       <html><head><title>Receipt #${o.order_number}</title>
       <style>body{font-family:monospace;margin:0;padding:16px;width:260px;}
@@ -451,6 +462,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
           ${scLine}
           <div class="grand"><span>Total</span><span>₹${calculated.grandTotal.toFixed(2)}</span></div>
         </div>
+        ${cashLines ? `<div class="totals">${cashLines}</div>` : ""}
         <div class="pay">Paid via ${payLabel}</div>
         <div class="staff">Billed by: ${staffName} (${staffId})</div>
         <div class="footer">Thank you! Visit again.</div>
@@ -670,6 +682,45 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
                   <DoorOpen className="h-4 w-4 text-muted-foreground" />
                   Release table after settlement
                 </label>
+              </div>
+            )}
+
+            {/* Cash tendered + change due */}
+            {selectedPayment === "cash" && (
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <IndianRupee className="h-3 w-3" /> Amount Tendered
+                </label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder={calculated.grandTotal.toFixed(2)}
+                  value={amountTendered}
+                  onChange={(e) => setAmountTendered(e.target.value)}
+                  className="font-mono text-lg"
+                  autoFocus
+                />
+                {(() => {
+                  const t = parseFloat(amountTendered) || 0;
+                  if (!amountTendered) return null;
+                  if (t < calculated.grandTotal) {
+                    return (
+                      <p className="text-xs font-medium text-destructive">
+                        Short by ₹{(calculated.grandTotal - t).toFixed(2)}
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="flex justify-between items-center pt-1 border-t border-border">
+                      <span className="text-sm font-medium">Change Due</span>
+                      <span className="font-mono text-lg font-bold text-emerald-600">
+                        ₹{(t - calculated.grandTotal).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
