@@ -49,6 +49,8 @@ import StaffPage from "@/pages/StaffPage";
 import RestaurantsPage from "@/pages/RestaurantsPage";
 import BranchesPage from "@/pages/BranchesPage";
 import SuperAdminDashboard from "@/pages/admin/SuperAdminDashboard";
+import SupportInboxPage from "@/pages/admin/SupportInboxPage";
+import HelpSupportPage from "@/pages/HelpSupportPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -113,10 +115,14 @@ const App = () => (
                 <Route path="/pending-settlements" element={<ProtectedRoute requiredRole="branch_manager"><PendingAggregatorSettlementPage /></ProtectedRoute>} />
                 <Route path="/staff" element={<ProtectedRoute requiredRole="branch_manager"><StaffPage /></ProtectedRoute>} />
 
+                {/* Help & Support - manager/owner */}
+                <Route path="/help-support" element={<ProtectedRoute requiredRole="branch_manager"><HelpSupportPage /></ProtectedRoute>} />
+
                 {/* Super Admin only */}
                 <Route path="/admin" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><SuperAdminDashboard /></ProtectedRoute>} />
                 <Route path="/admin/restaurants" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><RestaurantsPage /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin", "admin"]}><AdminUsersPage /></ProtectedRoute>} />
+                <Route path="/admin/support" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><SupportInboxPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
