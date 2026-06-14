@@ -30,6 +30,8 @@ import {
   FileSpreadsheet,
   Ban,
   Wallet,
+  LifeBuoy,
+  Inbox,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -130,12 +132,20 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Support",
+    minRole: "branch_manager",
+    items: [
+      { to: "/help-support", icon: LifeBuoy, label: "Help & Support", minRole: "branch_manager" },
+    ],
+  },
+  {
     label: "Admin",
     minRole: "admin",
     items: [
       { to: "/admin", icon: Shield, label: "Platform Overview", minRole: "admin" },
       { to: "/admin/restaurants", icon: Store, label: "Tenants & Subscriptions", minRole: "admin" },
       { to: "/admin/users", icon: Shield, label: "User Management", minRole: "admin" },
+      { to: "/admin/support", icon: Inbox, label: "Support Inbox", minRole: "admin" },
     ],
   },
 ];
