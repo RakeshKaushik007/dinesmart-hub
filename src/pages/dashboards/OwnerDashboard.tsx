@@ -28,6 +28,8 @@ import {
   Scatter,
   ZAxis,
   ReferenceLine,
+  ReferenceArea,
+  Label,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import {
