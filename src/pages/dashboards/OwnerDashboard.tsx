@@ -416,27 +416,81 @@ const OwnerDashboard = () => {
           Menu Profitability (Last 7 days)
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          X = units sold · Y = margin %. Top-right = Best Sellers, top-left = Hidden Gems, bottom-right = Volume but Low Margin, bottom-left = Underperformers.
+          X = units sold · Y = margin %. Hover any point for item details.
         </p>
+        <div className="flex flex-wrap gap-3 mb-3 text-[11px]">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500/30 border border-emerald-500/40" />Stars · high sales & margin</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-500/25 border border-sky-500/40" />Hidden Gems · low sales, high margin</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-amber-500/25 border border-amber-500/40" />Cash Cows · high sales, low margin</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-rose-500/25 border border-rose-500/40" />Losers · low sales & margin</span>
+        </div>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+            {(() => null)()}
+            {/* render below */}
+            <ScatterChart margin={{ top: 16, right: 24, left: 4, bottom: 12 }}>
+              {(() => null)()}
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis type="number" dataKey="sales" name="Units sold" tick={{ fontSize: 11 }} />
-              <YAxis type="number" dataKey="margin" name="Margin %" tick={{ fontSize: 11 }} unit="%" />
-              <ZAxis range={[80, 80]} />
-              <ReferenceLine
-                x={quadrant.length ? (quadrant.reduce((s, q) => s + q.sales, 0) / quadrant.length) : 0}
-                stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3"
+              <XAxis
+                type="number"
+                dataKey="sales"
+                name="Units sold"
+                tick={{ fontSize: 11 }}
+                domain={[0, (dataMax: number) => Math.max(10, Math.ceil(dataMax * 1.1))]}
               />
+              <YAxis
+                type="number"
+                dataKey="margin"
+                name="Margin %"
+                tick={{ fontSize: 11 }}
+                unit="%"
+                domain={[0, 100]}
+              />
+              <ZAxis range={[90, 90]} />
+              {(() => {
+                const xMid = quadrant.length ? (quadrant.reduce((s, q) => s + q.sales, 0) / quadrant.length) : 0;
+                const xMax = Math.max(10, Math.ceil((quadrant.reduce((m, q) => Math.max(m, q.sales), 0)) * 1.1));
+                return (
+                  <>
+                    {/* Quadrant tints */}
+                    <ReferenceArea x1={xMid} x2={xMax} y1={50} y2={100} fill="#10b981" fillOpacity={0.10} stroke="none" ifOverflow="hidden">
+                      <Label value="★ Stars" position="insideTopRight" fill="hsl(var(--muted-foreground))" fontSize={11} fontWeight={600} />
+                    </ReferenceArea>
+                    <ReferenceArea x1={0} x2={xMid} y1={50} y2={100} fill="#0ea5e9" fillOpacity={0.10} stroke="none" ifOverflow="hidden">
+                      <Label value="◆ Hidden Gems" position="insideTopLeft" fill="hsl(var(--muted-foreground))" fontSize={11} fontWeight={600} />
+                    </ReferenceArea>
+                    <ReferenceArea x1={xMid} x2={xMax} y1={0} y2={50} fill="#f59e0b" fillOpacity={0.10} stroke="none" ifOverflow="hidden">
+                      <Label value="$ Cash Cows" position="insideBottomRight" fill="hsl(var(--muted-foreground))" fontSize={11} fontWeight={600} />
+                    </ReferenceArea>
+                    <ReferenceArea x1={0} x2={xMid} y1={0} y2={50} fill="#ef4444" fillOpacity={0.10} stroke="none" ifOverflow="hidden">
+                      <Label value="✕ Losers" position="insideBottomLeft" fill="hsl(var(--muted-foreground))" fontSize={11} fontWeight={600} />
+                    </ReferenceArea>
+                    <ReferenceLine x={xMid} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                  </>
+                );
+              })()}
               <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
               <Tooltip
                 cursor={{ strokeDasharray: "3 3" }}
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                formatter={(v: number, n: string) => [n === "Margin %" ? `${v.toFixed(1)}%` : v, n]}
-                labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ""}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p: any = payload[0].payload;
+                  const xMid = quadrant.length ? (quadrant.reduce((s, q) => s + q.sales, 0) / quadrant.length) : 0;
+                  const cat = p.sales >= xMid && p.margin >= 50 ? { label: "Stars", color: "text-emerald-600" }
+                    : p.sales < xMid && p.margin >= 50 ? { label: "Hidden Gems", color: "text-sky-600" }
+                    : p.sales >= xMid && p.margin < 50 ? { label: "Cash Cows", color: "text-amber-600" }
+                    : { label: "Losers", color: "text-rose-600" };
+                  return (
+                    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-md text-xs min-w-[160px]">
+                      <p className="font-semibold text-card-foreground mb-1">{p.name}</p>
+                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">Sales</span><span className="font-mono font-medium">{p.sales} units</span></div>
+                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">Margin</span><span className="font-mono font-medium">{Number(p.margin).toFixed(1)}%</span></div>
+                      <div className={`mt-1 text-[11px] font-semibold ${cat.color}`}>{cat.label}</div>
+                    </div>
+                  );
+                }}
               />
-              <Scatter data={quadrant} fill="hsl(var(--primary))" />
+              <Scatter data={quadrant} fill="hsl(var(--primary))" stroke="hsl(var(--card))" strokeWidth={1.5} />
             </ScatterChart>
           </ResponsiveContainer>
         </div>
