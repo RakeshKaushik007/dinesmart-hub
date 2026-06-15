@@ -426,10 +426,7 @@ const OwnerDashboard = () => {
         </div>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            {(() => null)()}
-            {/* render below */}
             <ScatterChart margin={{ top: 16, right: 24, left: 4, bottom: 12 }}>
-              {(() => null)()}
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
                 type="number"
