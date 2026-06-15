@@ -1176,6 +1176,42 @@ export type Database = {
           },
         ]
       }
+      system_banners: {
+        Row: {
+          audience: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       table_sessions: {
         Row: {
           branch_id: string | null
