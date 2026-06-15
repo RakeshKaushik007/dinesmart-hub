@@ -50,6 +50,10 @@ import RestaurantsPage from "@/pages/RestaurantsPage";
 import BranchesPage from "@/pages/BranchesPage";
 import SuperAdminDashboard from "@/pages/admin/SuperAdminDashboard";
 import SupportInboxPage from "@/pages/admin/SupportInboxPage";
+import GrowthRevenuePage from "@/pages/admin/GrowthRevenuePage";
+import ProductUsagePage from "@/pages/admin/ProductUsagePage";
+import CommunicationsPage from "@/pages/admin/CommunicationsPage";
+import SystemHealthPage from "@/pages/admin/SystemHealthPage";
 import HelpSupportPage from "@/pages/HelpSupportPage";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -123,6 +127,10 @@ const App = () => (
                 <Route path="/admin/restaurants" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><RestaurantsPage /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["super_admin", "admin"]}><AdminUsersPage /></ProtectedRoute>} />
                 <Route path="/admin/support" element={<ProtectedRoute allowedRoles={["super_admin","admin"]}><SupportInboxPage /></ProtectedRoute>} />
+                <Route path="/admin/growth" element={<ProtectedRoute allowedRoles={["super_admin"]}><GrowthRevenuePage /></ProtectedRoute>} />
+                <Route path="/admin/usage" element={<ProtectedRoute allowedRoles={["super_admin"]}><ProductUsagePage /></ProtectedRoute>} />
+                <Route path="/admin/communications" element={<ProtectedRoute allowedRoles={["super_admin"]}><CommunicationsPage /></ProtectedRoute>} />
+                <Route path="/admin/health" element={<ProtectedRoute allowedRoles={["super_admin"]}><SystemHealthPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
