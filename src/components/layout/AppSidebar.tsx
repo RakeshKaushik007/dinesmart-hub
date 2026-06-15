@@ -34,6 +34,10 @@ import {
   Inbox,
   ChevronDown,
   ChevronRight,
+  DollarSign,
+  Activity,
+  Megaphone,
+  HeartPulse,
 } from "lucide-react";
 import blennixLogo from "/blennix-logo.png";
 import { useTheme } from "@/hooks/use-theme";
@@ -146,6 +150,10 @@ const navGroups: NavGroup[] = [
       { to: "/admin/restaurants", icon: Store, label: "Tenants & Subscriptions", minRole: "admin" },
       { to: "/admin/users", icon: Shield, label: "User Management", minRole: "admin" },
       { to: "/admin/support", icon: Inbox, label: "Support Inbox", minRole: "admin" },
+      { to: "/admin/growth", icon: DollarSign, label: "Growth & Revenue", minRole: "super_admin" },
+      { to: "/admin/usage", icon: Activity, label: "Product Usage", minRole: "super_admin" },
+      { to: "/admin/communications", icon: Megaphone, label: "Communications", minRole: "super_admin" },
+      { to: "/admin/health", icon: HeartPulse, label: "System Health", minRole: "super_admin" },
     ],
   },
 ];
@@ -251,10 +259,9 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
 
   const topRole = roles.length > 0 ? roles[0].role : null;
 
-  // Platform admins (admin only — NOT super_admin) are scoped strictly to the Admin panel.
-  // Super admins see everything. Owner/manager/employee see their normal sidebar.
-  const isPlatformAdminOnly =
-    roles.some((r) => r.role === "admin") && !roles.some((r) => r.role === "super_admin");
+  // Platform admins AND super admins are scoped strictly to the Admin panel.
+  // They do not need restaurant-level POS features (Billing/Tables/Kitchen).
+  const isPlatformAdminOnly = roles.some((r) => r.role === "admin" || r.role === "super_admin");
 
   const visibleGroups = navGroups
     .filter((group) => (isPlatformAdminOnly ? group.label === "Admin" : isAtLeast(group.minRole)))
