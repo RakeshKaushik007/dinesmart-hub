@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import AppSidebar from "./AppSidebar";
 import FloatingAIAssistant from "@/components/ai/FloatingAIAssistant";
+import SystemBanners from "@/components/SystemBanners";
 
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,6 +37,7 @@ const AppLayout = () => {
 
       <main className="pt-14 md:pt-0 md:ml-64 min-h-screen">
         <div className="p-4 sm:p-6">
+          <SystemBanners />
           <Outlet />
         </div>
       </main>
