@@ -258,33 +258,33 @@ const BillingPage = () => {
   );
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-7rem)] md:h-[calc(100vh-3rem)]">
+    <div className="flex flex-col md:flex-row gap-3 md:gap-4 h-[calc(100vh-7rem)] md:h-[calc(100vh-3rem)]">
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center gap-3 mb-3">
-          <h1 className="text-xl font-bold text-foreground whitespace-nowrap">Billing</h1>
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+          <h1 className="text-lg sm:text-xl font-bold text-foreground whitespace-nowrap">Billing</h1>
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input ref={searchRef} value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder='Search dishes... (press "/" to focus)' className="pl-9 bg-card border-border" onFocus={() => setActivePanel("menu")} />
+              placeholder="Search dishes..." className="pl-9 bg-card border-border h-10" onFocus={() => setActivePanel("menu")} />
           </div>
         </div>
 
         {/* Order Type & Table Selector */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex rounded-lg border border-border overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
             <button onClick={() => { setOrderType("dine_in"); setSelectedTableId(""); }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${orderType === "dine_in" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}>
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors ${orderType === "dine_in" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}>
               <UtensilsCrossed className="h-3.5 w-3.5" /> Dining
             </button>
             <button onClick={() => { setOrderType("takeaway"); setSelectedTableId(""); }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${orderType === "takeaway" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}>
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors ${orderType === "takeaway" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}>
               <ShoppingBag className="h-3.5 w-3.5" /> Takeaway
             </button>
           </div>
           {orderType === "dine_in" && (
             <>
             <Select value={selectedSection} onValueChange={(v) => { setSelectedSection(v); setSelectedTableId(""); }}>
-              <SelectTrigger className="w-36 h-9 text-xs">
+              <SelectTrigger className="flex-1 min-w-[8rem] sm:w-36 sm:flex-none h-10 text-xs">
                 <SelectValue placeholder="Zone" />
               </SelectTrigger>
               <SelectContent>
@@ -294,7 +294,7 @@ const BillingPage = () => {
               </SelectContent>
             </Select>
             <Select value={selectedTableId} onValueChange={setSelectedTableId}>
-              <SelectTrigger className="w-40 h-9 text-xs">
+              <SelectTrigger className="flex-1 min-w-[9rem] sm:w-40 sm:flex-none h-10 text-xs">
                 <SelectValue placeholder="Select table" />
               </SelectTrigger>
               <SelectContent>
@@ -310,7 +310,7 @@ const BillingPage = () => {
           )}
         </div>
 
-        <div className="flex gap-2 mb-3 flex-wrap">
+        <div className="hidden sm:flex gap-2 mb-3 flex-wrap">
           {[{ key: "/", label: "Search" }, { key: "↑↓", label: "Navigate" }, { key: "Enter", label: "Add item" }, { key: "Tab", label: "Switch panel" }, { key: "F9", label: "Clear" }].map(s => (
             <span key={s.key} className="text-[10px] font-mono bg-secondary text-muted-foreground rounded px-1.5 py-0.5">
               <span className="text-foreground font-semibold">{s.key}</span> {s.label}
@@ -318,10 +318,10 @@ const BillingPage = () => {
           ))}
         </div>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-3 sm:mb-4 overflow-x-auto -mx-1 px-1 scrollbar-hide">
           {categories.map(cat => (
             <button key={cat} onClick={() => setSearch(cat === "All" ? "" : cat)}
-              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${(cat === "All" && !search) || search === cat ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
+              className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 transition-colors ${(cat === "All" && !search) || search === cat ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
               {cat}
             </button>
           ))}
@@ -399,13 +399,13 @@ const BillingPage = () => {
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => updateQty(item.menuItemId, -1)} className="h-6 w-6 rounded bg-muted flex items-center justify-center hover:bg-destructive/20 transition-colors"><Minus className="h-3 w-3" /></button>
+                <button onClick={() => updateQty(item.menuItemId, -1)} className="h-8 w-8 sm:h-6 sm:w-6 rounded bg-muted flex items-center justify-center hover:bg-destructive/20 transition-colors"><Minus className="h-3.5 w-3.5 sm:h-3 sm:w-3" /></button>
                 <span className="text-sm font-mono w-6 text-center text-foreground">{item.quantity}</span>
-                <button onClick={() => updateQty(item.menuItemId, 1)} className="h-6 w-6 rounded bg-muted flex items-center justify-center hover:bg-primary/20 transition-colors"><Plus className="h-3 w-3" /></button>
+                <button onClick={() => updateQty(item.menuItemId, 1)} className="h-8 w-8 sm:h-6 sm:w-6 rounded bg-muted flex items-center justify-center hover:bg-primary/20 transition-colors"><Plus className="h-3.5 w-3.5 sm:h-3 sm:w-3" /></button>
                 {isManager && !item.isNC && (
-                  <button onClick={() => setNcTarget(item)} title="Mark Non-Chargeable" className="h-6 w-6 rounded flex items-center justify-center text-amber-600 hover:bg-amber-500/10 transition-colors ml-1"><Gift className="h-3 w-3" /></button>
+                  <button onClick={() => setNcTarget(item)} title="Mark Non-Chargeable" className="h-8 w-8 sm:h-6 sm:w-6 rounded flex items-center justify-center text-amber-600 hover:bg-amber-500/10 transition-colors ml-1"><Gift className="h-3.5 w-3.5 sm:h-3 sm:w-3" /></button>
                 )}
-                <button onClick={() => removeItem(item.menuItemId)} className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors ml-1"><Trash2 className="h-3 w-3" /></button>
+                <button onClick={() => removeItem(item.menuItemId)} className="h-8 w-8 sm:h-6 sm:w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors ml-1"><Trash2 className="h-3.5 w-3.5 sm:h-3 sm:w-3" /></button>
               </div>
               <span className="text-sm font-mono font-semibold text-foreground w-14 text-right">
                 {item.isNC ? "₹0" : `₹${(item.price * item.quantity).toLocaleString()}`}

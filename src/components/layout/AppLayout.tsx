@@ -11,8 +11,12 @@ const AppLayout = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile hamburger */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 px-4 py-3 bg-background border-b border-border md:hidden">
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-foreground">
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 px-3 py-3 bg-background/95 backdrop-blur border-b border-border shadow-sm md:hidden">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label={sidebarOpen ? "Close menu" : "Open menu"}
+          className="inline-flex items-center justify-center h-10 w-10 -ml-1 rounded-lg text-foreground hover:bg-muted active:bg-muted/70 transition-colors"
+        >
           {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
         <span className="text-sm font-bold text-foreground">Blennix POS</span>
@@ -36,7 +40,7 @@ const AppLayout = () => {
       </div>
 
       <main className="pt-14 md:pt-0 md:ml-64 min-h-screen">
-        <div className="p-4 sm:p-6">
+        <div className="px-3 py-4 sm:p-6">
           <SystemBanners />
           <Outlet />
         </div>

@@ -132,16 +132,16 @@ const KitchenDisplayPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-3">
-        <ChefHat className="h-6 w-6 text-primary" />
+        <ChefHat className="h-6 w-6 text-primary shrink-0" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Kitchen Display (KOT)</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Live kitchen order tickets</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Kitchen Display (KOT)</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Live kitchen order tickets</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <div>
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
             <Clock className="h-3.5 w-3.5" /> Queued <span className="rounded-full bg-amber-500/10 text-amber-600 px-1.5 text-[10px]">{queued.length}</span>

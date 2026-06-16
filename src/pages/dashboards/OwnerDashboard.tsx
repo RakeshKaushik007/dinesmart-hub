@@ -226,10 +226,10 @@ const OwnerDashboard = () => {
   const revenueGrowth = yesterdayRevenue > 0 ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Owner Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Strategic business intelligence</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Owner Dashboard</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Strategic business intelligence</p>
       </div>
 
       {canReset && (
@@ -241,7 +241,7 @@ const OwnerDashboard = () => {
       )}
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           {
             label: "Today's Revenue",
@@ -276,21 +276,21 @@ const OwnerDashboard = () => {
             bg: "bg-amber-50 dark:bg-amber-950/40",
           },
         ].map((kpi) => (
-          <div key={kpi.label} className="rounded-xl border border-border bg-card p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{kpi.label}</span>
-              <div className={`rounded-lg p-2 ${kpi.bg}`}>
+          <div key={kpi.label} className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-2 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{kpi.label}</span>
+              <div className={`rounded-lg p-1.5 sm:p-2 shrink-0 ${kpi.bg}`}>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
               </div>
             </div>
-            <p className="text-2xl font-bold text-card-foreground tabular-nums">{kpi.value}</p>
-            <p className="text-xs text-muted-foreground">{kpi.sub}</p>
+            <p className="text-lg sm:text-2xl font-bold text-card-foreground tabular-nums truncate">{kpi.value}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{kpi.sub}</p>
           </div>
         ))}
       </div>
 
       {/* Revenue Trend + Revenue by Type */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Revenue Trend (7 Days)</h2>
           <div className="h-64">
@@ -337,7 +337,7 @@ const OwnerDashboard = () => {
       </div>
 
       {/* Table Capacity + Item Margins */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Capacity Analytics */}
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
