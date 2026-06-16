@@ -185,23 +185,23 @@ const EmployeeDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">My Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Real-time operational overview</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">My Dashboard</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Real-time operational overview</p>
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{kpi.label}</span>
-              <div className={`rounded-lg p-2 ${kpi.bg}`}>
+          <div key={kpi.label} className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-2 sm:space-y-3 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{kpi.label}</span>
+              <div className={`rounded-lg p-1.5 sm:p-2 shrink-0 ${kpi.bg}`}>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
               </div>
             </div>
-            <p className="text-2xl font-bold text-card-foreground tabular-nums">{kpi.value}</p>
+            <p className="text-lg sm:text-2xl font-bold text-card-foreground tabular-nums truncate">{kpi.value}</p>
           </div>
         ))}
       </div>
