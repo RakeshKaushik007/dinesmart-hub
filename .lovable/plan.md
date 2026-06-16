@@ -1,36 +1,40 @@
-## Plan: Amount Tendered & Change Due Calculator
+# Mobile Polish Pass — Light Touch, App-Wide
 
-### Overview
-Add an **Amount Tendered** input and **Change Due** display to the `CheckoutModal` settlement screen, active only when **Cash** is selected as the payment method. Also print these values on the cash receipt.
+Goal: clean up the cluttered/tight feel on phone viewports (<640px) without changing layouts, navigation, or any business logic. Pure presentation tweaks.
 
-### Files to modify
-- `src/components/checkout/CheckoutModal.tsx`
+## Scope (all four areas you picked)
 
-### Changes
+1. Billing / order taking (`BillingPage.tsx`)
+2. Tables + Kitchen (`TablesPage.tsx`, `KitchenDisplayPage.tsx`, `ActiveOrdersPage.tsx`)
+3. Dashboards (`OwnerDashboard.tsx`, `ManagerDashboard.tsx`, `EmployeeDashboard.tsx`)
+4. App-wide chrome (`AppLayout.tsx`, `AppSidebar.tsx`, shared card/table patterns)
 
-1. **State**
-   - Add `amountTendered` string state (default `""`).
-   - Reset it in `resetState()`.
+## What "light polish" means here
 
-2. **UI — Settlement panel**
-   - When `selectedPayment === "cash"`, render:
-     - A numeric `Input` labeled **Amount Tendered (₹)**.
-     - A read-only line showing **Change Due: ₹X.XX** (computed as `Math.max(0, amountTendered - grandTotal)`).
-     - If tendered < grandTotal, show a subtle warning (e.g., "Insufficient amount").
-   - Keep the existing payment method grid untouched.
+No redesign, no nav restructure, no new components. I'll do a sweep targeting these recurring mobile issues:
 
-3. **Print receipt**
-   - In `printReceipt`, if `paymentMethodCode === "cash"`, append:
-     - `Amount Tendered: ₹X.XX`
-     - `Change Due: ₹X.XX`
-   - These lines appear above the "Paid via" block.
+- **Outer padding** — replace `p-6`/`p-8` with `p-3 sm:p-6` so phones get breathing room without wasted edge space
+- **Page headers** — stack title + action buttons vertically on mobile, shrink heading sizes (`text-3xl` → `text-xl sm:text-2xl md:text-3xl`)
+- **Stat card grids** — ensure they're `grid-cols-2 sm:grid-cols-2 lg:grid-cols-4` (not 1-col cramped or 4-col squished) with smaller numeric font on mobile
+- **Tables** — add `overflow-x-auto` wrappers and `whitespace-nowrap` on cells that are wrapping ugly; reduce row padding on mobile
+- **Tap targets** — bump small icon buttons to min 40×40 on touch (`h-10 w-10` on mobile, current size on `sm:`)
+- **Cart / KOT cards** — reduce internal padding on mobile, tighten gaps, make qty +/- buttons larger
+- **Sidebar drawer** — make sure overlay close + active state are crisp; slightly wider on mobile so labels don't wrap
+- **Top mobile bar** — `AppLayout` mobile header gets a touch more vertical padding and a subtle shadow so content scroll feels separated
+- **Dialogs/sheets** — ensure DialogContent has `max-h-[90vh] overflow-y-auto` and `w-[calc(100vw-1.5rem)]` on mobile so they don't run off-screen
+- **Charts (Owner dashboard quadrant)** — set a fixed mobile min-height and shrink legend text so it doesn't overlap
 
-4. **Behaviour**
-   - No change to the settle flow — staff can still click **Print & Settle** even if tendered is blank or less than total (the field is informational, not blocking).
-   - Auto-select the grand total value in the input as a placeholder or default so the cashier can overwrite it.
+## Out of scope (explicitly)
 
-### Acceptance criteria
-- Cash button selected → Amount Tendered input appears.
-- Typing an amount → Change Due updates live.
-- Cash receipt includes Amount Tendered and Change Due lines.
-- Switching to non-cash payment → tendered input hides and resets.
+- No new components, no bottom tab bar, no sheet-style dialog rework
+- No business logic, no data fetching changes, no schema changes
+- No theme/token changes (`index.css`, `tailwind.config.ts` untouched)
+- Desktop layout (≥sm) stays visually identical
+
+## Approach
+
+Single sweep across the files above using small, targeted className diffs. I'll verify on a 375×812 mobile preview after edits and iterate on any visibly cramped spot.
+
+## Risks
+
+Low — purely className changes. Main risk is accidentally over-shrinking something on desktop, which I'll guard against by using `sm:`-prefixed overrides that preserve current desktop values.
