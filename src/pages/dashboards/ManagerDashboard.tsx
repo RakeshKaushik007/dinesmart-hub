@@ -224,7 +224,7 @@ const ManagerDashboard = () => {
               <p className="text-sm text-muted-foreground">Cash, UPI, Card — in your account</p>
             </div>
           </div>
-          <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">₹{directRevenue.toLocaleString("en-IN")}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums break-all">₹{directRevenue.toLocaleString("en-IN")}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3 mb-3">
@@ -236,7 +236,7 @@ const ManagerDashboard = () => {
               <p className="text-sm text-muted-foreground">Zomato Pay, Swiggy Dineout, EazyDiner</p>
             </div>
           </div>
-          <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">₹{aggregatorRevenue.toLocaleString("en-IN")}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400 tabular-nums break-all">₹{aggregatorRevenue.toLocaleString("en-IN")}</p>
         </div>
       </div>
 
