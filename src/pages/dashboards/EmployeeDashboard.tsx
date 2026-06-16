@@ -212,7 +212,7 @@ const EmployeeDashboard = () => {
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
           Current Shift Performance
         </h2>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6">
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Shift Sales</p>
             <p className="text-xl font-bold text-foreground tabular-nums mt-1">₹{stats.shiftSales.toLocaleString("en-IN")}</p>
@@ -224,7 +224,7 @@ const EmployeeDashboard = () => {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Alerts */}
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">

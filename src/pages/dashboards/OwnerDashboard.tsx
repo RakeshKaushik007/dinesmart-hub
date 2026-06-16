@@ -290,7 +290,7 @@ const OwnerDashboard = () => {
       </div>
 
       {/* Revenue Trend + Revenue by Type */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Revenue Trend (7 Days)</h2>
           <div className="h-64">
@@ -337,7 +337,7 @@ const OwnerDashboard = () => {
       </div>
 
       {/* Table Capacity + Item Margins */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Capacity Analytics */}
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">

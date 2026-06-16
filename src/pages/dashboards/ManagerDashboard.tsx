@@ -241,7 +241,7 @@ const ManagerDashboard = () => {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Hourly Sales */}
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Hourly Sales Distribution</h2>
@@ -284,7 +284,7 @@ const ManagerDashboard = () => {
       </div>
 
       {/* Order Type + Platform */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Order Type Split */}
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Order Type Split</h2>
@@ -331,7 +331,7 @@ const ManagerDashboard = () => {
       </div>
 
       {/* Top / Bottom Items + Low Stock */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-3">🔥 Top 5 Items</h2>
           <div className="space-y-2">
