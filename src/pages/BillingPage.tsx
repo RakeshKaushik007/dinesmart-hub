@@ -45,21 +45,44 @@ const BillingPage = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Persist cart + order context per browser tab so it survives panel switches,
+  // route navigation, and component remounts within the session.
+  const DRAFT_KEY = "blennix.billing_draft.v1";
+  type Draft = {
+    cart: CartItem[];
+    orderType: "dine_in" | "takeaway";
+    selectedTableId: string;
+    selectedSection: string;
+    customerName: string;
+    customerPhone: string;
+    orderNotes: string;
+  };
+  const readDraft = (): Partial<Draft> => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || "{}"); } catch { return {}; }
+  };
+  const initialDraft = readDraft();
+  const [cart, setCart] = useState<CartItem[]>(initialDraft.cart || []);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activePanel, setActivePanel] = useState<"menu" | "cart">("menu");
-  const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
-  const [selectedTableId, setSelectedTableId] = useState<string>("");
+  const [orderType, setOrderType] = useState<"dine_in" | "takeaway">(initialDraft.orderType || "dine_in");
+  const [selectedTableId, setSelectedTableId] = useState<string>(initialDraft.selectedTableId || "");
   const [tables, setTables] = useState<TableOption[]>([]);
-  const [selectedSection, setSelectedSection] = useState<string>("All");
+  const [selectedSection, setSelectedSection] = useState<string>(initialDraft.selectedSection || "All");
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [orderNotes, setOrderNotes] = useState("");
+  const [customerName, setCustomerName] = useState(initialDraft.customerName || "");
+  const [customerPhone, setCustomerPhone] = useState(initialDraft.customerPhone || "");
+  const [orderNotes, setOrderNotes] = useState(initialDraft.orderNotes || "");
   const searchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const settings = useSettings();
+
+  // Persist draft whenever any cart/order-context field changes
+  useEffect(() => {
+    const draft: Draft = { cart, orderType, selectedTableId, selectedSection, customerName, customerPhone, orderNotes };
+    try { window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* ignore quota */ }
+  }, [cart, orderType, selectedTableId, selectedSection, customerName, customerPhone, orderNotes]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -184,6 +207,7 @@ const BillingPage = () => {
     setCustomerName("");
     setCustomerPhone("");
     setOrderNotes("");
+    try { window.sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     setPlacingOrder(false);
     searchRef.current?.focus();
   };
