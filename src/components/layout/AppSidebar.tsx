@@ -90,6 +90,7 @@ const navGroups: NavGroup[] = [
       { to: "/recipes", icon: ChefHat, label: "Recipes", minRole: "branch_manager" },
       { to: "/prep-recipes", icon: ChefHat, label: "Prep Recipes (Base Gravy)", minRole: "branch_manager" },
       { to: "/dynamic-pricing", icon: TrendingUp, label: "Dynamic Pricing", minRole: "owner" },
+      { to: "/menu-insights", icon: Target, label: "Menu Insights", minRole: "owner" },
     ],
   },
   {
