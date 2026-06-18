@@ -29,6 +29,7 @@ import OrderHistoryPage from "@/pages/OrderHistoryPage";
 import EODSummaryPage from "@/pages/EODSummaryPage";
 import ProfitabilityPage from "@/pages/ProfitabilityPage";
 import BestsellersPage from "@/pages/BestsellersPage";
+import MenuInsightsPage from "@/pages/MenuInsightsPage";
 import AIAssistantPage from "@/pages/AIAssistantPage";
 import MultiBranchPage from "@/pages/MultiBranchPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
@@ -106,6 +107,7 @@ const App = () => (
                 <Route path="/dynamic-pricing" element={<ProtectedRoute requiredRole="owner"><DynamicPricingPage /></ProtectedRoute>} />
                 <Route path="/branches" element={<ProtectedRoute allowedRoles={["super_admin", "admin", "owner"]}><BranchesPage /></ProtectedRoute>} />
                 <Route path="/profitability" element={<ProtectedRoute requiredRole="owner"><ProfitabilityPage /></ProtectedRoute>} />
+                <Route path="/menu-insights" element={<ProtectedRoute requiredRole="owner"><MenuInsightsPage /></ProtectedRoute>} />
                 <Route path="/ai-assistant" element={<ProtectedRoute requiredRole="owner"><AIAssistantPage /></ProtectedRoute>} />
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
                 <Route path="/menu-management" element={<ProtectedRoute requiredRole="owner"><MenuManagementPage /></ProtectedRoute>} />
