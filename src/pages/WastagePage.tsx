@@ -39,7 +39,7 @@ const WastagePage = () => {
 
   useEffect(() => {
     fetchLogs();
-    supabase.from("ingredients").select("id,name,unit,cost_per_unit,category,branch_id").order("name")
+    supabase.from("ingredients").select("id,name,unit,cost_per_unit,category,branch_id,current_stock").order("name")
       .then(({ data }) => setIngredients(data || []));
   }, []);
 
