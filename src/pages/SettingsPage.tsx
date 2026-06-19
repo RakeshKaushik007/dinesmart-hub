@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Bot, ShieldCheck } from "lucide-react";
 import { useFloatingAISetting } from "@/hooks/useFloatingAISetting";
+import { Plus, Trash2 } from "lucide-react";
 
 const SettingsPage = () => {
   const { profile, user, isAtLeast, hasRole } = useAuth();
@@ -64,8 +65,9 @@ const SettingsPage = () => {
     setSaving(true);
     // Save to localStorage for now (could be a settings table)
     localStorage.setItem("blennix_settings", JSON.stringify({
-      restaurantName, restaurantPhone, restaurantAddress, currency, taxRate, taxLabel, timeZone,
+      restaurantName, restaurantPhone, restaurantAddress, currency, taxRate, taxLabel, timeZone, sectionSurcharges,
     }));
+    window.dispatchEvent(new Event("blennix_settings_changed"));
     setSaving(false);
     toast.success("Restaurant settings saved!");
   };
