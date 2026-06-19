@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export interface BlennixSettings {
   restaurantName: string;
@@ -24,8 +24,8 @@ export const getSettings = (): BlennixSettings => {
 
 export const useSettings = (): BlennixSettings => {
   // Re-read on storage changes so updates from Settings page reflect immediately.
-  const [tick, setTick] = (require("react") as typeof import("react")).useState(0);
-  (require("react") as typeof import("react")).useEffect(() => {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
     const onStorage = (e: StorageEvent) => { if (e.key === "blennix_settings") setTick(t => t + 1); };
     const onCustom = () => setTick(t => t + 1);
     window.addEventListener("storage", onStorage);
