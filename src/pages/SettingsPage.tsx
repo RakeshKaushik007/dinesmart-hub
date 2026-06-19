@@ -36,6 +36,12 @@ const SettingsPage = () => {
   const [newOrderSound, setNewOrderSound] = useState(true);
   const [dailySummaryEmail, setDailySummaryEmail] = useState(false);
 
+  // Section surcharges (manager/owner only)
+  const [sectionSurcharges, setSectionSurcharges] = useState<Record<string, number>>({});
+  const [availableSections, setAvailableSections] = useState<string[]>([]);
+  const [newSurchargeSection, setNewSurchargeSection] = useState<string>("");
+  const [newSurchargePct, setNewSurchargePct] = useState<string>("");
+
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
@@ -90,6 +96,9 @@ const SettingsPage = () => {
       setTaxRate(s.taxRate || "5");
       setTaxLabel(s.taxLabel || "GST");
       setTimeZone(s.timeZone || "Asia/Kolkata");
+      if (s.sectionSurcharges && typeof s.sectionSurcharges === "object") {
+        setSectionSurcharges(s.sectionSurcharges);
+      }
     }
     const notif = localStorage.getItem("blennix_notifications");
     if (notif) {
@@ -99,6 +108,33 @@ const SettingsPage = () => {
       setDailySummaryEmail(n.dailySummaryEmail ?? false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAtLeast("branch_manager")) return;
+    supabase.from("restaurant_tables").select("section").eq("is_active", true).then(({ data }) => {
+      const set = new Set<string>();
+      (data || []).forEach((row: { section: string | null }) => set.add(row.section || "Main"));
+      setAvailableSections(Array.from(set).sort());
+    });
+  }, [isAtLeast]);
+
+  const addSurcharge = () => {
+    const sec = newSurchargeSection.trim();
+    const pct = parseFloat(newSurchargePct);
+    if (!sec) { toast.error("Pick a section"); return; }
+    if (isNaN(pct) || pct < 0 || pct > 100) { toast.error("Enter a percentage 0–100"); return; }
+    setSectionSurcharges(prev => ({ ...prev, [sec]: pct }));
+    setNewSurchargeSection("");
+    setNewSurchargePct("");
+  };
+
+  const removeSurcharge = (sec: string) => {
+    setSectionSurcharges(prev => {
+      const copy = { ...prev };
+      delete copy[sec];
+      return copy;
+    });
+  };
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
