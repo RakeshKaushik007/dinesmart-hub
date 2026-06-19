@@ -396,7 +396,7 @@ const BillingPage = () => {
                 <p className="text-xs text-muted-foreground">{item.category}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <span className="text-sm font-mono font-semibold text-foreground">₹{item.selling_price}</span>
+                <span className="text-sm font-mono font-semibold text-foreground">₹{applySurcharge(item.selling_price)}</span>
                 {!item.is_available && <span className="text-[10px] bg-destructive/10 text-destructive rounded px-1.5 py-0.5">Unavailable</span>}
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </div>
