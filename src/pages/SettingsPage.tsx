@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Bot, ShieldCheck } from "lucide-react";
 import { useFloatingAISetting } from "@/hooks/useFloatingAISetting";
+import { Plus, Trash2 } from "lucide-react";
 
 const SettingsPage = () => {
   const { profile, user, isAtLeast, hasRole } = useAuth();
@@ -34,6 +35,12 @@ const SettingsPage = () => {
   const [lowStockAlert, setLowStockAlert] = useState(true);
   const [newOrderSound, setNewOrderSound] = useState(true);
   const [dailySummaryEmail, setDailySummaryEmail] = useState(false);
+
+  // Section surcharges (manager/owner only)
+  const [sectionSurcharges, setSectionSurcharges] = useState<Record<string, number>>({});
+  const [availableSections, setAvailableSections] = useState<string[]>([]);
+  const [newSurchargeSection, setNewSurchargeSection] = useState<string>("");
+  const [newSurchargePct, setNewSurchargePct] = useState<string>("");
 
   useEffect(() => {
     if (profile) {
@@ -64,8 +71,9 @@ const SettingsPage = () => {
     setSaving(true);
     // Save to localStorage for now (could be a settings table)
     localStorage.setItem("blennix_settings", JSON.stringify({
-      restaurantName, restaurantPhone, restaurantAddress, currency, taxRate, taxLabel, timeZone,
+      restaurantName, restaurantPhone, restaurantAddress, currency, taxRate, taxLabel, timeZone, sectionSurcharges,
     }));
+    window.dispatchEvent(new Event("blennix_settings_changed"));
     setSaving(false);
     toast.success("Restaurant settings saved!");
   };
@@ -88,6 +96,9 @@ const SettingsPage = () => {
       setTaxRate(s.taxRate || "5");
       setTaxLabel(s.taxLabel || "GST");
       setTimeZone(s.timeZone || "Asia/Kolkata");
+      if (s.sectionSurcharges && typeof s.sectionSurcharges === "object") {
+        setSectionSurcharges(s.sectionSurcharges);
+      }
     }
     const notif = localStorage.getItem("blennix_notifications");
     if (notif) {
@@ -97,6 +108,33 @@ const SettingsPage = () => {
       setDailySummaryEmail(n.dailySummaryEmail ?? false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAtLeast("branch_manager")) return;
+    supabase.from("restaurant_tables").select("section").eq("is_active", true).then(({ data }) => {
+      const set = new Set<string>();
+      (data || []).forEach((row: { section: string | null }) => set.add(row.section || "Main"));
+      setAvailableSections(Array.from(set).sort());
+    });
+  }, [isAtLeast]);
+
+  const addSurcharge = () => {
+    const sec = newSurchargeSection.trim();
+    const pct = parseFloat(newSurchargePct);
+    if (!sec) { toast.error("Pick a section"); return; }
+    if (isNaN(pct) || pct < 0 || pct > 100) { toast.error("Enter a percentage 0–100"); return; }
+    setSectionSurcharges(prev => ({ ...prev, [sec]: pct }));
+    setNewSurchargeSection("");
+    setNewSurchargePct("");
+  };
+
+  const removeSurcharge = (sec: string) => {
+    setSectionSurcharges(prev => {
+      const copy = { ...prev };
+      delete copy[sec];
+      return copy;
+    });
+  };
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
@@ -258,6 +296,79 @@ const SettingsPage = () => {
                     <div className="flex justify-between font-semibold text-card-foreground border-t border-border pt-1 mt-1"><span>Total</span><span>{currency}{(1000 * (1 + Number(taxRate) / 100)).toFixed(2)}</span></div>
                   </div>
                 </div>
+                {isAtLeast("branch_manager") && (
+                  <div className="p-4 rounded-xl border border-border bg-background space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-card-foreground">Table Section Surcharges</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Silently inflate item prices for orders placed in a specific section (e.g. VIP, Balcony). The surcharge is embedded in the displayed unit price — no separate line appears on the cart, checkout, or printed bill.
+                      </p>
+                    </div>
+
+                    {Object.keys(sectionSurcharges).length > 0 ? (
+                      <div className="space-y-1.5">
+                        {Object.entries(sectionSurcharges).map(([sec, pct]) => (
+                          <div key={sec} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-muted/40 border border-border">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-card-foreground truncate">{sec}</p>
+                              <p className="text-xs text-muted-foreground">+{pct}% on every item</p>
+                            </div>
+                            <button
+                              onClick={() => removeSurcharge(sec)}
+                              className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              aria-label={`Remove ${sec} surcharge`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No surcharges configured.</p>
+                    )}
+
+                    <div className="grid grid-cols-[1fr_8rem_auto] gap-2 items-end">
+                      <div>
+                        <label className="block text-xs font-medium text-card-foreground mb-1">Section</label>
+                        <select
+                          value={newSurchargeSection}
+                          onChange={(e) => setNewSurchargeSection(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                        >
+                          <option value="">Select section…</option>
+                          {availableSections
+                            .filter((s) => !(s in sectionSurcharges))
+                            .map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-card-foreground mb-1">Surcharge %</label>
+                        <div className="relative">
+                          <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            value={newSurchargePct}
+                            onChange={(e) => setNewSurchargePct(e.target.value)}
+                            placeholder="10"
+                            className="w-full pl-8 pr-2 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={addSurcharge}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" /> Add
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Remember to click <b>Save Tax Settings</b> below to apply changes.</p>
+                  </div>
+                )}
                 <button onClick={saveRestaurant} disabled={saving}
                   className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

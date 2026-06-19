@@ -29,6 +29,7 @@ interface CartItem {
   menuItemId: string;
   name: string;
   price: number;
+  basePrice: number;
   quantity: number;
   isNC?: boolean;
   ncReason?: string;
@@ -62,7 +63,12 @@ const BillingPage = () => {
     try { return JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || "{}"); } catch { return {}; }
   };
   const initialDraft = readDraft();
-  const [cart, setCart] = useState<CartItem[]>(initialDraft.cart || []);
+  const [cart, setCart] = useState<CartItem[]>(
+    (initialDraft.cart || []).map((c) => ({
+      ...c,
+      basePrice: typeof c.basePrice === "number" ? c.basePrice : c.price,
+    }))
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activePanel, setActivePanel] = useState<"menu" | "cart">("menu");
   const [orderType, setOrderType] = useState<"dine_in" | "takeaway">(initialDraft.orderType || "dine_in");
@@ -77,6 +83,32 @@ const BillingPage = () => {
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const settings = useSettings();
+
+  // Resolve the surcharge % for the currently selected dine-in table's section.
+  // Surcharge is applied silently: it inflates the displayed unit price; no
+  // separate line item ever appears on the cart, checkout, or printed bill.
+  const currentSurchargePct = useMemo(() => {
+    if (orderType !== "dine_in" || !selectedTableId) return 0;
+    const t = tables.find((x) => x.id === selectedTableId);
+    if (!t) return 0;
+    const sec = t.section || "Main";
+    const pct = settings.sectionSurcharges?.[sec];
+    return typeof pct === "number" && pct > 0 ? pct : 0;
+  }, [orderType, selectedTableId, tables, settings.sectionSurcharges]);
+
+  const applySurcharge = useCallback(
+    (base: number) => Math.round(base * (1 + currentSurchargePct / 100)),
+    [currentSurchargePct]
+  );
+
+  // Re-price existing cart items when the surcharge changes (e.g. switching
+  // table/section mid-build). Prices are derived from each item's stored base price.
+  useEffect(() => {
+    setCart((prev) =>
+      prev.map((c) => ({ ...c, price: Math.round(c.basePrice * (1 + currentSurchargePct / 100)) }))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSurchargePct]);
 
   // Persist draft whenever any cart/order-context field changes
   useEffect(() => {
@@ -111,9 +143,18 @@ const BillingPage = () => {
     setCart(prev => {
       const existing = prev.find(c => c.menuItemId === item.id);
       if (existing) return prev.map(c => c.menuItemId === item.id ? { ...c, quantity: c.quantity + 1 } : c);
-      return [...prev, { menuItemId: item.id, name: item.name, price: item.selling_price, quantity: 1 }];
+      return [
+        ...prev,
+        {
+          menuItemId: item.id,
+          name: item.name,
+          basePrice: item.selling_price,
+          price: applySurcharge(item.selling_price),
+          quantity: 1,
+        },
+      ];
     });
-  }, []);
+  }, [applySurcharge]);
 
   const updateQty = useCallback((id: string, delta: number) => {
     setCart(prev => prev.map(c => c.menuItemId === id ? { ...c, quantity: c.quantity + delta } : c).filter(c => c.quantity > 0));
@@ -360,7 +401,7 @@ const BillingPage = () => {
                 <p className="text-xs text-muted-foreground">{item.category}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <span className="text-sm font-mono font-semibold text-foreground">₹{item.selling_price}</span>
+                <span className="text-sm font-mono font-semibold text-foreground">₹{applySurcharge(item.selling_price)}</span>
                 {!item.is_available && <span className="text-[10px] bg-destructive/10 text-destructive rounded px-1.5 py-0.5">Unavailable</span>}
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </div>
