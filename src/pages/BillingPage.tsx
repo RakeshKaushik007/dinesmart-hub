@@ -63,7 +63,12 @@ const BillingPage = () => {
     try { return JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || "{}"); } catch { return {}; }
   };
   const initialDraft = readDraft();
-  const [cart, setCart] = useState<CartItem[]>(initialDraft.cart || []);
+  const [cart, setCart] = useState<CartItem[]>(
+    (initialDraft.cart || []).map((c) => ({
+      ...c,
+      basePrice: typeof c.basePrice === "number" ? c.basePrice : c.price,
+    }))
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activePanel, setActivePanel] = useState<"menu" | "cart">("menu");
   const [orderType, setOrderType] = useState<"dine_in" | "takeaway">(initialDraft.orderType || "dine_in");
