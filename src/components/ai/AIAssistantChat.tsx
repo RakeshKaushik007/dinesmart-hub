@@ -40,6 +40,22 @@ const loadQuota = () => {
   }
 };
 
+const getFunctionErrorMessage = async (error: unknown, fallback: string) => {
+  const context = (error as { context?: unknown })?.context;
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json();
+      if (payload?.error) return String(payload.error);
+    } catch {
+      try {
+        const text = await context.clone().text();
+        if (text) return text;
+      } catch { /* ignore body parsing errors */ }
+    }
+  }
+  return error instanceof Error ? error.message : fallback;
+};
+
 interface Props {
   /** Hide the prominent header (used in compact/floating layout). */
   compact?: boolean;
@@ -113,7 +129,7 @@ const AIAssistantChat = ({ compact = false, heightClass }: Props) => {
       });
       toast.success(`${prop.ingredient_name} restocked`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed";
+      const msg = await getFunctionErrorMessage(e, "Failed");
       updateProposal(msgId, prop.id, { status: "error", resultMessage: msg });
       toast.error(msg);
     }
@@ -175,7 +191,7 @@ const AIAssistantChat = ({ compact = false, heightClass }: Props) => {
       setQuota(next);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to reach AI";
+      const msg = await getFunctionErrorMessage(e, "Failed to reach AI");
       toast.error(msg);
     } finally {
       setLoading(false);
