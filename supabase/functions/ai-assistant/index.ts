@@ -199,7 +199,7 @@ ${summaryLines}`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
       }),
@@ -214,7 +214,7 @@ ${summaryLines}`;
     if (!aiResp.ok) {
       const text = await aiResp.text();
       console.error("AI gateway error", aiResp.status, text);
-      return respond({ ok: false, error: "AI gateway error" }, 500);
+      return respond({ ok: false, error: `AI gateway error (${aiResp.status}): ${text.slice(0, 300)}` }, 500);
     }
 
     const json = await aiResp.json();
