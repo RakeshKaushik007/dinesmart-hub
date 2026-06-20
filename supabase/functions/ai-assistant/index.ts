@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     // Pull a compact inventory snapshot to ground the model.
     const { data: ingredients } = await admin
       .from("ingredients")
-      .select("name, current_stock, unit, min_threshold, status, expiry_date, cost_per_unit, category")
+      .select("id, name, current_stock, unit, min_threshold, status, expiry_date, cost_per_unit, category")
       .order("name")
       .limit(200);
 
@@ -195,7 +195,7 @@ ${summaryLines}`;
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
