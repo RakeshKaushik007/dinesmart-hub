@@ -133,6 +133,24 @@ const BillingPage = () => {
     searchRef.current?.focus();
   }, []);
 
+  // Live-update table availability when other clients/pages mutate it.
+  useEffect(() => {
+    const refreshTables = async () => {
+      const { data } = await supabase
+        .from("restaurant_tables")
+        .select("id, table_number, status, section")
+        .eq("is_active", true)
+        .order("table_number");
+      if (data) setTables(data);
+    };
+    const channel = supabase
+      .channel("billing-tables")
+      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables" }, refreshTables)
+      .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, refreshTables)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const filteredItems = useMemo(
     () => menuItems.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase())),
     [search, menuItems]
@@ -233,6 +251,8 @@ const BillingPage = () => {
         guest_name: "POS Customer",
         order_id: order.id,
       });
+      // Optimistically reflect occupancy in local state so the picker updates immediately.
+      setTables((prev) => prev.map((t) => (t.id === selectedTableId ? { ...t, status: "occupied" } : t)));
     }
 
     // Print KOT
