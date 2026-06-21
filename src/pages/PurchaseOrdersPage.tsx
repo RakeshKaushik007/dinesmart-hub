@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, FileText, Loader2, PackageCheck, Plus, Trash, Trash2, Truck } from "lucide-react";
+import { CalendarIcon, FileText, Loader2, PackageCheck, Plus, Trash, Trash2, Truck, X } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -85,6 +85,8 @@ const emptyLine: DraftLine = {
 
 const PurchaseOrdersPage = () => {
   const [filter, setFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [orders, setOrders] = useState<PurchaseOrderRow[]>([]);
   const [ingredients, setIngredients] = useState<IngredientOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -490,7 +492,19 @@ const PurchaseOrdersPage = () => {
     setReceivingId(null);
   };
 
-  const filteredOrders = filter === "all" ? orders : orders.filter((order) => order.status === filter);
+  const filteredOrders = orders.filter((order) => {
+    if (filter !== "all" && order.status !== filter) return false;
+    const t = new Date(order.created_at).getTime();
+    if (dateFrom) {
+      const fromT = new Date(dateFrom).setHours(0, 0, 0, 0);
+      if (t < fromT) return false;
+    }
+    if (dateTo) {
+      const toT = new Date(dateTo).setHours(23, 59, 59, 999);
+      if (t > toT) return false;
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -526,6 +540,36 @@ const PurchaseOrdersPage = () => {
             {value === "all" ? "All Orders" : value}
           </button>
         ))}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "PP") : <span>From date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "PP") : <span>To date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4">
