@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, CalendarIcon, X } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -25,6 +29,8 @@ const WastagePage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ ingredient_id: "", quantity: "", reason: "expired", notes: "" });
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -98,8 +104,21 @@ const WastagePage = () => {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
-  const totalWaste = logs.reduce((s, l) => s + Number(l.cost), 0);
-  const reasons = logs.map(l => l.reason);
+  const filteredLogs = logs.filter((l) => {
+    const t = new Date(l.created_at).getTime();
+    if (dateFrom) {
+      const fromT = new Date(dateFrom).setHours(0, 0, 0, 0);
+      if (t < fromT) return false;
+    }
+    if (dateTo) {
+      const toT = new Date(dateTo).setHours(23, 59, 59, 999);
+      if (t > toT) return false;
+    }
+    return true;
+  });
+
+  const totalWaste = filteredLogs.reduce((s, l) => s + Number(l.cost), 0);
+  const reasons = filteredLogs.map((l) => l.reason);
   const topReason = reasons.length > 0
     ? [...new Set(reasons)].sort((a, b) => reasons.filter(r => r === b).length - reasons.filter(r => r === a).length)[0]
     : "—";
@@ -120,6 +139,46 @@ const WastagePage = () => {
         </button>
       </div>
 
+      <div className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-card p-3">
+        <div className="space-y-1">
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "PP") : <span>Start date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "PP") : <span>End date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+        </div>
+        {(dateFrom || dateTo) && (
+          <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+            <X className="h-4 w-4" />
+            Clear
+          </Button>
+        )}
+        <div className="ml-auto text-xs text-muted-foreground">
+          Showing {filteredLogs.length} of {logs.length} entries
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-destructive/30 bg-card p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Waste</p>
@@ -127,7 +186,7 @@ const WastagePage = () => {
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Incidents</p>
-          <p className="mt-2 text-2xl font-bold text-card-foreground font-mono">{logs.length}</p>
+          <p className="mt-2 text-2xl font-bold text-card-foreground font-mono">{filteredLogs.length}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Top Reason</p>
@@ -149,7 +208,7 @@ const WastagePage = () => {
               </tr>
             </thead>
             <tbody>
-              {logs.map((log) => (
+              {filteredLogs.map((log) => (
                 <tr key={log.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                   <td className="px-5 py-3.5">
                     <p className="font-medium text-card-foreground">{log.ingredient_name}</p>
@@ -171,7 +230,11 @@ const WastagePage = () => {
             </tbody>
           </table>
         </div>
-        {logs.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">No wastage logs recorded.</div>}
+        {filteredLogs.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground text-sm">
+            {logs.length === 0 ? "No wastage logs recorded." : "No entries in selected date range."}
+          </div>
+        )}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
