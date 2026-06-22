@@ -436,6 +436,10 @@ const BillingPage = () => {
         </div>
 
         <div className="flex gap-2 mb-3 sm:mb-4 overflow-x-auto -mx-1 px-1 scrollbar-hide">
+          <button onClick={() => setShowBestSellers(v => !v)}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 transition-colors ${showBestSellers ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
+            <TrendingUp className="h-3.5 w-3.5" /> Best Sellers
+          </button>
           {categories.map(cat => (
             <button key={cat} onClick={() => setSearch(cat === "All" ? "" : cat)}
               className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 transition-colors ${(cat === "All" && !search) || search === cat ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
