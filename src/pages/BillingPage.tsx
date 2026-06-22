@@ -173,9 +173,19 @@ const BillingPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const bestSellerSet = useMemo(() => new Set(bestSellerIds), [bestSellerIds]);
+
   const filteredItems = useMemo(
-    () => menuItems.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase())),
-    [search, menuItems]
+    () => {
+      let items = menuItems.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()));
+      if (showBestSellers) {
+        items = items
+          .filter(r => bestSellerSet.has(r.id))
+          .sort((a, b) => (soldCount[b.id] || 0) - (soldCount[a.id] || 0));
+      }
+      return items;
+    },
+    [search, menuItems, showBestSellers, bestSellerSet, soldCount]
   );
 
   const addToCart = useCallback((item: MenuItem) => {
