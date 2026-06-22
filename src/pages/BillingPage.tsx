@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Search, Plus, Minus, Trash2, Receipt, X, Loader2, UtensilsCrossed, ShoppingBag, Gift } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Receipt, X, Loader2, UtensilsCrossed, ShoppingBag, Gift, TrendingUp } from "lucide-react";
 import NCReasonDialog from "@/components/checkout/NCReasonDialog";
 import { useAuth as _useAuthForNC } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,9 @@ interface TableOption {
 const BillingPage = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showBestSellers, setShowBestSellers] = useState(false);
+  const [bestSellerIds, setBestSellerIds] = useState<string[]>([]);
+  const [soldCount, setSoldCount] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   // Persist cart + order context per browser tab so it survives panel switches,
   // route navigation, and component remounts within the session.
@@ -118,15 +121,34 @@ const BillingPage = () => {
 
   useEffect(() => {
     const fetch = async () => {
-      const [{ data: items }, { data: cats }, { data: tablesData }] = await Promise.all([
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: items }, { data: cats }, { data: tablesData }, { data: sold }] = await Promise.all([
         supabase.from("menu_items").select("id, name, selling_price, cost_price, is_available, category_id").eq("is_active", true).order("name"),
         supabase.from("menu_categories").select("id, name"),
         supabase.from("restaurant_tables").select("id, table_number, status, section").eq("is_active", true).order("table_number"),
+        supabase.from("order_items")
+          .select("menu_item_id, quantity, orders!inner(status, created_at)")
+          .eq("is_void", false)
+          .gte("orders.created_at", thirtyDaysAgo)
+          .not("orders.status", "eq", "cancelled"),
       ]);
       const catMap: Record<string, string> = {};
       cats?.forEach(c => catMap[c.id] = c.name);
       setMenuItems((items || []).map(i => ({ ...i, category: catMap[i.category_id || ""] || "Uncategorized" })));
       setTables(tablesData || []);
+
+      const counts: Record<string, number> = {};
+      (sold || []).forEach((row: any) => {
+        if (row.menu_item_id && row.quantity) {
+          counts[row.menu_item_id] = (counts[row.menu_item_id] || 0) + row.quantity;
+        }
+      });
+      const top = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([id]) => id);
+      setSoldCount(counts);
+      setBestSellerIds(top);
       setLoading(false);
     };
     fetch();
@@ -151,9 +173,19 @@ const BillingPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const bestSellerSet = useMemo(() => new Set(bestSellerIds), [bestSellerIds]);
+
   const filteredItems = useMemo(
-    () => menuItems.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase())),
-    [search, menuItems]
+    () => {
+      let items = menuItems.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()));
+      if (showBestSellers) {
+        items = items
+          .filter(r => bestSellerSet.has(r.id))
+          .sort((a, b) => (soldCount[b.id] || 0) - (soldCount[a.id] || 0));
+      }
+      return items;
+    },
+    [search, menuItems, showBestSellers, bestSellerSet, soldCount]
   );
 
   const addToCart = useCallback((item: MenuItem) => {
@@ -330,7 +362,7 @@ const BillingPage = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [search, activePanel, selectedIndex, filteredItems, addToCart, clearCart]);
 
-  useEffect(() => { setSelectedIndex(0); }, [search]);
+  useEffect(() => { setSelectedIndex(0); }, [search, showBestSellers]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -404,6 +436,10 @@ const BillingPage = () => {
         </div>
 
         <div className="flex gap-2 mb-3 sm:mb-4 overflow-x-auto -mx-1 px-1 scrollbar-hide">
+          <button onClick={() => setShowBestSellers(v => !v)}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 transition-colors ${showBestSellers ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
+            <TrendingUp className="h-3.5 w-3.5" /> Best Sellers
+          </button>
           {categories.map(cat => (
             <button key={cat} onClick={() => setSearch(cat === "All" ? "" : cat)}
               className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 transition-colors ${(cat === "All" && !search) || search === cat ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
