@@ -121,15 +121,34 @@ const BillingPage = () => {
 
   useEffect(() => {
     const fetch = async () => {
-      const [{ data: items }, { data: cats }, { data: tablesData }] = await Promise.all([
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: items }, { data: cats }, { data: tablesData }, { data: sold }] = await Promise.all([
         supabase.from("menu_items").select("id, name, selling_price, cost_price, is_available, category_id").eq("is_active", true).order("name"),
         supabase.from("menu_categories").select("id, name"),
         supabase.from("restaurant_tables").select("id, table_number, status, section").eq("is_active", true).order("table_number"),
+        supabase.from("order_items")
+          .select("menu_item_id, quantity, orders!inner(status, created_at)")
+          .eq("is_void", false)
+          .gte("orders.created_at", thirtyDaysAgo)
+          .not("orders.status", "eq", "cancelled"),
       ]);
       const catMap: Record<string, string> = {};
       cats?.forEach(c => catMap[c.id] = c.name);
       setMenuItems((items || []).map(i => ({ ...i, category: catMap[i.category_id || ""] || "Uncategorized" })));
       setTables(tablesData || []);
+
+      const counts: Record<string, number> = {};
+      (sold || []).forEach((row: any) => {
+        if (row.menu_item_id && row.quantity) {
+          counts[row.menu_item_id] = (counts[row.menu_item_id] || 0) + row.quantity;
+        }
+      });
+      const top = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([id]) => id);
+      setSoldCount(counts);
+      setBestSellerIds(top);
       setLoading(false);
     };
     fetch();
