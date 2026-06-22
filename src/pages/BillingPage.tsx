@@ -45,6 +45,9 @@ interface TableOption {
 const BillingPage = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showBestSellers, setShowBestSellers] = useState(false);
+  const [bestSellerIds, setBestSellerIds] = useState<string[]>([]);
+  const [soldCount, setSoldCount] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   // Persist cart + order context per browser tab so it survives panel switches,
   // route navigation, and component remounts within the session.
