@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, TrendingUp, TrendingDown, Sparkles, AlertTriangle, Trophy, Lightbulb } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Sparkles, AlertTriangle, Trophy, Lightbulb, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Quadrant = "promote" | "reprice" | "top" | "under";
@@ -12,6 +12,7 @@ interface ItemPerf {
   totalProfit: number;
   marginPct: number;
   quadrant: Quadrant;
+  wowRevenuePct: number | null;
 }
 
 const quadrantMeta: Record<Quadrant, { title: string; subtitle: string; advice: string; Icon: any; accent: string; ring: string; bg: string }> = {
@@ -68,32 +69,54 @@ const MenuInsightsPage = () => {
     const run = async () => {
       setLoading(true);
       try {
-        const since = new Date();
-        since.setDate(since.getDate() - 30);
+        const since30 = new Date();
+        since30.setDate(since30.getDate() - 30);
 
         const [{ data: menu }, { data: cats }, { data: orders }] = await Promise.all([
           supabase.from("menu_items").select("id,name,category_id,selling_price,cost_price,is_active"),
           supabase.from("menu_categories").select("id,name"),
-          supabase.from("orders").select("id").eq("status", "completed").gte("completed_at", since.toISOString()),
+          supabase.from("orders").select("id,completed_at").eq("status", "completed").gte("completed_at", since30.toISOString()),
         ]);
 
         const catName: Record<string, string> = {};
         (cats ?? []).forEach((c) => (catName[c.id] = c.name));
+
+        const orderMap: Record<string, string> = {};
+        (orders ?? []).forEach((o) => { orderMap[o.id] = o.completed_at; });
 
         const orderIds = (orders ?? []).map((o) => o.id);
         let oi: any[] = [];
         if (orderIds.length) {
           const { data } = await supabase
             .from("order_items")
-            .select("menu_item_id,quantity,is_void,is_refunded")
+            .select("menu_item_id,quantity,total_price,is_void,is_refunded,order_id")
             .in("order_id", orderIds);
           oi = data ?? [];
         }
 
         const sold: Record<string, number> = {};
+        const currRev: Record<string, number> = {};
+        const prevRev: Record<string, number> = {};
+
+        const currStart = new Date();
+        currStart.setDate(currStart.getDate() - 7);
+        const prevStart = new Date();
+        prevStart.setDate(prevStart.getDate() - 14);
+
         oi.forEach((it) => {
           if (it.is_void || it.is_refunded || !it.menu_item_id) return;
-          sold[it.menu_item_id] = (sold[it.menu_item_id] || 0) + (Number(it.quantity) || 0);
+          const qty = Number(it.quantity) || 0;
+          sold[it.menu_item_id] = (sold[it.menu_item_id] || 0) + qty;
+
+          const completedAt = orderMap[it.order_id];
+          if (!completedAt) return;
+          const d = new Date(completedAt);
+          const rev = Number(it.total_price) || 0;
+          if (d >= currStart) {
+            currRev[it.menu_item_id] = (currRev[it.menu_item_id] || 0) + rev;
+          } else if (d >= prevStart) {
+            prevRev[it.menu_item_id] = (prevRev[it.menu_item_id] || 0) + rev;
+          }
         });
 
         const base: Omit<ItemPerf, "quadrant">[] = (menu ?? [])
@@ -103,6 +126,14 @@ const MenuInsightsPage = () => {
             const cost = Number(m.cost_price) || 0;
             const unitsSold = sold[m.id] || 0;
             const profitPerUnit = sell - cost;
+            const cRev = currRev[m.id] || 0;
+            const pRev = prevRev[m.id] || 0;
+            let wowRevenuePct: number | null = null;
+            if (pRev > 0) {
+              wowRevenuePct = ((cRev - pRev) / pRev) * 100;
+            } else if (cRev > 0) {
+              wowRevenuePct = Infinity;
+            }
             return {
               id: m.id,
               name: m.name,
@@ -110,6 +141,7 @@ const MenuInsightsPage = () => {
               unitsSold,
               totalProfit: profitPerUnit * unitsSold,
               marginPct: sell > 0 ? (profitPerUnit / sell) * 100 : 0,
+              wowRevenuePct,
             };
           });
 
@@ -155,6 +187,25 @@ const MenuInsightsPage = () => {
   }
 
   const order: Quadrant[] = ["top", "promote", "reprice", "under"];
+
+  const formatWow = (pct: number | null) => {
+    if (pct === null) return <span className="text-muted-foreground">-</span>;
+    if (pct === Infinity) {
+      return (
+        <span className="inline-flex items-center gap-1 text-emerald-600">
+          <TrendingUp className="h-3.5 w-3.5" />
+          New
+        </span>
+      );
+    }
+    const isUp = pct >= 0;
+    return (
+      <span className={`inline-flex items-center gap-1 ${isUp ? "text-emerald-600" : "text-destructive"}`}>
+        {isUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+        {Math.abs(pct).toFixed(1)}%
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -204,6 +255,7 @@ const MenuInsightsPage = () => {
                           <th className="text-right py-2 font-medium">Qty</th>
                           <th className="text-right py-2 font-medium">Profit</th>
                           <th className="text-right py-2 font-medium">Margin</th>
+                          <th className="text-right py-2 font-medium">WoW Rev</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -217,6 +269,9 @@ const MenuInsightsPage = () => {
                             <td className="py-2.5 text-right font-mono text-card-foreground">₹{Math.round(it.totalProfit).toLocaleString()}</td>
                             <td className={`py-2.5 text-right font-mono ${it.marginPct >= 50 ? "text-emerald-600" : it.marginPct >= 25 ? "text-card-foreground" : "text-destructive"}`}>
                               {it.marginPct.toFixed(1)}%
+                            </td>
+                            <td className="py-2.5 text-right font-mono">
+                              {formatWow(it.wowRevenuePct)}
                             </td>
                           </tr>
                         ))}
