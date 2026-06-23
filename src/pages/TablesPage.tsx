@@ -273,8 +273,14 @@ const TablesPage = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialog(false)}>Cancel</Button>
             <Button disabled={!newTableNumber} onClick={async () => {
+              const num = Number(newTableNumber);
+              const duplicate = tables.find(t => t.table_number === num);
+              if (duplicate) {
+                toast({ title: "Duplicate table", description: `Table ${num} already exists.`, variant: "destructive" });
+                return;
+              }
               const { error } = await supabase.from("restaurant_tables").insert({
-                table_number: Number(newTableNumber),
+                table_number: num,
                 seats: Number(newSeats) || 4,
                 section: newSection.trim() || "Main",
               });
