@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, FileText, Loader2, PackageCheck, Plus, Trash, Trash2, Truck, X } from "lucide-react";
+import { CalendarIcon, FileText, IndianRupee, Loader2, PackageCheck, Plus, Trash, Trash2, Truck, Wallet, X } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 type PurchaseOrderStatus = "draft" | "sent" | "partial" | "received" | "cancelled";
+type PaymentStatus = "paid" | "partial" | "unpaid";
 
 interface IngredientOption {
   id: string;
@@ -52,6 +53,9 @@ interface PurchaseOrderRow {
   vendor_phone: string | null;
   status: PurchaseOrderStatus;
   total_amount: number;
+  amount_paid: number;
+  balance_due: number;
+  payment_status: PaymentStatus;
   expected_date: string | null;
   received_date: string | null;
   notes: string | null;
@@ -75,6 +79,12 @@ const statusStyles: Record<PurchaseOrderStatus, string> = {
   cancelled: "bg-destructive/10 text-destructive",
 };
 
+const paymentStyles: Record<PaymentStatus, string> = {
+  paid: "bg-stock-good/15 text-stock-good",
+  partial: "bg-stock-low/15 text-stock-low",
+  unpaid: "bg-stock-out/15 text-stock-out",
+};
+
 const emptyLine: DraftLine = {
   ingredient_id: "",
   quantity: "",
@@ -85,6 +95,7 @@ const emptyLine: DraftLine = {
 
 const PurchaseOrdersPage = () => {
   const [filter, setFilter] = useState<string>("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentStatus | "dues">("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [orders, setOrders] = useState<PurchaseOrderRow[]>([]);
@@ -94,11 +105,15 @@ const PurchaseOrdersPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [vendorName, setVendorName] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
+  const [amountPaid, setAmountPaid] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([{ ...emptyLine }]);
   const [receivingId, setReceivingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PurchaseOrderRow | null>(null);
   const [lineCategoryFilter, setLineCategoryFilter] = useState<Record<number, string>>({});
+  const [paymentTarget, setPaymentTarget] = useState<PurchaseOrderRow | null>(null);
+  const [paymentInput, setPaymentInput] = useState("");
+  const [savingPayment, setSavingPayment] = useState(false);
   const { toast } = useToast();
   const { user, roles } = useAuth();
 
@@ -117,6 +132,9 @@ const PurchaseOrdersPage = () => {
           vendor_phone,
           status,
           total_amount,
+          amount_paid,
+          balance_due,
+          payment_status,
           expected_date,
           received_date,
           notes,
@@ -167,6 +185,7 @@ const PurchaseOrdersPage = () => {
   const resetForm = () => {
     setVendorName("");
     setVendorPhone("");
+    setAmountPaid("");
     setLines([{ ...emptyLine }]);
     setLineCategoryFilter({});
   };
@@ -256,6 +275,7 @@ const PurchaseOrdersPage = () => {
     setSubmitting(true);
 
     const totalAmount = preparedLines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    const paidAmount = Math.max(0, Math.min(Number(amountPaid || 0), totalAmount));
 
     const { data: order, error: orderError } = await supabase
       .from("purchase_orders")
@@ -264,6 +284,7 @@ const PurchaseOrdersPage = () => {
         vendor_phone: vendorPhone.trim() || null,
         status: asDraft ? "draft" : "received",
         total_amount: totalAmount,
+        amount_paid: paidAmount,
         created_by: user?.id ?? null,
         branch_id: branchId,
         received_date: asDraft ? null : new Date().toISOString().slice(0, 10),
@@ -494,6 +515,11 @@ const PurchaseOrdersPage = () => {
 
   const filteredOrders = orders.filter((order) => {
     if (filter !== "all" && order.status !== filter) return false;
+    if (paymentFilter === "dues") {
+      if (Number(order.balance_due || 0) <= 0) return false;
+    } else if (paymentFilter !== "all") {
+      if (order.payment_status !== paymentFilter) return false;
+    }
     const t = new Date(order.created_at).getTime();
     if (dateFrom) {
       const fromT = new Date(dateFrom).setHours(0, 0, 0, 0);
@@ -505,6 +531,46 @@ const PurchaseOrdersPage = () => {
     }
     return true;
   });
+
+  const duesSummary = useMemo(() => {
+    const dueOrders = orders.filter((o) => Number(o.balance_due || 0) > 0);
+    const totalDue = dueOrders.reduce((s, o) => s + Number(o.balance_due || 0), 0);
+    const totalPaid = orders.reduce((s, o) => s + Number(o.amount_paid || 0), 0);
+    return { count: dueOrders.length, totalDue, totalPaid };
+  }, [orders]);
+
+  const formAmountPaid = Number(amountPaid || 0);
+  const formBalanceDue = Math.max(orderTotal - formAmountPaid, 0);
+
+  const handleRecordPayment = async () => {
+    if (!paymentTarget) return;
+    const addition = Number(paymentInput || 0);
+    if (addition <= 0) {
+      toast({ title: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+    const newPaid = Math.min(
+      Number(paymentTarget.amount_paid || 0) + addition,
+      Number(paymentTarget.total_amount || 0),
+    );
+    setSavingPayment(true);
+    const { error } = await supabase
+      .from("purchase_orders")
+      .update({ amount_paid: newPaid })
+      .eq("id", paymentTarget.id);
+    if (error) {
+      toast({ title: "Could not record payment", description: error.message, variant: "destructive" });
+    } else {
+      toast({
+        title: "Payment recorded",
+        description: `₹${addition.toLocaleString()} added to PO-${String(paymentTarget.po_number).padStart(3, "0")}.`,
+      });
+      setPaymentTarget(null);
+      setPaymentInput("");
+      fetchData(false);
+    }
+    setSavingPayment(false);
+  };
 
   if (loading) {
     return (
@@ -540,6 +606,27 @@ const PurchaseOrdersPage = () => {
             {value === "all" ? "All Orders" : value}
           </button>
         ))}
+        <div className="mx-1 h-5 w-px bg-border" aria-hidden />
+        {([
+          { value: "all", label: "All Payments" },
+          { value: "dues", label: "Pending Dues" },
+          { value: "unpaid", label: "Unpaid" },
+          { value: "partial", label: "Partial" },
+          { value: "paid", label: "Paid" },
+        ] as { value: typeof paymentFilter; label: string }[]).map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setPaymentFilter(opt.value)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+              paymentFilter === opt.value
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-accent",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -572,6 +659,31 @@ const PurchaseOrdersPage = () => {
         </div>
       </div>
 
+      {paymentFilter === "dues" && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-stock-out/30 bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5" /> Total Outstanding
+            </div>
+            <p className="mt-1 font-mono text-2xl font-bold text-stock-out tabular-nums">
+              ₹{duesSummary.totalDue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">POs With Dues</div>
+            <p className="mt-1 font-mono text-2xl font-bold text-foreground tabular-nums">{duesSummary.count}</p>
+          </div>
+          <div className="rounded-xl border border-stock-good/30 bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <IndianRupee className="h-3.5 w-3.5" /> Total Paid (All POs)
+            </div>
+            <p className="mt-1 font-mono text-2xl font-bold text-stock-good tabular-nums">
+              ₹{duesSummary.totalPaid.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4">
         {filteredOrders.map((order) => (
           <div key={order.id} className="rounded-xl border border-border bg-card p-5">
@@ -595,6 +707,9 @@ const PurchaseOrdersPage = () => {
               <div className="flex items-center gap-3">
                 <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider", statusStyles[order.status])}>
                   {order.status}
+                </span>
+                <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider", paymentStyles[order.payment_status])}>
+                  {order.payment_status}
                 </span>
                 <span className="font-mono text-lg font-bold text-card-foreground">₹{Number(order.total_amount).toLocaleString()}</span>
               </div>
@@ -635,6 +750,23 @@ const PurchaseOrdersPage = () => {
                 : "Not received yet"}
             </p>
 
+            <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                <div className="font-mono font-semibold text-foreground">₹{Number(order.total_amount).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid</div>
+                <div className="font-mono font-semibold text-stock-good">₹{Number(order.amount_paid || 0).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Balance Due</div>
+                <div className={cn("font-mono font-semibold", Number(order.balance_due || 0) > 0 ? "text-stock-out" : "text-muted-foreground")}>
+                  ₹{Number(order.balance_due || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
             {order.status !== "received" && order.status !== "cancelled" && (
               <div className="mt-4 flex justify-end">
                 <Button
@@ -653,7 +785,18 @@ const PurchaseOrdersPage = () => {
               </div>
             )}
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              {Number(order.balance_due || 0) > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setPaymentTarget(order); setPaymentInput(""); }}
+                >
+                  <Wallet className="h-4 w-4" />
+                  Record Payment
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -880,6 +1023,39 @@ const PurchaseOrdersPage = () => {
             <span className="font-mono text-lg font-bold text-foreground">₹{orderTotal.toLocaleString()}</span>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="amount-paid">Amount paid now (₹)</Label>
+              <Input
+                id="amount-paid"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0"
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+              />
+              {formAmountPaid > orderTotal && orderTotal > 0 && (
+                <p className="text-[11px] text-stock-low">
+                  Amount paid exceeds total — will be capped at ₹{orderTotal.toLocaleString()}.
+                </p>
+              )}
+            </div>
+            <div className="flex items-end">
+              <div className="w-full rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Balance due</div>
+                <div
+                  className={cn(
+                    "mt-1 font-mono text-lg font-bold tabular-nums",
+                    formBalanceDue > 0 ? "text-stock-out" : "text-stock-good",
+                  )}
+                >
+                  ₹{formBalanceDue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
               Cancel
@@ -891,6 +1067,63 @@ const PurchaseOrdersPage = () => {
             <Button type="button" onClick={() => handleCreatePurchaseOrder(false)} disabled={submitting}>
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Save & receive stock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!paymentTarget} onOpenChange={(open) => { if (!open) { setPaymentTarget(null); setPaymentInput(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Record payment {paymentTarget && `· PO-${String(paymentTarget.po_number).padStart(3, "0")}`}
+            </DialogTitle>
+          </DialogHeader>
+          {paymentTarget && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                  <div className="font-mono font-semibold">₹{Number(paymentTarget.total_amount).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Already Paid</div>
+                  <div className="font-mono font-semibold text-stock-good">₹{Number(paymentTarget.amount_paid || 0).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Balance Due</div>
+                  <div className="font-mono font-semibold text-stock-out">₹{Number(paymentTarget.balance_due || 0).toLocaleString()}</div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payment-input">Payment amount (₹)</Label>
+                <Input
+                  id="payment-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={paymentInput}
+                  onChange={(e) => setPaymentInput(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => setPaymentInput(String(Number(paymentTarget.balance_due || 0)))}
+                >
+                  Pay full balance (₹{Number(paymentTarget.balance_due || 0).toLocaleString()})
+                </button>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPaymentTarget(null); setPaymentInput(""); }} disabled={savingPayment}>
+              Cancel
+            </Button>
+            <Button onClick={handleRecordPayment} disabled={savingPayment || !paymentInput}>
+              {savingPayment && <Loader2 className="h-4 w-4 animate-spin" />}
+              Record Payment
             </Button>
           </DialogFooter>
         </DialogContent>
