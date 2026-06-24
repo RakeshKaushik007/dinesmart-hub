@@ -708,6 +708,9 @@ const PurchaseOrdersPage = () => {
                 <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider", statusStyles[order.status])}>
                   {order.status}
                 </span>
+                <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider", paymentStyles[order.payment_status])}>
+                  {order.payment_status}
+                </span>
                 <span className="font-mono text-lg font-bold text-card-foreground">₹{Number(order.total_amount).toLocaleString()}</span>
               </div>
             </div>
@@ -747,6 +750,23 @@ const PurchaseOrdersPage = () => {
                 : "Not received yet"}
             </p>
 
+            <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                <div className="font-mono font-semibold text-foreground">₹{Number(order.total_amount).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid</div>
+                <div className="font-mono font-semibold text-stock-good">₹{Number(order.amount_paid || 0).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Balance Due</div>
+                <div className={cn("font-mono font-semibold", Number(order.balance_due || 0) > 0 ? "text-stock-out" : "text-muted-foreground")}>
+                  ₹{Number(order.balance_due || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
             {order.status !== "received" && order.status !== "cancelled" && (
               <div className="mt-4 flex justify-end">
                 <Button
@@ -765,7 +785,18 @@ const PurchaseOrdersPage = () => {
               </div>
             )}
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              {Number(order.balance_due || 0) > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setPaymentTarget(order); setPaymentInput(""); }}
+                >
+                  <Wallet className="h-4 w-4" />
+                  Record Payment
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -992,6 +1023,39 @@ const PurchaseOrdersPage = () => {
             <span className="font-mono text-lg font-bold text-foreground">₹{orderTotal.toLocaleString()}</span>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="amount-paid">Amount paid now (₹)</Label>
+              <Input
+                id="amount-paid"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0"
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+              />
+              {formAmountPaid > orderTotal && orderTotal > 0 && (
+                <p className="text-[11px] text-stock-low">
+                  Amount paid exceeds total — will be capped at ₹{orderTotal.toLocaleString()}.
+                </p>
+              )}
+            </div>
+            <div className="flex items-end">
+              <div className="w-full rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Balance due</div>
+                <div
+                  className={cn(
+                    "mt-1 font-mono text-lg font-bold tabular-nums",
+                    formBalanceDue > 0 ? "text-stock-out" : "text-stock-good",
+                  )}
+                >
+                  ₹{formBalanceDue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
               Cancel
@@ -1003,6 +1067,63 @@ const PurchaseOrdersPage = () => {
             <Button type="button" onClick={() => handleCreatePurchaseOrder(false)} disabled={submitting}>
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Save & receive stock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!paymentTarget} onOpenChange={(open) => { if (!open) { setPaymentTarget(null); setPaymentInput(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Record payment {paymentTarget && `· PO-${String(paymentTarget.po_number).padStart(3, "0")}`}
+            </DialogTitle>
+          </DialogHeader>
+          {paymentTarget && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                  <div className="font-mono font-semibold">₹{Number(paymentTarget.total_amount).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Already Paid</div>
+                  <div className="font-mono font-semibold text-stock-good">₹{Number(paymentTarget.amount_paid || 0).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Balance Due</div>
+                  <div className="font-mono font-semibold text-stock-out">₹{Number(paymentTarget.balance_due || 0).toLocaleString()}</div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payment-input">Payment amount (₹)</Label>
+                <Input
+                  id="payment-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={paymentInput}
+                  onChange={(e) => setPaymentInput(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => setPaymentInput(String(Number(paymentTarget.balance_due || 0)))}
+                >
+                  Pay full balance (₹{Number(paymentTarget.balance_due || 0).toLocaleString()})
+                </button>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPaymentTarget(null); setPaymentInput(""); }} disabled={savingPayment}>
+              Cancel
+            </Button>
+            <Button onClick={handleRecordPayment} disabled={savingPayment || !paymentInput}>
+              {savingPayment && <Loader2 className="h-4 w-4 animate-spin" />}
+              Record Payment
             </Button>
           </DialogFooter>
         </DialogContent>
