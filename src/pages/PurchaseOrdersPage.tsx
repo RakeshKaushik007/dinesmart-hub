@@ -606,6 +606,27 @@ const PurchaseOrdersPage = () => {
             {value === "all" ? "All Orders" : value}
           </button>
         ))}
+        <div className="mx-1 h-5 w-px bg-border" aria-hidden />
+        {([
+          { value: "all", label: "All Payments" },
+          { value: "dues", label: "Pending Dues" },
+          { value: "unpaid", label: "Unpaid" },
+          { value: "partial", label: "Partial" },
+          { value: "paid", label: "Paid" },
+        ] as { value: typeof paymentFilter; label: string }[]).map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setPaymentFilter(opt.value)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+              paymentFilter === opt.value
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-accent",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -637,6 +658,31 @@ const PurchaseOrdersPage = () => {
           )}
         </div>
       </div>
+
+      {paymentFilter === "dues" && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-stock-out/30 bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5" /> Total Outstanding
+            </div>
+            <p className="mt-1 font-mono text-2xl font-bold text-stock-out tabular-nums">
+              ₹{duesSummary.totalDue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">POs With Dues</div>
+            <p className="mt-1 font-mono text-2xl font-bold text-foreground tabular-nums">{duesSummary.count}</p>
+          </div>
+          <div className="rounded-xl border border-stock-good/30 bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <IndianRupee className="h-3.5 w-3.5" /> Total Paid (All POs)
+            </div>
+            <p className="mt-1 font-mono text-2xl font-bold text-stock-good tabular-nums">
+              ₹{duesSummary.totalPaid.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4">
         {filteredOrders.map((order) => (
