@@ -764,12 +764,15 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
+          amount_paid: number
+          balance_due: number | null
           branch_id: string | null
           created_at: string
           created_by: string | null
           expected_date: string | null
           id: string
           notes: string | null
+          payment_status: string | null
           po_number: number
           received_date: string | null
           status: Database["public"]["Enums"]["po_status"]
@@ -779,12 +782,15 @@ export type Database = {
           vendor_phone: string | null
         }
         Insert: {
+          amount_paid?: number
+          balance_due?: number | null
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
           expected_date?: string | null
           id?: string
           notes?: string | null
+          payment_status?: string | null
           po_number?: number
           received_date?: string | null
           status?: Database["public"]["Enums"]["po_status"]
@@ -794,12 +800,15 @@ export type Database = {
           vendor_phone?: string | null
         }
         Update: {
+          amount_paid?: number
+          balance_due?: number | null
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
           expected_date?: string | null
           id?: string
           notes?: string | null
+          payment_status?: string | null
           po_number?: number
           received_date?: string | null
           status?: Database["public"]["Enums"]["po_status"]
