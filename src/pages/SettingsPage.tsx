@@ -9,6 +9,7 @@ import {
 import { Bot, ShieldCheck } from "lucide-react";
 import { useFloatingAISetting } from "@/hooks/useFloatingAISetting";
 import { Plus, Trash2 } from "lucide-react";
+import { TAKEAWAY_SURCHARGE_KEY, type SurchargeConfig } from "@/hooks/useSettings";
 
 const SettingsPage = () => {
   const { profile, user, isAtLeast, hasRole } = useAuth();
@@ -36,8 +37,8 @@ const SettingsPage = () => {
   const [newOrderSound, setNewOrderSound] = useState(true);
   const [dailySummaryEmail, setDailySummaryEmail] = useState(false);
 
-  // Section surcharges (manager/owner only)
-  const [sectionSurcharges, setSectionSurcharges] = useState<Record<string, number>>({});
+  // Section + takeaway surcharges (manager/owner only)
+  const [sectionSurcharges, setSectionSurcharges] = useState<Record<string, SurchargeConfig>>({});
   const [availableSections, setAvailableSections] = useState<string[]>([]);
   const [newSurchargeSection, setNewSurchargeSection] = useState<string>("");
   const [newSurchargePct, setNewSurchargePct] = useState<string>("");
@@ -97,7 +98,16 @@ const SettingsPage = () => {
       setTaxLabel(s.taxLabel || "GST");
       setTimeZone(s.timeZone || "Asia/Kolkata");
       if (s.sectionSurcharges && typeof s.sectionSurcharges === "object") {
-        setSectionSurcharges(s.sectionSurcharges);
+        const normalized: Record<string, SurchargeConfig> = {};
+        for (const [k, v] of Object.entries(s.sectionSurcharges as Record<string, unknown>)) {
+          if (typeof v === "number") normalized[k] = { pct: v, enabled: true };
+          else if (v && typeof v === "object") {
+            const pct = Number((v as { pct?: unknown }).pct);
+            const enabled = (v as { enabled?: unknown }).enabled !== false;
+            if (!isNaN(pct)) normalized[k] = { pct, enabled };
+          }
+        }
+        setSectionSurcharges(normalized);
       }
     }
     const notif = localStorage.getItem("blennix_notifications");
@@ -123,7 +133,7 @@ const SettingsPage = () => {
     const pct = parseFloat(newSurchargePct);
     if (!sec) { toast.error("Pick a section"); return; }
     if (isNaN(pct) || pct < 0 || pct > 100) { toast.error("Enter a percentage 0–100"); return; }
-    setSectionSurcharges(prev => ({ ...prev, [sec]: pct }));
+    setSectionSurcharges(prev => ({ ...prev, [sec]: { pct, enabled: true } }));
     setNewSurchargeSection("");
     setNewSurchargePct("");
   };
@@ -135,6 +145,15 @@ const SettingsPage = () => {
       return copy;
     });
   };
+
+  const updateSurcharge = (sec: string, patch: Partial<SurchargeConfig>) => {
+    setSectionSurcharges(prev => {
+      const existing = prev[sec] ?? { pct: 0, enabled: false };
+      return { ...prev, [sec]: { ...existing, ...patch } };
+    });
+  };
+
+  const takeawayCfg: SurchargeConfig = sectionSurcharges[TAKEAWAY_SURCHARGE_KEY] ?? { pct: 0, enabled: false };
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
