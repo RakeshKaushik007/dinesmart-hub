@@ -316,22 +316,65 @@ const SettingsPage = () => {
                   </div>
                 </div>
                 {isAtLeast("branch_manager") && (
-                  <div className="p-4 rounded-xl border border-border bg-background space-y-3">
+                  <div className="p-4 rounded-xl border border-border bg-background space-y-4">
                     <div>
-                      <h3 className="text-sm font-semibold text-card-foreground">Table Section Surcharges</h3>
+                      <h3 className="text-sm font-semibold text-card-foreground">Dynamic Price Markups</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Silently inflate item prices for orders placed in a specific section (e.g. VIP, Balcony). The surcharge is embedded in the displayed unit price — no separate line appears on the cart, checkout, or printed bill.
+                        Silently inflate item prices for orders in a specific table section (e.g. VIP, Balcony) or for Takeaway. The markup is embedded in the displayed unit price — no separate line appears on the cart, checkout, or printed bill. Toggle each entry on/off without losing its percentage.
                       </p>
                     </div>
 
-                    {Object.keys(sectionSurcharges).length > 0 ? (
+                    {/* Takeaway row — always shown */}
+                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-card-foreground">Takeaway Orders</p>
+                        <p className="text-xs text-muted-foreground">Applies to every takeaway order</p>
+                      </div>
+                      <div className="relative w-24">
+                        <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <input
+                          type="number" min="0" max="100" step="0.5"
+                          value={takeawayCfg.pct}
+                          onChange={(e) => updateSurcharge(TAKEAWAY_SURCHARGE_KEY, { pct: parseFloat(e.target.value) || 0 })}
+                          className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => updateSurcharge(TAKEAWAY_SURCHARGE_KEY, { enabled: !takeawayCfg.enabled })}
+                        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${takeawayCfg.enabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                        aria-label="Toggle takeaway markup"
+                      >
+                        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform ${takeawayCfg.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                      </button>
+                    </div>
+
+                    {/* Section rows */}
+                    {Object.entries(sectionSurcharges).filter(([k]) => k !== TAKEAWAY_SURCHARGE_KEY).length > 0 ? (
                       <div className="space-y-1.5">
-                        {Object.entries(sectionSurcharges).map(([sec, pct]) => (
-                          <div key={sec} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-muted/40 border border-border">
-                            <div className="min-w-0">
+                        {Object.entries(sectionSurcharges)
+                          .filter(([k]) => k !== TAKEAWAY_SURCHARGE_KEY)
+                          .map(([sec, cfg]) => (
+                          <div key={sec} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-border">
+                            <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-card-foreground truncate">{sec}</p>
-                              <p className="text-xs text-muted-foreground">+{pct}% on every item</p>
+                              <p className="text-xs text-muted-foreground">{cfg.enabled ? `+${cfg.pct}% on every item` : "Disabled"}</p>
                             </div>
+                            <div className="relative w-24">
+                              <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                              <input
+                                type="number" min="0" max="100" step="0.5"
+                                value={cfg.pct}
+                                onChange={(e) => updateSurcharge(sec, { pct: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                              />
+                            </div>
+                            <button
+                              onClick={() => updateSurcharge(sec, { enabled: !cfg.enabled })}
+                              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${cfg.enabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                              aria-label={`Toggle ${sec} markup`}
+                            >
+                              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform ${cfg.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                            </button>
                             <button
                               onClick={() => removeSurcharge(sec)}
                               className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
@@ -343,7 +386,7 @@ const SettingsPage = () => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground italic">No surcharges configured.</p>
+                      <p className="text-xs text-muted-foreground italic">No section markups configured.</p>
                     )}
 
                     <div className="grid grid-cols-[1fr_8rem_auto] gap-2 items-end">
