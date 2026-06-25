@@ -87,16 +87,23 @@ const BillingPage = () => {
   const { user, profile } = useAuth();
   const settings = useSettings();
 
-  // Resolve the surcharge % for the currently selected dine-in table's section.
+  // Resolve the surcharge % for the current order context.
+  // - Dine-in: uses the section markup of the selected table.
+  // - Takeaway: uses the dedicated takeaway markup.
   // Surcharge is applied silently: it inflates the displayed unit price; no
   // separate line item ever appears on the cart, checkout, or printed bill.
   const currentSurchargePct = useMemo(() => {
+    const surcharges = settings.sectionSurcharges || {};
+    if (orderType === "takeaway") {
+      const cfg = surcharges["__takeaway__"];
+      return cfg?.enabled && cfg.pct > 0 ? cfg.pct : 0;
+    }
     if (orderType !== "dine_in" || !selectedTableId) return 0;
     const t = tables.find((x) => x.id === selectedTableId);
     if (!t) return 0;
     const sec = t.section || "Main";
-    const pct = settings.sectionSurcharges?.[sec];
-    return typeof pct === "number" && pct > 0 ? pct : 0;
+    const cfg = surcharges[sec];
+    return cfg?.enabled && cfg.pct > 0 ? cfg.pct : 0;
   }, [orderType, selectedTableId, tables, settings.sectionSurcharges]);
 
   const applySurcharge = useCallback(

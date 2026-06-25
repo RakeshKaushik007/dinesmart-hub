@@ -9,6 +9,7 @@ import {
 import { Bot, ShieldCheck } from "lucide-react";
 import { useFloatingAISetting } from "@/hooks/useFloatingAISetting";
 import { Plus, Trash2 } from "lucide-react";
+import { TAKEAWAY_SURCHARGE_KEY, type SurchargeConfig } from "@/hooks/useSettings";
 
 const SettingsPage = () => {
   const { profile, user, isAtLeast, hasRole } = useAuth();
@@ -36,8 +37,8 @@ const SettingsPage = () => {
   const [newOrderSound, setNewOrderSound] = useState(true);
   const [dailySummaryEmail, setDailySummaryEmail] = useState(false);
 
-  // Section surcharges (manager/owner only)
-  const [sectionSurcharges, setSectionSurcharges] = useState<Record<string, number>>({});
+  // Section + takeaway surcharges (manager/owner only)
+  const [sectionSurcharges, setSectionSurcharges] = useState<Record<string, SurchargeConfig>>({});
   const [availableSections, setAvailableSections] = useState<string[]>([]);
   const [newSurchargeSection, setNewSurchargeSection] = useState<string>("");
   const [newSurchargePct, setNewSurchargePct] = useState<string>("");
@@ -97,7 +98,16 @@ const SettingsPage = () => {
       setTaxLabel(s.taxLabel || "GST");
       setTimeZone(s.timeZone || "Asia/Kolkata");
       if (s.sectionSurcharges && typeof s.sectionSurcharges === "object") {
-        setSectionSurcharges(s.sectionSurcharges);
+        const normalized: Record<string, SurchargeConfig> = {};
+        for (const [k, v] of Object.entries(s.sectionSurcharges as Record<string, unknown>)) {
+          if (typeof v === "number") normalized[k] = { pct: v, enabled: true };
+          else if (v && typeof v === "object") {
+            const pct = Number((v as { pct?: unknown }).pct);
+            const enabled = (v as { enabled?: unknown }).enabled !== false;
+            if (!isNaN(pct)) normalized[k] = { pct, enabled };
+          }
+        }
+        setSectionSurcharges(normalized);
       }
     }
     const notif = localStorage.getItem("blennix_notifications");
@@ -123,7 +133,7 @@ const SettingsPage = () => {
     const pct = parseFloat(newSurchargePct);
     if (!sec) { toast.error("Pick a section"); return; }
     if (isNaN(pct) || pct < 0 || pct > 100) { toast.error("Enter a percentage 0–100"); return; }
-    setSectionSurcharges(prev => ({ ...prev, [sec]: pct }));
+    setSectionSurcharges(prev => ({ ...prev, [sec]: { pct, enabled: true } }));
     setNewSurchargeSection("");
     setNewSurchargePct("");
   };
@@ -135,6 +145,15 @@ const SettingsPage = () => {
       return copy;
     });
   };
+
+  const updateSurcharge = (sec: string, patch: Partial<SurchargeConfig>) => {
+    setSectionSurcharges(prev => {
+      const existing = prev[sec] ?? { pct: 0, enabled: false };
+      return { ...prev, [sec]: { ...existing, ...patch } };
+    });
+  };
+
+  const takeawayCfg: SurchargeConfig = sectionSurcharges[TAKEAWAY_SURCHARGE_KEY] ?? { pct: 0, enabled: false };
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
@@ -297,22 +316,65 @@ const SettingsPage = () => {
                   </div>
                 </div>
                 {isAtLeast("branch_manager") && (
-                  <div className="p-4 rounded-xl border border-border bg-background space-y-3">
+                  <div className="p-4 rounded-xl border border-border bg-background space-y-4">
                     <div>
-                      <h3 className="text-sm font-semibold text-card-foreground">Table Section Surcharges</h3>
+                      <h3 className="text-sm font-semibold text-card-foreground">Dynamic Price Markups</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Silently inflate item prices for orders placed in a specific section (e.g. VIP, Balcony). The surcharge is embedded in the displayed unit price — no separate line appears on the cart, checkout, or printed bill.
+                        Silently inflate item prices for orders in a specific table section (e.g. VIP, Balcony) or for Takeaway. The markup is embedded in the displayed unit price — no separate line appears on the cart, checkout, or printed bill. Toggle each entry on/off without losing its percentage.
                       </p>
                     </div>
 
-                    {Object.keys(sectionSurcharges).length > 0 ? (
+                    {/* Takeaway row — always shown */}
+                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-card-foreground">Takeaway Orders</p>
+                        <p className="text-xs text-muted-foreground">Applies to every takeaway order</p>
+                      </div>
+                      <div className="relative w-24">
+                        <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <input
+                          type="number" min="0" max="100" step="0.5"
+                          value={takeawayCfg.pct}
+                          onChange={(e) => updateSurcharge(TAKEAWAY_SURCHARGE_KEY, { pct: parseFloat(e.target.value) || 0 })}
+                          className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => updateSurcharge(TAKEAWAY_SURCHARGE_KEY, { enabled: !takeawayCfg.enabled })}
+                        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${takeawayCfg.enabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                        aria-label="Toggle takeaway markup"
+                      >
+                        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform ${takeawayCfg.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                      </button>
+                    </div>
+
+                    {/* Section rows */}
+                    {Object.entries(sectionSurcharges).filter(([k]) => k !== TAKEAWAY_SURCHARGE_KEY).length > 0 ? (
                       <div className="space-y-1.5">
-                        {Object.entries(sectionSurcharges).map(([sec, pct]) => (
-                          <div key={sec} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-muted/40 border border-border">
-                            <div className="min-w-0">
+                        {Object.entries(sectionSurcharges)
+                          .filter(([k]) => k !== TAKEAWAY_SURCHARGE_KEY)
+                          .map(([sec, cfg]) => (
+                          <div key={sec} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-border">
+                            <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-card-foreground truncate">{sec}</p>
-                              <p className="text-xs text-muted-foreground">+{pct}% on every item</p>
+                              <p className="text-xs text-muted-foreground">{cfg.enabled ? `+${cfg.pct}% on every item` : "Disabled"}</p>
                             </div>
+                            <div className="relative w-24">
+                              <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                              <input
+                                type="number" min="0" max="100" step="0.5"
+                                value={cfg.pct}
+                                onChange={(e) => updateSurcharge(sec, { pct: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                              />
+                            </div>
+                            <button
+                              onClick={() => updateSurcharge(sec, { enabled: !cfg.enabled })}
+                              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${cfg.enabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                              aria-label={`Toggle ${sec} markup`}
+                            >
+                              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform ${cfg.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                            </button>
                             <button
                               onClick={() => removeSurcharge(sec)}
                               className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
@@ -324,7 +386,7 @@ const SettingsPage = () => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground italic">No surcharges configured.</p>
+                      <p className="text-xs text-muted-foreground italic">No section markups configured.</p>
                     )}
 
                     <div className="grid grid-cols-[1fr_8rem_auto] gap-2 items-end">
