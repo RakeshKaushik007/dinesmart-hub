@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, GripVertical, UtensilsCrossed } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -181,6 +182,15 @@ const MenuManagementPage = () => {
 
       {/* Categories with items */}
       <div className="space-y-3">
+        {categories.length === 0 && items.length === 0 && (
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="Your menu is empty"
+            description="Start by creating a category (like Starters or Mains), then add your first dish. Customers and POS staff will see items appear instantly."
+            primaryAction={{ label: "Create first category", onClick: () => openCatDialog(), icon: Plus }}
+            secondaryAction={{ label: "Bulk import via CSV", onClick: () => navigate("/data-import") }}
+          />
+        )}
         {categories.map(cat => {
           const catItems = items.filter(i => i.category_id === cat.id);
           const expanded = expandedCats.has(cat.id);
