@@ -178,6 +178,15 @@ const TablesPage = () => {
         )}
       </div>
 
+      {tables.length === 0 ? (
+        <EmptyState
+          icon={LayoutGrid}
+          title="No tables set up yet"
+          description="Add your first table to start seating guests, generating QR codes for self-ordering, and tracking occupancy in real time."
+          primaryAction={isAtLeast("branch_manager") ? { label: "Add first table", onClick: () => setAddDialog(true), icon: Plus } : undefined}
+        />
+      ) : (
+      <>
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {(["available", "occupied", "reserved"] as TableStatus[]).map((s) => {
           const cfg = statusConfig[s];
