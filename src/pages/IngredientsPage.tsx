@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, Loader2, Pencil, Trash2, Carrot } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import EmptyState from "@/components/EmptyState";
 import StockBadge from "@/components/inventory/StockBadge";
 import { supabase } from "@/integrations/supabase/client";
 import type { StockStatus } from "@/data/mockInventory";
@@ -30,6 +32,7 @@ const statusFilters: { label: string; value: StockStatus | "all" }[] = [
 ];
 
 const IngredientsPage = () => {
+  const navigate = useNavigate();
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
