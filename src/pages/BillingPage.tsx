@@ -378,6 +378,21 @@ const BillingPage = () => {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
+  if (menuItems.length === 0) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-lg sm:text-xl font-bold text-foreground">Billing</h1>
+        <EmptyState
+          icon={UtensilsCrossed}
+          title="No menu items to sell yet"
+          description="Before you can take orders, set up at least one category and a few dishes in Menu Management. Items will appear here instantly."
+          primaryAction={{ label: "Set up menu", onClick: () => navigate("/menu-management"), icon: Plus }}
+          secondaryAction={{ label: "Bulk import CSV", onClick: () => navigate("/data-import") }}
+        />
+      </div>
+    );
+  }
+
   const categories = ["All", ...new Set(menuItems.map(i => i.category))];
   const sections = ["All", ...Array.from(new Set(tables.map(t => t.section || "Main")))];
   const availableTables = tables.filter(
