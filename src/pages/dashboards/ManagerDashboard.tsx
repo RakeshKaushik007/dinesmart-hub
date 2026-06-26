@@ -25,6 +25,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import OnboardingChecklist from "@/components/onboarding/OnboardingChecklist";
 
 const PIE_COLORS = [
   "hsl(var(--chart-1, 220 70% 50%))",
@@ -190,6 +191,8 @@ const ManagerDashboard = () => {
         <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Manager Dashboard</h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">Daily control & monitoring</p>
       </div>
+
+      <OnboardingChecklist />
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
