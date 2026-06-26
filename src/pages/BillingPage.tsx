@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Search, Plus, Minus, Trash2, Receipt, X, Loader2, UtensilsCrossed, ShoppingBag, Gift, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import EmptyState from "@/components/EmptyState";
 import NCReasonDialog from "@/components/checkout/NCReasonDialog";
 import { useAuth as _useAuthForNC } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,7 @@ interface TableOption {
 }
 
 const BillingPage = () => {
+  const navigate = useNavigate();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBestSellers, setShowBestSellers] = useState(false);
