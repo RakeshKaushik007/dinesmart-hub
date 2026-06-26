@@ -40,6 +40,7 @@ import { supabase as sb } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { RefreshCcw } from "lucide-react";
+import OnboardingChecklist from "@/components/onboarding/OnboardingChecklist";
 
 const COLORS = [
   "hsl(var(--chart-1, 220 70% 50%))",
@@ -231,6 +232,8 @@ const OwnerDashboard = () => {
         <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Owner Dashboard</h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">Strategic business intelligence</p>
       </div>
+
+      <OnboardingChecklist />
 
       {canReset && (
         <div className="flex justify-end">
