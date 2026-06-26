@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2, Plus, Trash2, Timer } from "lucide-react";
+import { Users, Clock, User, QrCode, Printer, Download, CheckCircle, Loader2, Plus, Trash2, Timer, LayoutGrid } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
