@@ -212,6 +212,56 @@ const IngredientsPage = () => {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
+  if (ingredients.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Ingredients</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage raw materials and stock levels</p>
+        </div>
+        <EmptyState
+          icon={Carrot}
+          title="No ingredients yet"
+          description="Add the raw materials your kitchen uses so we can track stock levels, recipe costs, and low-stock alerts automatically."
+          primaryAction={{ label: "Add first ingredient", onClick: openAddDialog, icon: Plus }}
+          secondaryAction={{ label: "Bulk import via CSV", onClick: () => navigate("/data-import") }}
+        />
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add ingredient</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-2 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="ing-name-empty">Name</Label>
+                <Input id="ing-name-empty" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Paneer" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ing-cat-empty">Category</Label>
+                <Input id="ing-cat-empty" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Dairy" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ing-unit-empty">Unit</Label>
+                <Input id="ing-unit-empty" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg, L, pcs" />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="ing-min-empty">Min threshold</Label>
+                <Input id="ing-min-empty" type="number" min="0" step="0.01" value={form.min_threshold} onChange={(e) => setForm({ ...form, min_threshold: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={submitting}>
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Add ingredient
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
