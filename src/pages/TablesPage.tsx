@@ -475,6 +475,8 @@ const TablesPage = () => {
           })()}
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </div>
   );
 };
