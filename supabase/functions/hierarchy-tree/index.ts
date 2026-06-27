@@ -55,18 +55,25 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("user_id, role, custom_role_name, permissions, branch_id, parent_user_id, is_active");
 
-    const userIds = Array.from(new Set((roleRows || []).map((r) => r.user_id)));
+    // Exclude soft-deleted users from the hierarchy view entirely.
+    const activeRoleRows = (roleRows || []).filter((r) => r.is_active !== false);
+    const userIds = Array.from(new Set(activeRoleRows.map((r) => r.user_id)));
     const { data: profiles } = await admin
       .from("profiles")
-      .select("user_id, full_name, email")
+      .select("user_id, full_name, email, is_active")
       .in("user_id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]);
 
     const profileById = new Map((profiles || []).map((p) => [p.user_id, p]));
+    // Also drop users whose profile has been soft-deleted.
+    const filteredRoleRows = activeRoleRows.filter((r) => {
+      const p = profileById.get(r.user_id) as any;
+      return !p || p.is_active !== false;
+    });
 
     // Build flat node list — one node per role assignment (a user could have multiple)
     // For simplicity we collapse by user_id, taking the first role row.
     const byUser = new Map<string, NodeUser>();
-    for (const r of roleRows || []) {
+    for (const r of filteredRoleRows) {
       if (byUser.has(r.user_id)) continue;
       const p = profileById.get(r.user_id);
       byUser.set(r.user_id, {
