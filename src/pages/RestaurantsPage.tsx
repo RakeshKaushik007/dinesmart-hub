@@ -144,6 +144,16 @@ const RestaurantsPage = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const term = search.trim().toLowerCase();
+  const filteredRestaurants = term
+    ? restaurants.filter(
+        (r) =>
+          r.name.toLowerCase().includes(term) ||
+          r.owner?.full_name?.toLowerCase().includes(term) ||
+          r.owner?.email?.toLowerCase().includes(term)
+      )
+    : restaurants;
+
   if (!canManage) {
     return (
       <div className="p-8">
