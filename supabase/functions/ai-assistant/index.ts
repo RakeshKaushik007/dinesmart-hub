@@ -32,6 +32,45 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) {
       return respond({ ok: false, error: "Invalid session" }, 401);
     }
+    const userId = userData.user.id;
+
+    const { data: roleRows } = await admin
+      .from("user_roles")
+      .select("role, branch_id, is_active")
+      .eq("user_id", userId);
+    const activeRoles = (roleRows ?? []).filter((r: any) => r.is_active !== false);
+    const isPlatformAdmin = activeRoles.some((r: any) => r.role === "super_admin" || r.role === "admin");
+
+    const directBranchIds = activeRoles
+      .map((r: any) => r.branch_id)
+      .filter((id: string | null): id is string => Boolean(id));
+
+    const { data: ownedRestaurants } = await admin
+      .from("restaurants")
+      .select("id")
+      .eq("owner_user_id", userId)
+      .eq("is_active", true);
+    const ownedRestaurantIds = (ownedRestaurants ?? []).map((r: any) => r.id);
+
+    const branchFilters = [
+      directBranchIds.length ? `id.in.(${directBranchIds.join(",")})` : null,
+      ownedRestaurantIds.length ? `restaurant_id.in.(${ownedRestaurantIds.join(",")})` : null,
+      `manager_user_id.eq.${userId}`,
+    ].filter(Boolean) as string[];
+
+    const { data: accessibleBranches } = branchFilters.length
+      ? await admin
+          .from("branches")
+          .select("id")
+          .or(branchFilters.join(","))
+          .eq("is_active", true)
+      : { data: [] as any[] };
+    const branchIds = Array.from(new Set((accessibleBranches ?? []).map((b: any) => b.id)));
+
+    const scoped = <T extends { in: (column: string, values: string[]) => T }>(query: T) => {
+      if (isPlatformAdmin) return query;
+      return query.in("branch_id", branchIds.length ? branchIds : ["00000000-0000-0000-0000-000000000000"]);
+    };
 
     const { messages } = await req.json().catch(() => ({ messages: [] }));
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -39,9 +78,11 @@ Deno.serve(async (req) => {
     }
 
     // Pull a compact inventory snapshot to ground the model.
-    const { data: ingredients } = await admin
-      .from("ingredients")
-      .select("id, name, current_stock, unit, min_threshold, status, expiry_date, cost_per_unit, category")
+    const { data: ingredients } = await scoped(
+      admin
+        .from("ingredients")
+        .select("id, name, current_stock, unit, min_threshold, status, expiry_date, cost_per_unit, category, branch_id"),
+    )
       .order("name")
       .limit(200);
 
@@ -55,9 +96,11 @@ Deno.serve(async (req) => {
     // Pull sales / revenue context: last 30 days of completed orders + top items + daily summaries.
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: recentOrders } = await admin
-      .from("orders")
-      .select("id, order_number, status, total, subtotal, tax, discount, payment_mode, order_type, order_source, completed_at, created_at, branch_id")
+    const { data: recentOrders } = await scoped(
+      admin
+        .from("orders")
+        .select("id, order_number, status, total, subtotal, tax, discount, payment_mode, order_type, order_source, completed_at, created_at, branch_id"),
+    )
       .eq("status", "completed")
       .gte("completed_at", since)
       .order("completed_at", { ascending: false })
@@ -132,9 +175,11 @@ Deno.serve(async (req) => {
       .join("\n") || "(none)";
 
     // Daily summaries table (pre-computed, if present)
-    const { data: summaries } = await admin
-      .from("daily_summaries")
-      .select("summary_date, total_revenue, total_orders, total_cost, gross_profit, wastage_cost, avg_order_value, dine_in_orders, takeaway_orders, online_orders, cash_revenue, upi_revenue, card_revenue")
+    const { data: summaries } = await scoped(
+      admin
+        .from("daily_summaries")
+        .select("summary_date, total_revenue, total_orders, total_cost, gross_profit, wastage_cost, avg_order_value, dine_in_orders, takeaway_orders, online_orders, cash_revenue, upi_revenue, card_revenue, branch_id"),
+    )
       .order("summary_date", { ascending: false })
       .limit(14);
     const summaryLines = (summaries ?? [])

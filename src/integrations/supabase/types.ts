@@ -1424,6 +1424,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_branch: { Args: { _branch_id: string }; Returns: boolean }
+      can_access_ingredient: {
+        Args: { _ingredient_id: string }
+        Returns: boolean
+      }
+      can_access_menu_item: {
+        Args: { _menu_item_id: string }
+        Returns: boolean
+      }
+      can_access_order: { Args: { _order_id: string }; Returns: boolean }
+      can_access_prep_recipe: {
+        Args: { _prep_recipe_id: string }
+        Returns: boolean
+      }
+      can_access_purchase_order: {
+        Args: { _purchase_order_id: string }
+        Returns: boolean
+      }
       expiry_consumption_report: {
         Args: { _days?: number }
         Returns: {
