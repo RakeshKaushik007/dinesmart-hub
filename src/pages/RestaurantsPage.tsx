@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Mail, Phone, MapPin, LogIn } from "lucide-react";
+import { Building2, Plus, Mail, Phone, MapPin, LogIn, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
