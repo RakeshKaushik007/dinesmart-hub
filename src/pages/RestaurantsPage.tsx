@@ -290,9 +290,15 @@ const RestaurantsPage = () => {
             No restaurants yet. Click "Add Restaurant" to create the first one.
           </CardContent>
         </Card>
+      ) : filteredRestaurants.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No tenants match your search.
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {restaurants.map((r) => (
+          {filteredRestaurants.map((r) => (
             <Card key={r.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
