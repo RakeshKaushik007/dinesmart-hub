@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Mail, Phone, MapPin, LogIn } from "lucide-react";
+import { Building2, Plus, Mail, Phone, MapPin, LogIn, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -53,6 +53,7 @@ const RestaurantsPage = () => {
     owner_password: "",
     owner_custom_role_name: "",
   });
+  const [search, setSearch] = useState("");
 
   const canManage = isAtLeast("admin");
 
@@ -142,6 +143,16 @@ const RestaurantsPage = () => {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const term = search.trim().toLowerCase();
+  const filteredRestaurants = term
+    ? restaurants.filter(
+        (r) =>
+          r.name.toLowerCase().includes(term) ||
+          r.owner?.full_name?.toLowerCase().includes(term) ||
+          r.owner?.email?.toLowerCase().includes(term)
+      )
+    : restaurants;
 
   if (!canManage) {
     return (
@@ -251,6 +262,26 @@ const RestaurantsPage = () => {
         </Dialog>
       </div>
 
+      <div className="flex items-center gap-2 max-w-md">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tenants, owners, or emails..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : restaurants.length === 0 ? (
@@ -259,9 +290,15 @@ const RestaurantsPage = () => {
             No restaurants yet. Click "Add Restaurant" to create the first one.
           </CardContent>
         </Card>
+      ) : filteredRestaurants.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No tenants match your search.
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {restaurants.map((r) => (
+          {filteredRestaurants.map((r) => (
             <Card key={r.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
