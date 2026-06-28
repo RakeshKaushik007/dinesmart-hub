@@ -53,6 +53,7 @@ const RestaurantsPage = () => {
     owner_password: "",
     owner_custom_role_name: "",
   });
+  const [search, setSearch] = useState("");
 
   const canManage = isAtLeast("admin");
 
