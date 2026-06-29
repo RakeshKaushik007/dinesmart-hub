@@ -404,11 +404,7 @@ const ProfitabilityPage = () => {
         </div>
       </div>
 
-      {/* Fixed costs breakdown */}
-      <div className="rounded-xl border border-border bg-card p-5">
-
       {/* Vendor Dues panel */}
-      </div>
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
