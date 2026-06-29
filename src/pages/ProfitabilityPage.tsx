@@ -406,6 +406,45 @@ const ProfitabilityPage = () => {
 
       {/* Fixed costs breakdown */}
       <div className="rounded-xl border border-border bg-card p-5">
+
+      {/* Vendor Dues panel */}
+      </div>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-amber-600" />
+            <h2 className="text-sm font-semibold text-card-foreground">Top Vendor Dues</h2>
+          </div>
+          <Link to="/purchase-orders" className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5">
+            View all <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        {pendingDues.length === 0 ? (
+          <div className="px-5 py-8 text-center text-sm text-muted-foreground">All vendor payments are settled.</div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {pendingDues.slice(0, 5).map((d) => (
+              <div key={d.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-card-foreground truncate">{d.vendor}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {d.poNumber ? `${d.poNumber} • ` : ""}{d.daysOld} day{d.daysOld === 1 ? "" : "s"} old
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider rounded-full px-2 py-0.5 ${
+                    d.status === "partial" ? "bg-blue-500/10 text-blue-600" : "bg-amber-500/10 text-amber-600"
+                  }`}>
+                    {d.status}
+                  </span>
+                  <span className="text-sm font-bold font-mono text-card-foreground">₹{Math.round(d.balance).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-semibold text-card-foreground">Monthly Fixed Costs</h2>
