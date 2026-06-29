@@ -195,17 +195,17 @@ const ProfitabilityPage = () => {
         // Pending vendor dues from purchase orders
         const { data: pos, error: poErr } = await supabase
           .from("purchase_orders")
-          .select("id, po_number, supplier_name, balance_due, payment_status, created_at, order_date")
+          .select("id, po_number, vendor_name, balance_due, payment_status, created_at, expected_date")
           .gt("balance_due", 0)
-          .in("payment_status", ["pending", "partial"]) 
+          .in("payment_status", ["pending", "partial"])
           .order("balance_due", { ascending: false });
         if (poErr) throw poErr;
         const dues: VendorDue[] = (pos ?? []).map((p: any) => {
-          const refDate = p.order_date ? new Date(p.order_date) : new Date(p.created_at);
+          const refDate = new Date(p.created_at);
           const daysOld = Math.max(0, Math.floor((Date.now() - refDate.getTime()) / 86400000));
           return {
             id: p.id,
-            vendor: p.supplier_name ?? "Unknown vendor",
+            vendor: p.vendor_name ?? "Unknown vendor",
             balance: Number(p.balance_due) || 0,
             status: p.payment_status ?? "pending",
             daysOld,
