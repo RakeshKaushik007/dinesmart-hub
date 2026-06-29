@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Target, ArrowUpRight, ArrowDownRight, Loader2, Pencil, Save, X } from "lucide-react";
+import { Target, ArrowUpRight, ArrowDownRight, Loader2, Pencil, Save, X, Wallet, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,15 @@ interface FixedCosts {
   salaries: number;
   utilities: number;
   misc: number;
+}
+
+interface VendorDue {
+  id: string;
+  vendor: string;
+  balance: number;
+  status: string;
+  daysOld: number;
+  poNumber: string | null;
 }
 
 const FIXED_COSTS_KEY = "blennix_fixed_costs";
@@ -55,6 +65,7 @@ const ProfitabilityPage = () => {
   const [fixedCosts, setFixedCosts] = useState<FixedCosts>(loadFixedCosts);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<FixedCosts>(loadFixedCosts);
+  const [pendingDues, setPendingDues] = useState<VendorDue[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -180,6 +191,28 @@ const ProfitabilityPage = () => {
         setWeeklyData(rows);
         setLastWeekRevenue(lastWeekRev);
         setMonthlyRevenue(monthRev);
+
+        // Pending vendor dues from purchase orders
+        const { data: pos, error: poErr } = await supabase
+          .from("purchase_orders")
+          .select("id, po_number, vendor_name, balance_due, payment_status, created_at, expected_date")
+          .gt("balance_due", 0)
+          .in("payment_status", ["pending", "partial"])
+          .order("balance_due", { ascending: false });
+        if (poErr) throw poErr;
+        const dues: VendorDue[] = (pos ?? []).map((p: any) => {
+          const refDate = new Date(p.created_at);
+          const daysOld = Math.max(0, Math.floor((Date.now() - refDate.getTime()) / 86400000));
+          return {
+            id: p.id,
+            vendor: p.vendor_name ?? "Unknown vendor",
+            balance: Number(p.balance_due) || 0,
+            status: p.payment_status ?? "pending",
+            daysOld,
+            poNumber: p.po_number ?? null,
+          };
+        });
+        setPendingDues(dues);
       } catch (err) {
         console.error("Profitability fetch error", err);
         toast({ title: "Failed to load profitability data", variant: "destructive" });
@@ -200,8 +233,12 @@ const ProfitabilityPage = () => {
     const dailyFixedCost = fixedTotal / 30;
     const breakeven = fixedTotal;
     const breakevenProgress = breakeven > 0 ? Math.min((monthlyRevenue / breakeven) * 100, 100) : 0;
-    return { totalRevenue, totalCost, totalProfit, margin, wowDelta, fixedTotal, dailyFixedCost, breakeven, breakevenProgress };
-  }, [weeklyData, lastWeekRevenue, monthlyRevenue, fixedCosts]);
+    const totalDues = pendingDues.reduce((s, d) => s + d.balance, 0);
+    const oldestDue = pendingDues.reduce((m, d) => Math.max(m, d.daysOld), 0);
+    const cashBreakeven = breakeven + totalDues;
+    const cashBreakevenProgress = cashBreakeven > 0 ? Math.min((monthlyRevenue / cashBreakeven) * 100, 100) : 0;
+    return { totalRevenue, totalCost, totalProfit, margin, wowDelta, fixedTotal, dailyFixedCost, breakeven, breakevenProgress, totalDues, oldestDue, cashBreakeven, cashBreakevenProgress };
+  }, [weeklyData, lastWeekRevenue, monthlyRevenue, fixedCosts, pendingDues]);
 
   const saveFixed = () => {
     setFixedCosts(draft);
@@ -252,6 +289,31 @@ const ProfitabilityPage = () => {
         </div>
       </div>
 
+      {/* Pending Vendor Dues KPI */}
+      <div className={`rounded-xl border p-5 ${totals.totalDues > 0 ? "border-amber-500/30 bg-amber-500/5" : "border-border bg-card"}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`rounded-lg p-2.5 ${totals.totalDues > 0 ? "bg-amber-500/10 text-amber-600" : "bg-secondary text-muted-foreground"}`}>
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Pending Vendor Dues</p>
+              <p className={`mt-1 text-2xl font-bold font-mono ${totals.totalDues > 0 ? "text-amber-600" : "text-card-foreground"}`}>
+                ₹{Math.round(totals.totalDues).toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {pendingDues.length === 0
+                  ? "All vendor payments settled"
+                  : `${pendingDues.length} PO${pendingDues.length > 1 ? "s" : ""} • oldest ${totals.oldestDue} day${totals.oldestDue === 1 ? "" : "s"}`}
+              </p>
+            </div>
+          </div>
+          <Link to="/purchase-orders" className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5">
+            Manage POs <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+
       {/* Breakeven Tracker */}
       <div className="rounded-xl border border-primary/30 bg-card p-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -271,6 +333,27 @@ const ProfitabilityPage = () => {
               ? "✅ Breakeven reached! You're in profit."
               : `${totals.breakevenProgress.toFixed(0)}% — ₹${Math.round(totals.breakeven - monthlyRevenue).toLocaleString()} remaining`}
         </p>
+        {totals.totalDues > 0 && totals.breakeven > 0 && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-amber-600 flex items-center gap-1.5">
+                <Wallet className="h-3.5 w-3.5" />
+                Cash-Adjusted Breakeven (incl. vendor dues)
+              </p>
+              <span className="text-xs font-mono text-muted-foreground">
+                ₹{Math.round(monthlyRevenue).toLocaleString()} / ₹{Math.round(totals.cashBreakeven).toLocaleString()}
+              </span>
+            </div>
+            <div className="w-full h-2.5 rounded-full bg-secondary overflow-hidden">
+              <div className="h-full rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${totals.cashBreakevenProgress}%` }} />
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              {totals.cashBreakevenProgress >= 100
+                ? "Covered fixed costs and outstanding vendor balances."
+                : `₹${Math.round(totals.cashBreakeven - monthlyRevenue).toLocaleString()} still needed to clear fixed costs + vendor dues.`}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Daily breakdown */}
@@ -321,7 +404,42 @@ const ProfitabilityPage = () => {
         </div>
       </div>
 
-      {/* Fixed costs breakdown */}
+      {/* Vendor Dues panel */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-amber-600" />
+            <h2 className="text-sm font-semibold text-card-foreground">Top Vendor Dues</h2>
+          </div>
+          <Link to="/purchase-orders" className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5">
+            View all <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        {pendingDues.length === 0 ? (
+          <div className="px-5 py-8 text-center text-sm text-muted-foreground">All vendor payments are settled.</div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {pendingDues.slice(0, 5).map((d) => (
+              <div key={d.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-card-foreground truncate">{d.vendor}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {d.poNumber ? `${d.poNumber} • ` : ""}{d.daysOld} day{d.daysOld === 1 ? "" : "s"} old
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider rounded-full px-2 py-0.5 ${
+                    d.status === "partial" ? "bg-blue-500/10 text-blue-600" : "bg-amber-500/10 text-amber-600"
+                  }`}>
+                    {d.status}
+                  </span>
+                  <span className="text-sm font-bold font-mono text-card-foreground">₹{Math.round(d.balance).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
