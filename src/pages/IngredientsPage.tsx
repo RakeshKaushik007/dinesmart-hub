@@ -299,6 +299,13 @@ const IngredientsPage = () => {
           className="rounded-lg border border-input bg-secondary px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+        <button
+          onClick={resetFilters}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset
+        </button>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
