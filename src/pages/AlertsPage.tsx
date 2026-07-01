@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, AlertTriangle, Package } from "lucide-react";
+import { Loader2, AlertTriangle, Package, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const alertTypeStyles: Record<string, string> = {
