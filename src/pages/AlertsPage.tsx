@@ -33,6 +33,8 @@ const AlertsPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, [showResolved]);
 
+  const resetFilters = () => setShowResolved(false);
+
   const resolveAlert = async (id: string) => {
     await supabase.from("stock_alerts").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("id", id);
     fetchAlerts();
