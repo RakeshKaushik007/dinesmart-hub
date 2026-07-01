@@ -201,6 +201,12 @@ const IngredientsPage = () => {
 
   const categories = ["All", ...new Set(ingredients.map((i) => i.category).filter(Boolean))];
 
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setCategoryFilter("All");
+  };
+
   const filtered = ingredients.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
