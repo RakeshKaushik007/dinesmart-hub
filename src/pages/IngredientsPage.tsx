@@ -279,20 +279,39 @@ const IngredientsPage = () => {
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input type="text" placeholder="Search ingredients..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-input bg-secondary pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-        </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
-          {statusFilters.map((s) => (
-            <button key={s.value} onClick={() => setStatusFilter(s.value)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${statusFilter === s.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              {s.label}
+            className="w-full rounded-lg border border-input bg-secondary pl-10 pr-9 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
             </button>
-          ))}
+          )}
         </div>
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
-          className="rounded-lg border border-input bg-secondary px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+            {statusFilters.map((s) => (
+              <button key={s.value} onClick={() => setStatusFilter(s.value)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${statusFilter === s.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {statusFilter !== "all" && (
+            <button onClick={() => setStatusFilter("all")} className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed underline-offset-2">
+              Reset
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+            className="rounded-lg border border-input bg-secondary px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {categoryFilter !== "All" && (
+            <button onClick={() => setCategoryFilter("All")} className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed underline-offset-2">
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
