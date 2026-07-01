@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Loader2, Pencil, Trash2, Carrot } from "lucide-react";
+import { Search, Plus, Loader2, Pencil, Trash2, Carrot, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import EmptyState from "@/components/EmptyState";
 import StockBadge from "@/components/inventory/StockBadge";
