@@ -51,10 +51,19 @@ const AlertsPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Stock Alerts</h1>
           <p className="text-sm text-muted-foreground mt-1">Low stock, out-of-stock, and expiry notifications</p>
         </div>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-          <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} className="rounded border-input accent-primary" />
-          Show resolved
-        </label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={resetFilters}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </button>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+            <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} className="rounded border-input accent-primary" />
+            Show resolved
+          </label>
+        </div>
       </div>
 
       <div className="space-y-3 max-w-2xl">
