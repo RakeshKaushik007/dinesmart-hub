@@ -40,6 +40,7 @@ import CustomerOrderPage from "@/pages/public/CustomerOrderPage";
 import MenuManagementPage from "@/pages/MenuManagementPage";
 import AuditLogPage from "@/pages/AuditLogPage";
 import DataImportPage from "@/pages/DataImportPage";
+import SalesImportPage from "@/pages/SalesImportPage";
 import VoidNCLogPage from "@/pages/VoidNCLogPage";
 import IngredientConsumptionPage from "@/pages/IngredientConsumptionPage";
 import ExpiryReportPage from "@/pages/ExpiryReportPage";
@@ -112,6 +113,7 @@ const App = () => (
                 <Route path="/multi-branch" element={<ProtectedRoute requiredRole="owner"><MultiBranchPage /></ProtectedRoute>} />
                 <Route path="/menu-management" element={<ProtectedRoute requiredRole="owner"><MenuManagementPage /></ProtectedRoute>} />
                 <Route path="/data-import" element={<ProtectedRoute requiredRole="owner"><DataImportPage /></ProtectedRoute>} />
+                <Route path="/sales-import" element={<ProtectedRoute requiredRole="owner"><SalesImportPage /></ProtectedRoute>} />
                 <Route path="/ingredient-consumption" element={<ProtectedRoute requiredRole="owner"><IngredientConsumptionPage /></ProtectedRoute>} />
                 <Route path="/expiry-report" element={<ProtectedRoute requiredRole="branch_manager"><ExpiryReportPage /></ProtectedRoute>} />
 
