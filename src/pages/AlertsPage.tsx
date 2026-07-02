@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, AlertTriangle, Package, RotateCcw } from "lucide-react";
+import { Loader2, AlertTriangle, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const alertTypeStyles: Record<string, string> = {
@@ -33,7 +33,7 @@ const AlertsPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, [showResolved]);
 
-  const resetFilters = () => setShowResolved(false);
+  
 
   const resolveAlert = async (id: string) => {
     await supabase.from("stock_alerts").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("id", id);
@@ -52,13 +52,6 @@ const AlertsPage = () => {
           <p className="text-sm text-muted-foreground mt-1">Low stock, out-of-stock, and expiry notifications</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={resetFilters}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </button>
           <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
             <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} className="rounded border-input accent-primary" />
             Show resolved
