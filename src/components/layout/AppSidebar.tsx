@@ -133,6 +133,7 @@ const navGroups: NavGroup[] = [
       { to: "/branches", icon: Building, label: "Branches", minRole: "owner" },
       { to: "/multi-branch", icon: Building2, label: "Multi-Branch", minRole: "owner" },
       { to: "/data-import", icon: FileSpreadsheet, label: "Data Import", minRole: "owner" },
+      { to: "/sales-import", icon: FileSpreadsheet, label: "Sales Import", minRole: "owner" },
       { to: "/ai-assistant", icon: Bot, label: "AI Assistant", minRole: "owner" },
     ],
   },
