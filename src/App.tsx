@@ -74,6 +74,7 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
               <Route path="/order/:tableId" element={<CustomerOrderPage />} />
               <Route path="/kiosk" element={<KioskPage />} />
