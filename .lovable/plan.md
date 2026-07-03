@@ -1,43 +1,32 @@
-## Overview
-Add a complete password-reset flow using Supabase's built-in magic-link recovery. A "Forgot Password?" link on the login screen sends a recovery email; a dedicated `/reset-password` page lets the user set a new password after clicking the email link.
+## Goal
+Surface pending vendor dues (unpaid Purchase Order balances) directly inside the Profitability & Breakeven page so owners see real cash obligations alongside revenue, COGS, and breakeven progress.
 
-## What will be built
+## Changes (frontend-only, `src/pages/ProfitabilityPage.tsx`)
 
-### 1. Forgot-password trigger on LoginPage
-- Add a **"Forgot Password?"** link below the password field on the Email tab of `LoginPage.tsx`.
-- Clicking it opens a small inline form (or dialog) that asks for the user's email.
-- On submit, call:
-  ```ts
-  await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`
-  });
-  ```
-- Show a toast: *"Check your email for a password reset link."*
+1. **Fetch pending dues** alongside existing data:
+   - Query `purchase_orders` for rows where `balance_due > 0` (and `payment_status` in `pending`/`partial`).
+   - Aggregate: total outstanding, count of POs, top 3 vendors by balance, oldest unpaid PO date.
 
-### 2. Reset Password page (`src/pages/ResetPasswordPage.tsx`)
-- **Public route** — no auth required.
-- On mount, parse the URL hash for `type=recovery` and extract the `access_token`.
-- Call `supabase.auth.getSessionFromUrl({ storeSession: true })` (or equivalent hash parsing) to establish the temporary recovery session.
-- Show a form with:
-  - New Password input (with show/hide toggle, minLength 6)
-  - Confirm Password input
-- On submit, if passwords match:
-  ```ts
-  await supabase.auth.updateUser({ password: newPassword });
-  ```
-  Then show success toast and redirect to `/login`.
-- If the hash is missing/invalid, show an error state: *"Invalid or expired reset link."* with a button to go back to login.
+2. **New KPI tile** in the top stat grid (expand to 5 cards / responsive):
+   - "Pending Vendor Dues" — total ₹ outstanding, with subtext like "X POs • oldest N days".
+   - Color: amber/warning when > 0, neutral when 0.
 
-### 3. Route wiring in App.tsx
-- Add `<Route path="/reset-password" element={<ResetPasswordPage />} />` in the **Public routes** section (above the protected routes).
-- Ensure it is NOT wrapped in `<ProtectedRoute>`.
+3. **Breakeven adjustment**:
+   - Add a secondary line under the breakeven bar: "Cash-Adjusted Breakeven = Fixed Costs + Pending Dues".
+   - Show a thin amber overlay on the progress bar marking the extra ground to cover.
+   - Update the helper text to mention vendor dues when present.
 
-## Files to modify / create
-| File | Action |
-|------|--------|
-| `src/pages/LoginPage.tsx` | Add "Forgot Password?" link + email input handler |
-| `src/pages/ResetPasswordPage.tsx` | **Create** — recovery hash parser + new-password form |
-| `src/App.tsx` | Add `/reset-password` public route |
+4. **Vendor Dues panel** (new card below Daily Breakdown):
+   - List top vendors with balance, payment status badge, days overdue.
+   - "View all" link → navigates to `/purchase-orders` filtered to pending dues (uses existing page).
+   - Empty state: "All vendor payments are settled."
 
-## No backend changes needed
-Supabase Auth handles the email delivery and token validation automatically.
+## Out of scope
+- No DB schema changes (uses existing `purchase_orders.balance_due` / `payment_status`).
+- No edits to Purchase Orders page itself.
+- No changes to fixed-cost storage.
+
+## Technical notes
+- Single Supabase select on `purchase_orders` with the existing RLS scope (branch-isolated).
+- Memoize derived totals in the existing `useMemo`.
+- Reuse existing Tailwind tokens (`text-amber-600`, `border-amber-500/30`) consistent with current warning styling.

@@ -11,7 +11,6 @@ import RequirePosSession from "@/components/auth/RequirePosSession";
 import AppLayout from "@/components/layout/AppLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LoginPage from "@/pages/LoginPage";
-import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import PosStartPage from "@/pages/PosStartPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 import Index from "@/pages/Index";
@@ -75,7 +74,6 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
               <Route path="/order/:tableId" element={<CustomerOrderPage />} />
               <Route path="/kiosk" element={<KioskPage />} />
