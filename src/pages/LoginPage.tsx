@@ -82,6 +82,26 @@ const LoginPage = () => {
     setLoading(false);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: "Request failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Check your email", description: "We sent a password reset link to your inbox." });
+      setIsForgotPassword(false);
+      setResetEmail("");
+    }
+  };
+
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pinIdentifier.trim()) {
