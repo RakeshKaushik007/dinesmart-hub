@@ -132,7 +132,7 @@ const SettingsPage = () => {
     const sec = newSurchargeSection.trim();
     const pct = parseFloat(newSurchargePct);
     if (!sec) { toast.error("Pick a section"); return; }
-    if (isNaN(pct) || pct < 0 || pct > 100) { toast.error("Enter a percentage 0–100"); return; }
+    if (isNaN(pct) || pct < -100 || pct > 100) { toast.error("Enter a percentage between -100 and 100"); return; }
     setSectionSurcharges(prev => ({ ...prev, [sec]: { pct, enabled: true } }));
     setNewSurchargeSection("");
     setNewSurchargePct("");
@@ -333,9 +333,12 @@ const SettingsPage = () => {
                       <div className="relative w-24">
                         <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <input
-                          type="number" min="0" max="100" step="0.5"
+                          type="number" min="-100" max="100" step="0.5"
                           value={takeawayCfg.pct}
-                          onChange={(e) => updateSurcharge(TAKEAWAY_SURCHARGE_KEY, { pct: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            updateSurcharge(TAKEAWAY_SURCHARGE_KEY, { pct: Number.isFinite(v) ? v : 0 });
+                          }}
                           className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
                         />
                       </div>
@@ -357,14 +360,17 @@ const SettingsPage = () => {
                           <div key={sec} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-border">
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-card-foreground truncate">{sec}</p>
-                              <p className="text-xs text-muted-foreground">{cfg.enabled ? `+${cfg.pct}% on every item` : "Disabled"}</p>
+                              <p className="text-xs text-muted-foreground">{cfg.enabled ? `${cfg.pct >= 0 ? "+" : ""}${cfg.pct}% on every item` : "Disabled"}</p>
                             </div>
                             <div className="relative w-24">
                               <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                               <input
-                                type="number" min="0" max="100" step="0.5"
+                                type="number" min="-100" max="100" step="0.5"
                                 value={cfg.pct}
-                                onChange={(e) => updateSurcharge(sec, { pct: parseFloat(e.target.value) || 0 })}
+                                onChange={(e) => {
+                                  const v = parseFloat(e.target.value);
+                                  updateSurcharge(sec, { pct: Number.isFinite(v) ? v : 0 });
+                                }}
                                 className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
                               />
                             </div>
@@ -411,7 +417,7 @@ const SettingsPage = () => {
                           <Percent className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                           <input
                             type="number"
-                            min="0"
+                            min="-100"
                             max="100"
                             step="0.5"
                             value={newSurchargePct}
