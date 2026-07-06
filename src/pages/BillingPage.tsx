@@ -99,14 +99,14 @@ const BillingPage = () => {
     const surcharges = settings.sectionSurcharges || {};
     if (orderType === "takeaway") {
       const cfg = surcharges["__takeaway__"];
-      return cfg?.enabled && cfg.pct > 0 ? cfg.pct : 0;
+      return cfg?.enabled && cfg.pct !== 0 ? cfg.pct : 0;
     }
     if (orderType !== "dine_in" || !selectedTableId) return 0;
     const t = tables.find((x) => x.id === selectedTableId);
     if (!t) return 0;
     const sec = t.section || "Main";
     const cfg = surcharges[sec];
-    return cfg?.enabled && cfg.pct > 0 ? cfg.pct : 0;
+    return cfg?.enabled && cfg.pct !== 0 ? cfg.pct : 0;
   }, [orderType, selectedTableId, tables, settings.sectionSurcharges]);
 
   const applySurcharge = useCallback(
