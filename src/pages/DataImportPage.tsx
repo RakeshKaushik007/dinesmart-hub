@@ -64,7 +64,10 @@ const downloadCSV = (type: ImportType) => {
 };
 
 const parseCSV = (text: string): string[][] => {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  // Strip UTF-8 BOM that Excel prepends to saved CSVs — it corrupts the first header
+  // (e.g. turns "name" into "\ufeffname") and breaks column detection.
+  const clean = text.replace(/^\uFEFF/, "");
+  const lines = clean.split(/\r?\n/).filter(l => l.trim());
   return lines.map(line => {
     const result: string[] = [];
     let current = "";
@@ -99,7 +102,7 @@ const DataImportPage = () => {
       return;
     }
 
-    const headers = rows[0].map(h => h.toLowerCase().trim());
+    const headers = rows[0].map(h => h.toLowerCase().trim().replace(/^\uFEFF/, "").replace(/^"|"$/g, ""));
     const dataRows = rows.slice(1);
     const result: ImportResult = { success: 0, failed: 0, errors: [] };
 
