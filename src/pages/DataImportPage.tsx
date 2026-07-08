@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePosSession } from "@/hooks/usePosSession";
 import { Download, Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +85,8 @@ const parseCSV = (text: string): string[][] => {
 
 const DataImportPage = () => {
   const { toast } = useToast();
+  const { session: posSession } = usePosSession();
+  const branchId = posSession?.branch_id ?? null;
   const [importing, setImporting] = useState<ImportType | null>(null);
   const [results, setResults] = useState<Record<string, ImportResult>>({});
   const fileRefs: Record<ImportType, React.RefObject<HTMLInputElement>> = {
@@ -94,6 +97,15 @@ const DataImportPage = () => {
 
   const handleImport = async (type: ImportType, file: File) => {
     setImporting(type);
+    if (!branchId) {
+      toast({
+        title: "No active branch",
+        description: "Start a POS session (select a branch) before importing data.",
+        variant: "destructive",
+      });
+      setImporting(null);
+      return;
+    }
     const text = await file.text();
     const rows = parseCSV(text);
     if (rows.length < 2) {
@@ -140,6 +152,7 @@ const DataImportPage = () => {
         name,
         is_active: activeIdx >= 0 ? row[activeIdx]?.toLowerCase() !== "false" : true,
         sort_order: i,
+        branch_id: branchId,
       });
       if (error) { result.errors.push(`Row ${i + 2} "${name}": ${error.message}`); result.failed++; }
       else result.success++;
@@ -153,7 +166,10 @@ const DataImportPage = () => {
     if (idx.name === -1) { result.errors.push("Missing 'name' column"); result.failed = rows.length; return; }
 
     // Fetch categories for mapping
-    const { data: cats } = await supabase.from("menu_categories").select("id, name");
+    const { data: cats } = await supabase
+      .from("menu_categories")
+      .select("id, name")
+      .eq("branch_id", branchId);
     const catMap = new Map((cats || []).map(c => [c.name.toLowerCase(), c.id]));
 
     for (let i = 0; i < rows.length; i++) {
@@ -176,6 +192,7 @@ const DataImportPage = () => {
         prep_time_minutes: idx.prep_time_minutes >= 0 && row[idx.prep_time_minutes] ? Number(row[idx.prep_time_minutes]) : null,
         is_active: idx.is_active >= 0 ? row[idx.is_active]?.toLowerCase() !== "false" : true,
         is_available: idx.is_available >= 0 ? row[idx.is_available]?.toLowerCase() !== "false" : true,
+        branch_id: branchId,
       });
       if (error) { result.errors.push(`Row ${i + 2} "${name}": ${error.message}`); result.failed++; }
       else result.success++;
@@ -202,6 +219,7 @@ const DataImportPage = () => {
         cost_per_unit: idx.cost_per_unit >= 0 ? Number(row[idx.cost_per_unit]) || 0 : 0,
         expiry_date: idx.expiry_date >= 0 && row[idx.expiry_date] ? row[idx.expiry_date] : null,
         status: "good",
+        branch_id: branchId,
       });
       if (error) { result.errors.push(`Row ${i + 2} "${name}": ${error.message}`); result.failed++; }
       else result.success++;
