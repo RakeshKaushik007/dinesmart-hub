@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,8 +42,34 @@ interface PrepRecipe {
 
 const PrepRecipesPage = () => {
   const { toast } = useToast();
-  const { user, roles } = useAuth();
-  const branchId = useMemo(() => roles.find((r) => r.branch_id)?.branch_id ?? null, [roles]);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  // The branch chosen for this shift. The old rule ("first branch in the
+  // user's roles") was empty for owners, so prep recipes, batches and stock
+  // movements were saved with no branch and then disappeared from every screen.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/prep-recipes")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
 
   const [loading, setLoading] = useState(true);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -181,6 +209,7 @@ const PrepRecipesPage = () => {
       toast({ title: "Invalid lines", description: "Every line needs an ingredient and quantity > 0", variant: "destructive" });
       return;
     }
+    if (!ensureBranch()) return;
     setSavingRecipe(true);
     const prepIngId = await ensurePrepIngredient();
     if (!prepIngId) { setSavingRecipe(false); return; }
@@ -251,6 +280,7 @@ const PrepRecipesPage = () => {
       toast({ title: "Quantity must be > 0", variant: "destructive" });
       return;
     }
+    if (!ensureBranch()) return;
     setProducing(true);
     const recipeLines = lines[batchRecipe.id] || [];
     const factor = qty / Number(batchRecipe.output_quantity || 1);

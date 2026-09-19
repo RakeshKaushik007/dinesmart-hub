@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
 
 const statusFilters: { label: string; value: StockStatus | "all" }[] = [
   { label: "All", value: "all" },
@@ -50,8 +50,32 @@ const IngredientsPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
-  const { roles } = useAuth();
-  const branchId = roles.find((r) => r.branch_id)?.branch_id ?? null;
+  // The branch chosen for this shift. The old rule ("first branch in the
+  // user's roles") was empty for owners, so new ingredients were saved with
+  // no branch and then disappeared from every screen.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/ingredients")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
 
   const fetchIngredients = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -158,6 +182,10 @@ const IngredientsPage = () => {
       };
       ({ error } = await supabase.from("ingredients").update(updatePayload).eq("id", editingId));
     } else {
+      if (!ensureBranch()) {
+        setSubmitting(false);
+        return;
+      }
       const insertPayload = {
         name,
         category: form.category.trim() || null,
