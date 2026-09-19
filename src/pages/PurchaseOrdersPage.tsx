@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 type PurchaseOrderStatus = "draft" | "sent" | "partial" | "received" | "cancelled";
@@ -115,9 +117,35 @@ const PurchaseOrdersPage = () => {
   const [paymentInput, setPaymentInput] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
   const { toast } = useToast();
-  const { user, roles } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const branchId = useMemo(() => roles.find((role) => role.branch_id)?.branch_id ?? null, [roles]);
+  // The branch chosen for this shift. The old rule ("first branch in the
+  // user's roles") was empty for owners, so purchase orders and stock
+  // movements were saved with no branch and then disappeared from every screen.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/purchase-orders")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
 
   const fetchData = async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -272,6 +300,8 @@ const PurchaseOrdersPage = () => {
       return;
     }
 
+    if (!ensureBranch()) return;
+
     setSubmitting(true);
 
     const totalAmount = preparedLines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
@@ -403,6 +433,7 @@ const PurchaseOrdersPage = () => {
   };
 
   const handleDeletePurchaseOrder = async (order: PurchaseOrderRow) => {
+    if (!ensureBranch()) return;
     setDeletingId(order.id);
     try {
       // Only reverse stock if the PO had been received (stock was added)
@@ -482,6 +513,7 @@ const PurchaseOrdersPage = () => {
 
   const handleMarkReceived = async (order: PurchaseOrderRow) => {
     if (order.status === "received") return;
+    if (!ensureBranch()) return;
     setReceivingId(order.id);
     const items = (order.purchase_order_items || []).map((item) => ({
       ingredient_id: item.ingredient_id || "",
