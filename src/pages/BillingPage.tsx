@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
 import { useSettings } from "@/hooks/useSettings";
 import {
   Select,
@@ -89,6 +90,33 @@ const BillingPage = () => {
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const settings = useSettings();
+
+  // The branch this till is working in, chosen at the start of the shift.
+  // Orders used to be saved with no branch, which left them invisible to
+  // every screen and impossible to send to the right restaurant.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/billing")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
 
   // Resolve the surcharge % for the current order context.
   // - Dine-in: uses the section markup of the selected table.
@@ -248,9 +276,12 @@ const BillingPage = () => {
       toast({ title: "Select a table", description: "Dining orders require a table number", variant: "destructive" });
       return;
     }
+    if (!ensureBranch()) return;
+
     setPlacingOrder(true);
 
     const { data: order, error } = await supabase.from("orders").insert({
+      branch_id: branchId,
       order_source: "pos" as const,
       order_type: orderType,
       status: "new" as const,
@@ -292,6 +323,7 @@ const BillingPage = () => {
         table_id: selectedTableId,
         guest_name: "POS Customer",
         order_id: order.id,
+        branch_id: branchId,
       });
       // Optimistically reflect occupancy in local state so the picker updates immediately.
       setTables((prev) => prev.map((t) => (t.id === selectedTableId ? { ...t, status: "occupied" } : t)));
