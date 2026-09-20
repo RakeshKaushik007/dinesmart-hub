@@ -74,6 +74,33 @@ const AggregatorOrdersPage = () => {
   >([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // The branch this till is working in. Aggregator orders used to be saved
+  // with no branch, which left them invisible to every screen.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/aggregator-orders")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
 
   // Load menu items for the manual entry dropdown
   useEffect(() => {
@@ -123,10 +150,13 @@ const AggregatorOrdersPage = () => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
 
+    if (!ensureBranch()) return;
+
     // Save to DB
     const subtotal = order.total;
     const tax = Math.round(subtotal * 0.05 * 100) / 100;
     const { data: dbOrder } = await supabase.from("orders").insert({
+      branch_id: branchId,
       order_type: "online" as const,
       order_source: order.platform as any,
       status: "accepted" as const,
