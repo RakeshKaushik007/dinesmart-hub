@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
 import { useSettings } from "@/hooks/useSettings";
 import {
   Select,

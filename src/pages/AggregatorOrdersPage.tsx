@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
+import { useNavigate } from "react-router-dom";
 import { Loader2, Plus, Wifi, WifiOff, Check, X, Bike } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
