@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -53,6 +55,33 @@ const TablesPage = () => {
   const [newSection, setNewSection] = useState("Main");
   const { toast } = useToast();
   const { isAtLeast } = useAuth();
+  const navigate = useNavigate();
+
+  // The branch new tables belong to. Without it, a new table was saved with
+  // no branch and then disappeared from every screen.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/tables")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
 
   const fetchTables = async () => {
     const { data: tablesData } = await supabase
@@ -139,7 +168,10 @@ const TablesPage = () => {
       return;
     }
     if (newStatus === "occupied") {
-      await supabase.from("table_sessions").insert({ table_id: tableId, seated_at: new Date().toISOString() });
+      // Label the seating record with the table's own branch, so it belongs to
+      // the same restaurant as the table itself.
+      const seatedBranchId = tables.find((t) => t.id === tableId)?.branch_id ?? branchId;
+      await supabase.from("table_sessions").insert({ table_id: tableId, seated_at: new Date().toISOString(), branch_id: seatedBranchId });
     }
     if (newStatus === "available") {
       await supabase.from("table_sessions").update({ cleared_at: new Date().toISOString() }).eq("table_id", tableId).is("cleared_at", null);
@@ -289,10 +321,12 @@ const TablesPage = () => {
                 toast({ title: "Duplicate table", description: `Table ${num} already exists.`, variant: "destructive" });
                 return;
               }
+              if (!ensureBranch()) return;
               const { error } = await supabase.from("restaurant_tables").insert({
                 table_number: num,
                 seats: Number(newSeats) || 4,
                 section: newSection.trim() || "Main",
+                branch_id: branchId,
               });
               if (error) {
                 toast({ title: "Error", description: error.message, variant: "destructive" });

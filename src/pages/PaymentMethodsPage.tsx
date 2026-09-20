@@ -3,6 +3,8 @@ import { Plus, Trash2, Loader2, Banknote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +33,33 @@ const slugify = (s: string) =>
 const PaymentMethodsPage = () => {
   const { user, isAtLeast } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // The branch this payment method belongs to. Without it, the method was
+  // saved with no branch and then disappeared from every screen.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/payment-methods")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
   const [methods, setMethods] = useState<CustomMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -57,6 +86,7 @@ const PaymentMethodsPage = () => {
 
   const handleAdd = async () => {
     if (!name.trim()) return;
+    if (!ensureBranch()) return;
     setSaving(true);
     const code = slugify(name);
     const { error } = await supabase.from("payment_methods").insert({
@@ -65,6 +95,7 @@ const PaymentMethodsPage = () => {
       type,
       icon,
       created_by: user?.id,
+      branch_id: branchId,
     });
     setSaving(false);
     if (error) {
