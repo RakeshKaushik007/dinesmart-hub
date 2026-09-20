@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, GripVertical, UtensilsCrossed } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,32 @@ interface MenuItem {
 const MenuManagementPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // The branch this menu belongs to. Without it, new categories and items
+  // were saved with no branch and then disappeared from every screen.
+  const { branchId, loading: branchLoading, needsChoice } = useActiveBranch();
+  // Every save on this screen needs a branch. Without one, the database would
+  // hide the new record from everyone as soon as it was created.
+  const ensureBranch = (): boolean => {
+    if (branchId) return true;
+    if (needsChoice) {
+      toast({
+        title: "Choose a branch first",
+        description: "You have more than one branch. Pick the branch you are working in, then try again.",
+        variant: "destructive",
+      });
+      navigate(`/pos/start?next=${encodeURIComponent("/menu-management")}`);
+      return false;
+    }
+    toast({
+      title: branchLoading ? "Still loading your branch" : "No branch available",
+      description: branchLoading
+        ? "Please try again in a moment."
+        : "Your account has no active branch. Ask your admin to assign one.",
+      variant: "destructive",
+    });
+    return false;
+  };
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +102,8 @@ const MenuManagementPage = () => {
     if (editingCat) {
       await supabase.from("menu_categories").update({ name: catName.trim() }).eq("id", editingCat.id);
     } else {
-      await supabase.from("menu_categories").insert({ name: catName.trim(), sort_order: categories.length });
+      if (!ensureBranch()) return;
+      await supabase.from("menu_categories").insert({ name: catName.trim(), sort_order: categories.length, branch_id: branchId });
     }
     setCatDialog(false);
     fetchData();
@@ -125,7 +153,8 @@ const MenuManagementPage = () => {
     if (editingItem) {
       await supabase.from("menu_items").update(payload).eq("id", editingItem.id);
     } else {
-      await supabase.from("menu_items").insert(payload);
+      if (!ensureBranch()) return;
+      await supabase.from("menu_items").insert({ ...payload, branch_id: branchId });
     }
     setItemDialog(false);
     fetchData();
