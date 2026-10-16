@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
 
 export interface SurchargeConfig {
   pct: number;
@@ -17,7 +19,9 @@ export interface BlennixSettings {
   sectionSurcharges: Record<string, SurchargeConfig>;
 }
 
-const normalizeSurcharges = (raw: unknown): Record<string, SurchargeConfig> => {
+const STORAGE_KEY = "blennix_settings";
+
+export const normalizeSurcharges = (raw: unknown): Record<string, SurchargeConfig> => {
   if (!raw || typeof raw !== "object") return {};
   const out: Record<string, SurchargeConfig> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
@@ -33,23 +37,60 @@ const normalizeSurcharges = (raw: unknown): Record<string, SurchargeConfig> => {
 };
 
 export const getSettings = (): BlennixSettings => {
-  const saved = typeof window !== "undefined" ? localStorage.getItem("blennix_settings") : null;
+  const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
   const s = saved ? JSON.parse(saved) : {};
   return {
     restaurantName: s.restaurantName || "Blennix Restaurant",
     taxRate: parseFloat(s.taxRate || "5"),
     taxLabel: s.taxLabel || "GST",
     serviceChargePct: parseFloat(s.serviceChargePct || "5"),
-    currency: s.currency || "₹",
+    currency: s.currency || "\u20b9",
     sectionSurcharges: normalizeSurcharges(s.sectionSurcharges),
   };
 };
 
+/** Store values on this device and tell every open screen to re-read them. */
+export const cacheSettings = (raw: Record<string, unknown>) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+    window.dispatchEvent(new Event("blennix_settings_changed"));
+  } catch {
+    /* storage unavailable - the screen keeps the values it already has */
+  }
+};
+
+/**
+ * Save settings for a whole branch, so every till bills the same way, and
+ * update this device immediately. Before this existed, tax and charges lived
+ * only in each browser, so two tills could bill at different rates.
+ */
+export const saveBranchSettings = async (
+  branchId: string,
+  raw: Record<string, unknown>,
+  userId?: string | null,
+) => {
+  const { error } = await supabase
+    .from("branch_settings" as any)
+    .upsert(
+      {
+        branch_id: branchId,
+        value: raw,
+        updated_at: new Date().toISOString(),
+        updated_by: userId ?? null,
+      },
+      { onConflict: "branch_id" },
+    );
+  if (!error) cacheSettings(raw);
+  return { error };
+};
+
 export const useSettings = (): BlennixSettings => {
-  // Re-read on storage changes so updates from Settings page reflect immediately.
+  const { branchId } = useActiveBranch();
+
+  // Re-read on storage changes so updates from the Settings page reflect immediately.
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => { if (e.key === "blennix_settings") setTick(t => t + 1); };
+    const onStorage = (e: StorageEvent) => { if (e.key === STORAGE_KEY) setTick(t => t + 1); };
     const onCustom = () => setTick(t => t + 1);
     window.addEventListener("storage", onStorage);
     window.addEventListener("blennix_settings_changed", onCustom);
@@ -58,5 +99,27 @@ export const useSettings = (): BlennixSettings => {
       window.removeEventListener("blennix_settings_changed", onCustom);
     };
   }, []);
+
+  // Pull the branch's shared settings once the branch is known. Until they
+  // arrive - and for as long as nobody has saved any - the device keeps using
+  // its own values, so billing behaves exactly as it did before.
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("branch_settings" as any)
+        .select("value")
+        .eq("branch_id", branchId)
+        .maybeSingle();
+      const value = (data as any)?.value;
+      if (cancelled || !value || typeof value !== "object") return;
+      if (localStorage.getItem(STORAGE_KEY) !== JSON.stringify(value)) {
+        cacheSettings(value as Record<string, unknown>);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [branchId]);
+
   return useMemo(() => getSettings(), [tick]);
 };
