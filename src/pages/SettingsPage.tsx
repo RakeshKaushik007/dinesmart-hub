@@ -9,10 +9,12 @@ import {
 import { Bot, ShieldCheck } from "lucide-react";
 import { useFloatingAISetting } from "@/hooks/useFloatingAISetting";
 import { Plus, Trash2 } from "lucide-react";
-import { TAKEAWAY_SURCHARGE_KEY, type SurchargeConfig } from "@/hooks/useSettings";
+import { TAKEAWAY_SURCHARGE_KEY, normalizeSurcharges, saveBranchSettings, type SurchargeConfig } from "@/hooks/useSettings";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
 
 const SettingsPage = () => {
   const { profile, user, isAtLeast, hasRole } = useAuth();
+  const { branchId } = useActiveBranch();
   const { theme, toggle } = useTheme();
   const isSuperAdmin = hasRole("super_admin");
   const { enabled: floatingAIEnabled, saving: savingFloatingAI, setEnabled: setFloatingAIEnabled } = useFloatingAISetting();
@@ -70,13 +72,25 @@ const SettingsPage = () => {
 
   const saveRestaurant = async () => {
     setSaving(true);
-    // Save to localStorage for now (could be a settings table)
-    localStorage.setItem("blennix_settings", JSON.stringify({
+    const value = {
       restaurantName, restaurantPhone, restaurantAddress, currency, taxRate, taxLabel, timeZone, sectionSurcharges,
-    }));
+    };
+    // Saved for the whole branch, so every till bills the same way. If no
+    // branch is known we fall back to this device only, as it worked before.
+    if (branchId) {
+      const { error } = await saveBranchSettings(branchId, value, user?.id);
+      setSaving(false);
+      if (error) {
+        toast.error("Could not save settings for this branch");
+        return;
+      }
+      toast.success("Saved for every device in this branch");
+      return;
+    }
+    localStorage.setItem("blennix_settings", JSON.stringify(value));
     window.dispatchEvent(new Event("blennix_settings_changed"));
     setSaving(false);
-    toast.success("Restaurant settings saved!");
+    toast.success("Restaurant settings saved on this device");
   };
 
   const saveNotifications = () => {
@@ -118,6 +132,31 @@ const SettingsPage = () => {
       setDailySummaryEmail(n.dailySummaryEmail ?? false);
     }
   }, []);
+
+  // Settings saved for this branch win over whatever this device had cached,
+  // so a till opened for the first time shows the real values, not the defaults.
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("branch_settings" as any)
+        .select("value")
+        .eq("branch_id", branchId)
+        .maybeSingle();
+      const s = (data as any)?.value;
+      if (cancelled || !s || typeof s !== "object") return;
+      setRestaurantName(s.restaurantName || "Blennix Restaurant");
+      setRestaurantPhone(s.restaurantPhone || "");
+      setRestaurantAddress(s.restaurantAddress || "");
+      setCurrency(s.currency || "\u20b9");
+      setTaxRate(String(s.taxRate ?? "5"));
+      setTaxLabel(s.taxLabel || "GST");
+      setTimeZone(s.timeZone || "Asia/Kolkata");
+      setSectionSurcharges(normalizeSurcharges(s.sectionSurcharges));
+    })();
+    return () => { cancelled = true; };
+  }, [branchId]);
 
   useEffect(() => {
     if (!isAtLeast("branch_manager")) return;
