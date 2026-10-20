@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSettings } from "@/hooks/useSettings";
+import { useActiveBranch } from "@/hooks/useActiveBranch";
+import { verifyManagerPin } from "@/lib/verifyManagerPin";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -98,6 +100,7 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
 
   const { toast } = useToast();
   const { user, profile, isAtLeast } = useAuth();
+  const { branchId } = useActiveBranch();
   const settings = useSettings();
   const { methods: paymentMethods } = usePaymentMethods();
 
@@ -210,8 +213,12 @@ const CheckoutModal = ({ order, onClose, onSettled }: Props) => {
 
   const handleVoidConfirm = async (reason: string, _pin: string, wasPrepared: boolean) => {
     if (!voidingItem || !order) return;
-    if (_pin.length < 4) {
-      toast({ title: "Invalid PIN", description: "Manager PIN must be at least 4 digits", variant: "destructive" });
+    // The PIN is checked on the server against the real managers of this
+    // branch. Until now any four characters were accepted, so the prompt
+    // looked like a control but stopped nobody.
+    const pinCheck = await verifyManagerPin(_pin, branchId);
+    if (!pinCheck.ok) {
+      toast({ title: "PIN not accepted", description: pinCheck.error, variant: "destructive" });
       return;
     }
     if (voidingItem.id) {
