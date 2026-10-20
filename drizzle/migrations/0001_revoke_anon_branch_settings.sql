@@ -1,0 +1,1 @@
+REVOKE ALL ON public.branch_settings FROM anon;
