@@ -172,8 +172,36 @@ const BillingPage = () => {
       ]);
       const catMap: Record<string, string> = {};
       cats?.forEach(c => catMap[c.id] = c.name);
-      setMenuItems((items || []).map(i => ({ ...i, category: catMap[i.category_id || ""] || "Uncategorized" })));
-      setTables(tablesData || []);
+      const mapped = (items || []).map(i => ({ ...i, category: catMap[i.category_id || ""] || "Uncategorized" }));
+
+      // Keep the last menu and table list on the device. With no connection the
+      // till still shows what it is selling, instead of an empty screen.
+      const MENU_CACHE_KEY = "blennix.billing_cache.v1";
+      if (mapped.length > 0) {
+        setMenuItems(mapped);
+        setTables(tablesData || []);
+        try {
+          window.localStorage.setItem(
+            MENU_CACHE_KEY,
+            JSON.stringify({ menuItems: mapped, tables: tablesData || [] }),
+          );
+        } catch { /* storage unavailable - offline menu simply will not show */ }
+      } else {
+        let restored = false;
+        try {
+          const raw = window.localStorage.getItem(MENU_CACHE_KEY);
+          const cached = raw ? JSON.parse(raw) : null;
+          if (cached?.menuItems?.length) {
+            setMenuItems(cached.menuItems);
+            setTables(cached.tables || []);
+            restored = true;
+          }
+        } catch { /* no usable cache */ }
+        if (!restored) {
+          setMenuItems(mapped);
+          setTables(tablesData || []);
+        }
+      }
 
       const counts: Record<string, number> = {};
       (sold || []).forEach((row: any) => {
@@ -298,7 +326,16 @@ const BillingPage = () => {
     }).select("id, order_number").single();
 
     if (error || !order) {
-      toast({ title: "Error", description: error?.message || "Failed to create order", variant: "destructive" });
+      // Offline, the order cannot reach the cloud. Say so plainly rather than
+      // showing a network error the staff cannot act on.
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      toast({
+        title: offline ? "No connection" : "Error",
+        description: offline
+          ? "This order cannot be sent while the connection is down. It has not been saved."
+          : error?.message || "Failed to create order",
+        variant: "destructive",
+      });
       setPlacingOrder(false);
       return;
     }
