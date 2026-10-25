@@ -47,28 +47,63 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
 
   const fetchUserData = useCallback(async (userId: string) => {
-    const [rolesRes, profileRes] = await Promise.all([
-      supabase
-        .from("user_roles")
-        .select("role, branch_id, custom_role_name, permissions, parent_user_id, is_active")
-        .eq("user_id", userId),
-      supabase.from("profiles").select("full_name, email, avatar_url").eq("user_id", userId).single(),
-    ]);
+    // Remember who this user is, so the app still knows their role when the
+    // network is unavailable. Without this, an offline device loads the app but
+    // reports "Access Pending", because it cannot look the role up.
+    const CACHE_KEY = "blennix.auth_cache.v1";
 
-    if (rolesRes.data) {
-      setRoles(
-        rolesRes.data.map((r: any) => ({
-          role: r.role as AppRole,
-          branch_id: r.branch_id,
-          custom_role_name: r.custom_role_name ?? null,
-          permissions: r.permissions ?? [],
-          parent_user_id: r.parent_user_id ?? null,
-          is_active: r.is_active ?? true,
-        }))
-      );
+    const readCache = () => {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && parsed.userId === userId ? parsed : null;
+      } catch {
+        return null;
+      }
+    };
+
+    try {
+      const [rolesRes, profileRes] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("role, branch_id, custom_role_name, permissions, parent_user_id, is_active")
+          .eq("user_id", userId),
+        supabase.from("profiles").select("full_name, email, avatar_url").eq("user_id", userId).single(),
+      ]);
+
+      const mappedRoles = Array.isArray(rolesRes.data)
+        ? rolesRes.data.map((r: any) => ({
+            role: r.role as AppRole,
+            branch_id: r.branch_id,
+            custom_role_name: r.custom_role_name ?? null,
+            permissions: r.permissions ?? [],
+            parent_user_id: r.parent_user_id ?? null,
+            is_active: r.is_active ?? true,
+          }))
+        : null;
+
+      if (mappedRoles) setRoles(mappedRoles);
+      if (profileRes.data) setProfile(profileRes.data);
+
+      if (mappedRoles || profileRes.data) {
+        try {
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ userId, roles: mappedRoles, profile: profileRes.data ?? null }),
+          );
+        } catch {
+          /* storage unavailable - the app simply will not work offline */
+        }
+        return;
+      }
+    } catch {
+      /* no network: fall through to what we knew last time */
     }
-    if (profileRes.data) {
-      setProfile(profileRes.data);
+
+    const cached = readCache();
+    if (cached) {
+      if (Array.isArray(cached.roles)) setRoles(cached.roles);
+      if (cached.profile) setProfile(cached.profile);
     }
   }, []);
 
