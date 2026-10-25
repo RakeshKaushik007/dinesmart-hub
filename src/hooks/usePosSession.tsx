@@ -28,14 +28,38 @@ const PosSessionContext = createContext<PosSessionContextValue>({
   endSession: () => {},
 });
 
+// The chosen branch is kept in two places on purpose. sessionStorage keeps a
+// second tab independent during a shift, while localStorage means a till that
+// is closed and reopened - or opened with no internet - still knows where it is
+// working, instead of asking for a branch it cannot fetch.
 const readStored = (): PosSession | null => {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.sessionStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as PosSession;
   } catch {
     return null;
+  }
+};
+
+const writeStored = (session: PosSession) => {
+  const raw = JSON.stringify(session);
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, raw);
+    window.localStorage.setItem(STORAGE_KEY, raw);
+  } catch {
+    /* storage unavailable - the shift simply will not be remembered */
+  }
+};
+
+const clearStored = () => {
+  try {
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* nothing to clear */
   }
 };
 
@@ -71,14 +95,14 @@ export const PosSessionProvider = ({ children }: { children: React.ReactNode }) 
         user_id: user.id,
         started_at: new Date().toISOString(),
       };
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      writeStored(next);
       setSession(next);
     },
     [user]
   );
 
   const endSession = useCallback(() => {
-    window.sessionStorage.removeItem(STORAGE_KEY);
+    clearStored();
     setSession(null);
   }, []);
 
