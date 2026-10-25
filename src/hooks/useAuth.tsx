@@ -149,6 +149,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       window.sessionStorage.removeItem("blennix.pos_session.v1");
       window.sessionStorage.removeItem("blennix.pos_session.v1.pending");
+      window.localStorage.removeItem("blennix.pos_session.v1");
+      window.localStorage.removeItem("blennix.auth_cache.v1");
     } catch {
       // ignore — session storage may be unavailable
     }
