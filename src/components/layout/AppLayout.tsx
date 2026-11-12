@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import AppSidebar from "./AppSidebar";
 import FloatingAIAssistant from "@/components/ai/FloatingAIAssistant";
 import SystemBanners from "@/components/SystemBanners";
+import SyncStatus from "@/components/SyncStatus";
 
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,6 +42,7 @@ const AppLayout = () => {
 
       <main className="pt-14 md:pt-0 md:ml-64 min-h-screen">
         <div className="px-3 py-4 sm:p-6">
+          <SyncStatus />
           <SystemBanners />
           <Outlet />
         </div>
