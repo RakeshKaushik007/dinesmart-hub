@@ -29,6 +29,13 @@
       "when": 1794640035130,
       "tag": "0003_create_staff_names_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794663257515,
+      "tag": "0004_tighten_audit_and_settings_policies",
+      "breakpoints": true
     }
   ]
 }
