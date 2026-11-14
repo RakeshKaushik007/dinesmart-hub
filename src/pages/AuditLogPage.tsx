@@ -38,7 +38,7 @@ const AuditLogPage = () => {
         .gte("seated_at", dayStart)
         .lte("seated_at", dayEnd)
         .order("seated_at", { ascending: false }),
-      supabase.from("profiles").select("user_id, full_name, email"),
+      supabase.rpc("staff_names" as any),
       supabase.from("restaurant_tables").select("id, table_number"),
     ]);
 

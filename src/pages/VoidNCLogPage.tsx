@@ -59,7 +59,7 @@ const VoidNCLogPage = () => {
       const [ordersRes, profilesRes] = await Promise.all([
         supabase.from("orders").select("id, order_number").in("id", orderIds),
         staffIds.length > 0
-          ? supabase.from("profiles").select("user_id, full_name").in("user_id", staffIds)
+          ? supabase.rpc("staff_names" as any)
           : Promise.resolve({ data: [] }),
       ]);
 

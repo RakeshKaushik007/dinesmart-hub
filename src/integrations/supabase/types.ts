@@ -1505,6 +1505,14 @@ export type Database = {
       }
       run_inventory_deduction_check: { Args: never; Returns: Json }
       scan_expiry_alerts: { Args: never; Returns: undefined }
+      staff_names: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role:
