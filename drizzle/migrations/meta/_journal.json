@@ -15,6 +15,13 @@
       "when": 1792477204204,
       "tag": "0001_revoke_anon_branch_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794639213006,
+      "tag": "0002_scope_profile_manager_policies",
+      "breakpoints": true
     }
   ]
 }
